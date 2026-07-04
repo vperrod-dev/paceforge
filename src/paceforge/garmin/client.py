@@ -18,7 +18,7 @@ from garminconnect.workout import (
     create_repeat_group,
 )
 
-from paceforge.engine.analytics import _normalize_lt_speed
+from paceforge.engine.vdot import normalize_lt_speed as _normalize_lt_speed
 from paceforge.models.plan import (
     Workout,
     WorkoutStepType,

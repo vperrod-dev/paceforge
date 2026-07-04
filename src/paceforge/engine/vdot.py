@@ -184,3 +184,24 @@ RACE_DISTANCES = {
     "HALF_MARATHON": 21097.5,
     "MARATHON": 42195,
 }
+
+
+def normalize_lt_speed(raw_speed: float | None) -> float | None:
+    """Normalize Garmin LT speed to m/s.
+
+    Garmin sometimes returns LT speed in unexpected units. Valid running
+    LT speed is roughly 2.5-6.5 m/s (6:40/km to 2:34/km). If the value is
+    outside that range, try common unit conversions; return None when no
+    interpretation is credible.
+    """
+    if not raw_speed or raw_speed <= 0:
+        return None
+    if 2.0 <= raw_speed <= 7.0:  # already m/s
+        return raw_speed
+    if 200 <= raw_speed <= 700:  # cm/s
+        return raw_speed / 100
+    if raw_speed >= 2000:  # mm/s (incl. m/s*1000 stored as int)
+        return raw_speed / 1000
+    if raw_speed < 2.0 and 2.0 <= raw_speed * 10 <= 7.0:  # tenths bug
+        return raw_speed * 10
+    return None  # Unreliable — don't use

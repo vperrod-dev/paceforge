@@ -18,6 +18,7 @@ import yaml
 from paceforge.engine.vdot import (
     RACE_DISTANCES,
     TrainingPaces,
+    normalize_lt_speed,
     paces_from_race,
     paces_from_vdot,
     vdot_from_race,
@@ -475,27 +476,6 @@ def _make_long_run(factory: WorkoutFactory, lr_type: str, distance_km: float) ->
         return factory.long_run(distance_km)
 
 
-def _normalize_lt_speed(raw_speed: float | None) -> float | None:
-    """Normalize Garmin LT speed to m/s.
-
-    Garmin sometimes returns LT speed in unexpected units. Valid running
-    LT speed is roughly 2.5-6.5 m/s (6:40/km to 2:34/km).
-    """
-    if not raw_speed or raw_speed <= 0:
-        return None
-    if 2.0 <= raw_speed <= 7.0:
-        return raw_speed
-    if 200 <= raw_speed <= 700:
-        return raw_speed / 100
-    if 2000 <= raw_speed <= 7000:
-        return raw_speed / 1000
-    if raw_speed > 7000:
-        return raw_speed / 1000
-    if raw_speed < 2.0 and 2.0 <= raw_speed * 10 <= 7.0:
-        return raw_speed * 10
-    return None
-
-
 def _derive_paces(profile: UserFitnessProfile) -> tuple[TrainingPaces | None, str]:
     """Get training paces from the best available data source.
 
@@ -536,7 +516,7 @@ def _derive_paces(profile: UserFitnessProfile) -> tuple[TrainingPaces | None, st
             return paces, source
 
     # Tier 4: Lactate threshold speed (normalize units first)
-    lt_speed = _normalize_lt_speed(profile.lactate_threshold_speed)
+    lt_speed = normalize_lt_speed(profile.lactate_threshold_speed)
     if lt_speed:
         lt_distance = lt_speed * 3600
         vdot = vdot_from_race(lt_distance, 3600)
@@ -586,7 +566,7 @@ def _build_athlete_summary(profile: UserFitnessProfile, pace_source: str) -> str
     if profile.training_status:
         parts.append(f"Training status: {profile.training_status}")
     if profile.lactate_threshold_speed and profile.lactate_threshold_speed > 0:
-        lt_speed = _normalize_lt_speed(profile.lactate_threshold_speed)
+        lt_speed = normalize_lt_speed(profile.lactate_threshold_speed)
         if lt_speed:
             pace_sec_km = 1000 / lt_speed
             pm, ps = divmod(int(pace_sec_km), 60)

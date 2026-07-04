@@ -427,6 +427,7 @@ def fitness() -> dict:
     """Fitness 2.0 assessment: running-engine/durability, load/recovery/wellbeing,
     strength/HYROX, and the readiness-gated ranked limiters + LLM-coach contract."""
     from paceforge.engine.compliance import weekly_compliance
+    from paceforge.engine.curves import compute_pace_curves
     from paceforge.engine.durability import compute_running_metrics
     from paceforge.engine.limiters import rank_limiters
     from paceforge.engine.load import compute_load_recovery
@@ -438,13 +439,18 @@ def fitness() -> dict:
     activities = store.load_activities()
     details = store.load_all_details()
     running = compute_running_metrics(activities, details, profile)
+    running["pace_curves"] = compute_pace_curves(activities, details)
     load = compute_load_recovery(store.load_history(), activities, profile,
                                  rpe_map=store.rpe_by_activity())
     hyrox_data = store.load_hyrox_results()
     gender = _hyrox_gender()
     strength = compute_strength_hyrox(
         hyrox_data, store.load_benchmarks(), profile, activities, details, gender=gender)
-    limiters = rank_limiters(running, load, strength, profile_vo2max=profile.vo2_max)
+    # Effective VO2max (per-run, conditions-adjusted) beats the raw Garmin value
+    # as the coach's fitness signal; fall back to the profile figure.
+    eff = running.get("effective_vo2max") or {}
+    vo2_for_coach = eff.get("current") if eff.get("available") else profile.vo2_max
+    limiters = rank_limiters(running, load, strength, profile_vo2max=vo2_for_coach)
     plan = store.load_plan()
     compliance = weekly_compliance(plan, activities) if plan else None
     return {"running": running, "load": load, "strength": strength,

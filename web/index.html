@@ -1393,7 +1393,36 @@ function renderDurability(f) {
       ${metricCard('Best HRR60', (hrr.best_hrr60 != null ? hrr.best_hrr60 + ' bpm' : '—'), '>30 = strong', gradeColor(hrr.grade))}
       ${metricCard('Pacing', (pac.tendency || '—'), pac.mean_ratio ? 'ratio ' + pac.mean_ratio : '', pac.tendency === 'positive' ? 'var(--rose)' : 'var(--emerald)')}
     </div>`) : '';
-  return (decCard + compCard + distCard + hrrCard) || emptyState('Durability metrics need run time-series', 'They appear after a sync.');
+  const curves = r.pace_curves || {};
+  const curveCard = curves.available ? fxCard('Pace curve — fresh vs fatigued', icons.run, `
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="padding:5px 8px;text-align:left;font-size:.72rem;color:var(--text-3)">Duration</th>
+        <th style="padding:5px 8px;text-align:right;font-size:.72rem;color:var(--text-3)">Best (90d)</th>
+        <th style="padding:5px 8px;text-align:right;font-size:.72rem;color:var(--text-3)">Fatigued (>${curves.fatigue_onset_min}min in)</th>
+        <th style="padding:5px 8px;text-align:right;font-size:.72rem;color:var(--text-3)">Fatigue cost</th>
+      </tr></thead><tbody>
+      ${(curves.durations || []).filter(d => curves.recent_90d[d]).map(d => {
+        const cost = (curves.fatigue_cost_pct || {})[d];
+        const costCol = cost == null ? 'var(--text-3)' : cost <= 3 ? 'var(--emerald)' : cost <= 8 ? 'var(--amber)' : 'var(--rose)';
+        return `<tr>
+          <td style="padding:5px 8px;font-size:.82rem">${d < 60 ? d + 's' : (d / 60) + ' min'}</td>
+          <td style="padding:5px 8px;font-family:var(--font-m);font-size:.82rem;text-align:right">${formatPace(curves.recent_90d[d])}/km</td>
+          <td style="padding:5px 8px;font-family:var(--font-m);font-size:.82rem;text-align:right;color:var(--text-2)">${curves.fatigued_90d[d] ? formatPace(curves.fatigued_90d[d]) + '/km' : '—'}</td>
+          <td style="padding:5px 8px;font-family:var(--font-m);font-size:.82rem;text-align:right;font-weight:600;color:${costCol}">${cost != null ? '+' + cost + '%' : '—'}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table></div>
+    <div class="hint" style="margin-top:8px">Best pace held for each duration over the last 90 days (${curves.runs_used} runs). The fatigued column only counts efforts starting deep into a session — your compromised-running capacity. Small gaps = durable engine.</div>`) : '';
+  const ev = r.effective_vo2max || {};
+  const evCard = ev.available ? fxCard('Effective VO₂max (what your runs imply)', icons.spark, `
+    <div class="fx-grid">
+      ${metricCard('Current', ev.current ?? '—', 'per-run, conditions-adjusted', 'var(--sky)')}
+      ${metricCard('Trend', (ev.trend_per_week > 0.05 ? '↑ improving' : ev.trend_per_week < -0.05 ? '↓ declining' : 'flat'), `${ev.n} runs · ${ev.window_weeks}w`, ev.trend_per_week > 0.05 ? 'var(--emerald)' : ev.trend_per_week < -0.05 ? 'var(--rose)' : 'var(--text-2)')}
+    </div>
+    ${_trendChart(ev.series, 'ewma', { color: 'var(--sky)', fmt: v => v.toFixed(1) })}
+    <div class="hint" style="margin-top:6px">Estimated from pace-vs-HR on every ordinary run (heat-adjusted). The trend matters more than the number — it blends fitness with running economy.</div>`) : '';
+  return (curveCard + evCard + decCard + compCard + distCard + hrrCard) || emptyState('Durability metrics need run time-series', 'They appear after a sync.');
 }
 function hrZoneLikeBar(label, pct, color) {
   pct = pct || 0;
@@ -2460,7 +2489,21 @@ async function renderActivityDetail(container, act, { onBack } = {}) {
   try { plan = await planStore.get(); } catch {}
   const match = matchedWorkout(plan, id);
   const w = detail && detail.weather;
-  const sub = `${escHtml(act.activity_type || '')}${act.start_time ? ' · ' + new Date(act.start_time).toLocaleString() : ''}${w && w.temp_c != null ? ` · ${Math.round(w.temp_c)}°C${w.desc ? ' ' + escHtml(w.desc) : ''}` : ''}`;
+  // Conditions-adjusted pace (mirror of engine/enviro.py) — what the run was
+  // "worth" in neutral weather, so hot days aren't misread as bad days.
+  let adjNote = '';
+  if (w && w.temp_c != null && act.avg_pace_sec_per_km) {
+    let eff = w.temp_c + (w.humidity > 60 ? (w.humidity - 60) / 10 : 0);
+    const bands = [[15, 0.002], [22, 0.003], [28, 0.005]];
+    let cost = 0;
+    bands.forEach(([th, per], i) => {
+      const upper = bands[i + 1] ? bands[i + 1][0] : Infinity;
+      if (eff > th) cost += (Math.min(eff, upper) - th) * per;
+    });
+    const factor = Math.min(1 + cost, 1.12);
+    if (factor > 1.005) adjNote = ` · conditions-adjusted ${formatPace(act.avg_pace_sec_per_km / factor)}/km`;
+  }
+  const sub = `${escHtml(act.activity_type || '')}${act.start_time ? ' · ' + new Date(act.start_time).toLocaleString() : ''}${w && w.temp_c != null ? ` · ${Math.round(w.temp_c)}°C${w.desc ? ' ' + escHtml(w.desc) : ''}` : ''}${adjNote}`;
   container.innerHTML = `<div class="fade-in">
     <div class="detail-head">
       ${onBack ? `<button class="btn btn-ghost btn-sm" data-back>${icons.back} Back</button>` : ''}
