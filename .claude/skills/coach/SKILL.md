@@ -106,11 +106,25 @@ the time breakdown. To review a race:
 ## Weekly review → `week-review.md`
 1. `paceforge sync`, then read `data/activities.json`, `data/profile.json` and `data/fitness.json`.
 2. `paceforge analyze` for legacy metrics; the limiters/assessment come from `data/fitness.json`.
-3. For each completed workout, compare planned vs actual (distance, pace, HR, cadence).
+3. **Plan-vs-actual is precomputed — don't re-derive it.** Each workout's
+   `completion_metrics` (in `data/plan.json`) carries the TrainingPeaks-style band
+   (`green` 80–120% of planned volume · `yellow` · `orange` · `red` = missed) plus
+   planned/actual km & min; `data/fitness.json` `compliance` has the weekly rollup
+   (per-week `compliance_pct`, band counts, and `unplanned` sessions). Cite the bands;
+   add pace/HR/cadence colour from the activity details only where it changes the story.
 4. Write `week-review.md` with these sections: **Headline diagnosis** (the #1 limiter in plain
    language) · **Top limiters** (≤3, each with the metric evidence) · **This week** (1–2 named
    sessions with pace/HR targets, readiness-gated) · **This block** (theme + re-test date) ·
    **What we can't see yet** (data gaps → benchmarks to enter) · **One thing to NOT do** (a guardrail).
+
+## Session RPE → `data/rpe.json`
+The athlete rates sessions 1–10 in the dashboard (or `paceforge rpe <1-10> <activity_id>`).
+Entries land in `data/rpe.json` and are copied onto matched workouts as `user_rpe`.
+**HR-less strength/HYROX sessions only count toward training load through these** (Foster
+session-RPE, pooled into the same CTL/ATL series — see `load.per_activity[].method`).
+In reviews: cite RPE where it disagrees with HR-based load (hard-feeling easy runs are a
+recovery flag); `load.daily_load.unloaded_activities` lists sessions still missing a rating —
+nudge the athlete to rate them.
 
 ## Per-activity analysis → `data/analyses/{activity_id}.md`
 The web detail view renders a Markdown analysis per activity. Generate them so the

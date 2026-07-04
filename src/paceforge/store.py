@@ -126,6 +126,44 @@ def repair_history() -> dict:
     return {"kept": len(out), "dropped": dropped}
 
 
+def load_rpe() -> dict:
+    """Athlete-entered session RPE (data/rpe.json): {"entries": [...]}; empty if absent.
+
+    Entries carry activity_id (Garmin-recorded sessions) or just a date (unrecorded
+    ones). sRPE load for HR-less strength/HYROX work depends on these.
+    """
+    p = _path("rpe.json")
+    if not p.exists():
+        return {"entries": []}
+    try:
+        d = json.loads(p.read_text()) or {}
+        return {"entries": d.get("entries") or []}
+    except (json.JSONDecodeError, OSError):
+        return {"entries": []}
+
+
+def upsert_rpe(entry: dict) -> dict:
+    """Insert or replace one RPE entry (keyed by activity_id, else by date)."""
+    entries = load_rpe()["entries"]
+    aid = entry.get("activity_id")
+    if aid is not None:
+        entries = [e for e in entries if e.get("activity_id") != aid]
+    else:
+        entries = [e for e in entries
+                   if e.get("activity_id") is not None or e.get("date") != entry.get("date")]
+    entries.append(entry)
+    entries.sort(key=lambda e: str(e.get("date") or ""))
+    data = {"entries": entries}
+    _write(_path("rpe.json"), json.dumps(data, indent=2))
+    return data
+
+
+def rpe_by_activity() -> dict[int, dict]:
+    """RPE entries keyed by activity_id (date-only entries excluded)."""
+    return {e["activity_id"]: e for e in load_rpe()["entries"]
+            if e.get("activity_id") is not None}
+
+
 def load_token_meta() -> dict | None:
     """Garmin token provenance (data/token-meta.json) — written by ``login()``."""
     p = _path("token-meta.json")

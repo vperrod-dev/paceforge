@@ -38,7 +38,8 @@ def _available(block) -> bool:
     return _g(block or {}, "availability") == "ok"
 
 
-def rank_limiters(running: dict, load: dict, strength: dict, *, goal: str = "HYROX") -> dict:
+def rank_limiters(running: dict, load: dict, strength: dict, *, goal: str = "HYROX",
+                  profile_vo2max: float | None = None) -> dict:
     """Score candidate limiters, readiness-gate, return top-3 + the coach contract."""
     running, load, strength = running or {}, load or {}, strength or {}
     cands: list[Limiter] = []
@@ -156,7 +157,7 @@ def rank_limiters(running: dict, load: dict, strength: dict, *, goal: str = "HYR
                 "decoupling_pct": dec.get("average_pct"),
                 "compromised_fade_pct": fade,
                 "critical_speed_pace": _g(running, "critical_speed", "cs_pace_sec_per_km"),
-                "vo2max": None,
+                "vo2max": profile_vo2max,
                 "ef_trend_per_week": vo2_trend,
                 "intensity_low_pct": idist.get("low_pct"),
                 "tsb": _g(load, "ctl_atl_tsb", "tsb"),

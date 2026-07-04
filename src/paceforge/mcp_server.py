@@ -63,6 +63,22 @@ def garmin_push_workout(week: int | None = None, dry_run: bool = False) -> dict:
 
 
 @mcp.tool()
+def log_rpe(rpe: int, activity_id: int | None = None, date: str | None = None,
+            duration_min: float | None = None, notes: str = "") -> dict:
+    """Record a session RPE (1-10) so HR-less strength/HYROX sessions count toward
+    training load. Key by Garmin activity_id, or by date for unrecorded sessions."""
+    return actions.log_rpe(activity_id, date, rpe=rpe, duration_min=duration_min,
+                           notes=notes, source="mcp")
+
+
+@mcp.tool()
+def get_fitness() -> dict:
+    """Fitness 2.0 assessment: durability, load/recovery, strength/HYROX, and the
+    readiness-gated ranked limiters + coach contract."""
+    return actions.fitness()
+
+
+@mcp.tool()
 def hyrox_analyze(race: dict) -> dict:
     """Analyze a HYROX race result (running fade, station breakdown vs field benchmarks).
 

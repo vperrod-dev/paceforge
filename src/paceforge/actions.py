@@ -178,16 +178,46 @@ def sync(lookback_days: int = 90, details_limit: int = 40) -> dict:
         store.save_sync_status(status)
 
 
+def log_rpe(activity_id: int | None = None, when: str | None = None, *,
+            rpe: int, duration_min: float | None = None, notes: str = "",
+            source: str = "cli") -> dict:
+    """Record a session RPE (1-10). Keyed by activity_id, or by date for sessions
+    the watch didn't record. HR-less strength/HYROX work only counts toward
+    training load through these entries (Foster session-RPE)."""
+    if not 1 <= int(rpe) <= 10:
+        raise RuntimeError("RPE must be 1-10.")
+    entry_date = when
+    if activity_id is not None:
+        act = next((a for a in store.load_activities() if a.activity_id == activity_id), None)
+        if act is None:
+            raise RuntimeError(f"Unknown activity {activity_id} — sync first.")
+        entry_date = entry_date or str(act.start_time)[:10]
+        if duration_min is None and act.duration_seconds:
+            duration_min = round(act.duration_seconds / 60, 1)
+    if entry_date is None:
+        raise RuntimeError("Provide an activity_id or a date.")
+    if activity_id is None and not duration_min:
+        raise RuntimeError("Date-only entries need duration_min to compute load.")
+    entry = {"activity_id": activity_id, "date": str(entry_date), "rpe": int(rpe),
+             "duration_min": duration_min, "notes": notes or None, "source": source}
+    store.upsert_rpe(entry)
+    matched = _match_plan()  # copies RPE onto the matched workout
+    return {"saved": entry, "entries": len(store.load_rpe()["entries"]),
+            "matched_workouts": matched}
+
+
 def _match_plan() -> int:
-    """Re-match stored activities to the active plan's workouts. Returns matched count."""
+    """Re-match stored activities to the plan and annotate plan-vs-actual compliance."""
+    from paceforge.engine.compliance import annotate_plan
     from paceforge.engine.matching import match_plan_to_activities
 
     plan = store.load_plan()
     if not plan:
         return 0
-    changed = match_plan_to_activities(plan, store.load_activities())
-    if changed:
-        store.save_plan(plan)
+    activities = store.load_activities()
+    changed = match_plan_to_activities(plan, activities, rpe_map=store.rpe_by_activity())
+    annotate_plan(plan, activities)
+    store.save_plan(plan)
     return changed
 
 
@@ -374,6 +404,7 @@ def analyze() -> dict:
 def fitness() -> dict:
     """Fitness 2.0 assessment: running-engine/durability, load/recovery/wellbeing,
     strength/HYROX, and the readiness-gated ranked limiters + LLM-coach contract."""
+    from paceforge.engine.compliance import weekly_compliance
     from paceforge.engine.durability import compute_running_metrics
     from paceforge.engine.limiters import rank_limiters
     from paceforge.engine.load import compute_load_recovery
@@ -385,11 +416,15 @@ def fitness() -> dict:
     activities = store.load_activities()
     details = store.load_all_details()
     running = compute_running_metrics(activities, details, profile)
-    load = compute_load_recovery(store.load_history(), activities, profile)
+    load = compute_load_recovery(store.load_history(), activities, profile,
+                                 rpe_map=store.rpe_by_activity())
     strength = compute_strength_hyrox(
         store.load_hyrox_results(), store.load_benchmarks(), profile, activities, details)
-    limiters = rank_limiters(running, load, strength)
-    return {"running": running, "load": load, "strength": strength, **limiters}
+    limiters = rank_limiters(running, load, strength, profile_vo2max=profile.vo2_max)
+    plan = store.load_plan()
+    compliance = weekly_compliance(plan, activities) if plan else None
+    return {"running": running, "load": load, "strength": strength,
+            "compliance": compliance, **limiters}
 
 
 # ── HYROX race import (results.hyrox.com) ────────────────────────────

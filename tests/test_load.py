@@ -298,3 +298,44 @@ class TestComputeLoadRecovery:
         assert g["training_status"] == "Productive"
         assert g["training_status_label"] is not None
         assert g["training_readiness"] == 65.0
+
+
+class TestSRPEFallback:
+    def test_hrless_strength_with_rpe_contributes_load(self):
+        strength = FakeActivity(1, _DAY0, 3600, 0, avg_hr=None,
+                                activity_type="strength_training")
+        from paceforge.engine.load import compute_daily_load
+        out = compute_daily_load([strength], 50, 190, rpe_map={1: {"rpe": 7}})
+        assert out["availability"] == "ok"
+        entry = out["per_activity"][0]
+        assert entry["method"] == "srpe" and entry["trimp"] > 0
+        assert out["unloaded_activities"] == []
+
+    def test_hrless_without_rpe_is_reported_unloaded(self):
+        strength = FakeActivity(1, _DAY0, 3600, 0, avg_hr=None,
+                                activity_type="strength_training")
+        from paceforge.engine.load import compute_daily_load
+        out = compute_daily_load([strength], 50, 190)
+        assert out["per_activity"] == []
+        assert out["unloaded_activities"][0]["activity_id"] == 1
+
+    def test_mixed_day_sums_trimp_and_srpe(self):
+        run = FakeActivity(1, _DAY0, 3600, 10000, avg_hr=150)
+        strength = FakeActivity(2, _DAY0.replace(hour=18), 3600, 0, avg_hr=None,
+                                activity_type="strength_training")
+        from paceforge.engine.load import compute_daily_load
+        out = compute_daily_load([run, strength], 50, 190, rpe_map={2: {"rpe": 7}})
+        methods = {e["method"] for e in out["per_activity"]}
+        assert methods == {"trimp", "srpe"}
+        day_total = out["series"][0]["load"]
+        assert day_total > max(e["trimp"] for e in out["per_activity"])
+
+    def test_srpe_calibration_is_in_trimp_ballpark(self):
+        # 60-min RPE-7 strength ≈ 60-min steady HR run within a factor of ~1.5.
+        run = FakeActivity(1, _DAY0, 3600, 10000, avg_hr=150)
+        strength = FakeActivity(2, _DAY0 + timedelta(days=1), 3600, 0, avg_hr=None,
+                                activity_type="strength_training")
+        from paceforge.engine.load import compute_daily_load
+        out = compute_daily_load([run, strength], 50, 190, rpe_map={2: {"rpe": 7}})
+        trimp, srpe = (e["trimp"] for e in out["per_activity"])
+        assert 0.6 < srpe / trimp < 1.6

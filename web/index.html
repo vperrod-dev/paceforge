@@ -695,6 +695,58 @@ async function pushWeekToGarmin(weekNumber, btn) {
   });
 }
 
+// ── ACTION 2b: Log session RPE (workflow_dispatch save-rpe.yml) ──
+// HR-less strength/HYROX sessions only count toward training load via these.
+async function saveRpe(entry) {
+  if (!requireToken()) throw new Error('GitHub token required');
+  const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/save-rpe.yml/dispatches`, {
+    method: 'POST', headers: ghHeaders(),
+    body: JSON.stringify({ ref: REF, inputs: { data: JSON.stringify(entry) } }),
+  });
+  if (res.status !== 204) throw new Error(await ghError(res));
+  // Optimistic local cache so the pills stay lit until the next data deploy.
+  try {
+    const pending = JSON.parse(localStorage.getItem('pf_rpe_pending') || '{}');
+    pending[entry.activity_id ?? entry.date] = entry;
+    localStorage.setItem('pf_rpe_pending', JSON.stringify(pending));
+  } catch {}
+}
+
+async function rpeForActivity(activityId) {
+  try {
+    const pending = JSON.parse(localStorage.getItem('pf_rpe_pending') || '{}');
+    if (pending[activityId]) return pending[activityId].rpe;
+  } catch {}
+  const data = await loadJSON('rpe.json').catch(() => ({ entries: [] }));
+  const e = (data.entries || []).find(e => e.activity_id === activityId);
+  return e ? e.rpe : null;
+}
+
+function rpeSelectorHtml(activityId, current) {
+  return `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:8px">Effort (RPE)</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" data-rpe-for="${activityId}">
+      ${Array.from({ length: 10 }, (_, i) => i + 1).map(n =>
+        `<button class="btn btn-sm ${current === n ? 'btn-primary' : 'btn-outline'}" data-rpe="${n}">${n}</button>`).join('')}
+    </div>
+    <div class="hint" style="margin-top:6px">1 = very easy · 10 = max effort. Rating strength/HYROX sessions makes them count in your training load.</div>
+  </div>`;
+}
+
+function bindRpeSelector(root, meta) {
+  root.querySelectorAll('[data-rpe-for]').forEach(box => {
+    box.querySelectorAll('[data-rpe]').forEach(b => b.addEventListener('click', async () => {
+      const rpe = Number(b.dataset.rpe);
+      try {
+        await saveRpe({ activity_id: Number(box.dataset.rpeFor), date: meta.date, rpe,
+                        duration_min: meta.durationMin || null });
+        box.querySelectorAll('[data-rpe]').forEach(x => { x.classList.remove('btn-primary'); x.classList.add('btn-outline'); });
+        b.classList.remove('btn-outline'); b.classList.add('btn-primary');
+        toast('ok', 'RPE saved', `Effort ${rpe}/10 recorded — appears in the data after the next site build.`);
+      } catch (e) { toast('err', 'RPE not saved', e.message); }
+    }));
+  });
+}
+
 // ── ACTION 3: Generate / adapt plan (opens a GitHub issue → Claude coach) ──
 function openCoachModal(prefillWeek) {
   if (!requireToken()) return;
@@ -1755,11 +1807,17 @@ function drawWeek(plan) {
   const infoEl = document.getElementById('week-info');
   if (infoEl) {
     const done = planned.filter(({ wo }) => wo.completed).length;
+    // Week compliance: % of scored (past) sessions that landed green.
+    const scored = planned.filter(({ wo }) => wo.completion_metrics && CM_BANDS[wo.completion_metrics.status]);
+    const green = scored.filter(({ wo }) => wo.completion_metrics.status === 'green').length;
+    const compliancePct = scored.length ? Math.round(100 * green / scored.length) : null;
+    const compColor = compliancePct == null ? '' : compliancePct >= 80 ? 'var(--emerald)' : compliancePct >= 50 ? 'var(--amber)' : 'var(--rose)';
     infoEl.innerHTML = `<div class="card card-pad-sm" style="margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <div style="flex:1;min-width:160px">
         <div class="eyebrow">${escHtml(w.phase || 'Block')}${w.focus ? ' · ' + escHtml(w.focus) : ''}</div>
         <div style="font-size:.84rem;color:var(--text-2);margin-top:4px">${w.total_distance_km ? w.total_distance_km.toFixed(0) + ' km total' : ''} · ${done}/${planned.length} workouts done</div>
       </div>
+      ${compliancePct != null ? `<span class="conn-status" style="background:color-mix(in srgb,${compColor} 15%,transparent);color:${compColor}" title="sessions executed as planned (green band)"><span class="dotmark"></span>${compliancePct}% on plan</span>` : ''}
       <button class="btn btn-primary btn-sm" id="push-week">${icons.push} Push Week ${w.week_number || wi+1} to Garmin</button>
     </div>`;
     on('push-week', 'click', e => pushWeekToGarmin(w.week_number || (wi + 1), e.currentTarget));
@@ -1781,6 +1839,41 @@ function drawWeek(plan) {
   }));
 }
 
+// TrainingPeaks-style plan-vs-actual bands (engine/compliance.py writes these).
+const CM_BANDS = {
+  green:  { color: 'var(--emerald)', label: 'on plan' },
+  yellow: { color: 'var(--amber)',   label: 'off plan' },
+  orange: { color: '#f97316',        label: 'way off' },
+  red:    { color: 'var(--rose)',    label: 'missed' },
+};
+
+function complianceBadge(wo) {
+  const cm = wo.completion_metrics;
+  const band = cm && CM_BANDS[cm.status];
+  if (!band) return '';
+  const pct = cm.ratio != null ? Math.round(cm.ratio * 100) + '%' : band.label;
+  return `<span class="chip" style="background:color-mix(in srgb,${band.color} 15%,transparent);color:${band.color}" title="plan vs actual: ${band.label}">${pct}</span>`;
+}
+
+function complianceHtml(cm) {
+  if (!cm || !CM_BANDS[cm.status]) return '';
+  const band = CM_BANDS[cm.status];
+  if (cm.status === 'red') {
+    return `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Versus the plan</div>
+      <div style="color:${band.color};font-weight:600;font-size:.86rem">Missed — no matching activity</div></div>`;
+  }
+  const line = (planned, actual, unit) => planned != null || actual != null
+    ? `${actual != null ? actual : '—'} of ${planned != null ? planned : '—'} ${unit}` : null;
+  const km = line(cm.planned_km, cm.actual_km, 'km');
+  const min = line(cm.planned_min, cm.actual_min, 'min');
+  return `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Versus the plan</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.86rem">
+      <span class="chip" style="background:color-mix(in srgb,${band.color} 15%,transparent);color:${band.color}">${cm.ratio != null ? Math.round(cm.ratio * 100) + '% · ' : ''}${band.label}</span>
+      ${km ? `<span style="color:var(--text-2)">${km}</span>` : ''}
+      ${min ? `<span style="color:var(--text-2)">${min}</span>` : ''}
+    </div></div>`;
+}
+
 function workoutCardHtml(wo, wkIdx, woIdx) {
   const color = woColor(wo.workout_type);
   const dist = wo.estimated_distance_meters ? (wo.estimated_distance_meters/1000).toFixed(1) + ' km' : '';
@@ -1788,7 +1881,7 @@ function workoutCardHtml(wo, wkIdx, woIdx) {
   return `<div class="card card-pad-sm" style="display:flex;align-items:center;gap:14px">
     <div class="act-bar" style="background:${color};min-height:42px"></div>
     <div class="act-info" data-open-wo="${wkIdx}:${woIdx}" style="cursor:pointer">
-      <div class="act-name">${escHtml(wo.name || 'Workout')}</div>
+      <div class="act-name">${escHtml(wo.name || 'Workout')} ${complianceBadge(wo)}</div>
       <div class="act-meta">${wo.scheduled_date || ''}${dist ? ' · ' + dist : ''}${dur ? ' · ~' + dur : ''}</div>
       ${wo.purpose ? `<div class="act-meta" style="color:var(--text-3)">${escHtml(wo.purpose.replace(/_/g,' '))}</div>` : ''}
     </div>
@@ -1816,18 +1909,9 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
     }
     stepsHtml += '</div>';
   }
-  let metricsHtml = '';
-  if (wo.completed && wo.completion_metrics) {
-    const cm = wo.completion_metrics;
-    metricsHtml = `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Completion Data</div><div class="detail-grid">
-      ${detailItem(cm.distance_meters ? (cm.distance_meters/1000).toFixed(2) : '—', 'Distance')}
-      ${detailItem(cm.duration_seconds ? formatSeconds(cm.duration_seconds) : '—', 'Duration')}
-      ${detailItem(cm.avg_pace_sec_per_km ? formatPace(cm.avg_pace_sec_per_km) : '—', 'Pace')}
-      ${detailItem(cm.avg_hr || '—', 'Avg HR')}
-      ${detailItem(cm.max_hr || '—', 'Max HR')}
-      ${detailItem(cm.calories || '—', 'Calories')}
-    </div></div>`;
-  }
+  const metricsHtml = complianceHtml(wo.completion_metrics);
+  const matchedId = (wo.matched_activity_ids || [])[0];
+  const rpeHtml = matchedId ? rpeSelectorHtml(matchedId, wo.user_rpe || null) : '';
 
   const editable = wkIdx != null && woIdx != null;
   openModal(`
@@ -1841,6 +1925,7 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
     ${wo.description ? `<div style="font-size:.88rem;color:var(--text-2);line-height:1.55;margin-bottom:8px">${escHtml(wo.description)}</div>` : ''}
     ${stepsHtml}
     ${metricsHtml}
+    ${rpeHtml}
     ${editable ? `
       <div style="margin-top:18px;border-top:1px solid var(--border-s);padding-top:16px">
         <div class="field">
@@ -1857,6 +1942,22 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
         </div>
       </div>` : (wo.notes ? `<div style="margin-top:12px;font-size:.84rem;color:var(--text-3)">${escHtml(wo.notes)}</div>` : '')}
   `);
+
+  if (matchedId) {
+    const modal = document.querySelector('.modal') || document;
+    bindRpeSelector(modal, {
+      date: wo.scheduled_date,
+      durationMin: (wo.completion_metrics && wo.completion_metrics.actual_min) || null,
+    });
+    // Async-refresh the highlighted pill from rpe.json + the pending cache.
+    rpeForActivity(matchedId).then(r => {
+      if (!r) return;
+      modal.querySelectorAll(`[data-rpe-for="${matchedId}"] [data-rpe]`).forEach(b => {
+        b.classList.toggle('btn-primary', Number(b.dataset.rpe) === r);
+        b.classList.toggle('btn-outline', Number(b.dataset.rpe) !== r);
+      });
+    });
+  }
 
   if (editable) {
     on('wo-toggle', 'click', async () => {
@@ -2002,6 +2103,7 @@ async function renderCalendar(page) {
           type: matchedAct ? 'activity' : 'planned',
           title: (wo.completed ? '✓ ' : '○ ') + (wo.name || 'Workout'), sub,
           color: colorForWorkout(wo.workout_type), wo, activity: matchedAct,
+          cmStatus: wo.completion_metrics ? wo.completion_metrics.status : null,
         });
       }
     }
@@ -2010,7 +2112,11 @@ async function renderCalendar(page) {
   function dayCell(d, ds, todayStr) {
     const entries = calEntries[ds] || [];
     const dots = entries.slice(0, 4).map(e => `<span class="cal-dot" style="background:${e.color}"></span>`).join('');
-    return `<div class="cal-day ${ds === todayStr ? 'today' : ''}" data-date="${ds}"><div class="cal-num">${d}</div><div class="cal-dots">${dots}</div></div>`;
+    // Plan-vs-actual ring: worst band among the day's scored sessions wins.
+    const order = ['red', 'orange', 'yellow', 'green'];
+    const worst = order.find(s => entries.some(e => e.cmStatus === s));
+    const ring = worst ? `style="box-shadow:inset 0 0 0 2px ${CM_BANDS[worst].color}"` : '';
+    return `<div class="cal-day ${ds === todayStr ? 'today' : ''}" data-date="${ds}" ${ring}><div class="cal-num">${d}</div><div class="cal-dots">${dots}</div></div>`;
   }
 
   function drawMonth() {
@@ -2361,11 +2467,23 @@ async function renderActivityDetail(container, act, { onBack } = {}) {
       <div><div class="detail-h-title">${escHtml(act.name || 'Activity')}</div><div class="detail-h-sub">${sub}</div></div>
     </div>
     ${activityDetailBody(act, detail, analysisMd, match)}
+    ${rpeSelectorHtml(id, null)}
   </div>`;
   const ab = container.querySelector('#act-analyze');
   if (ab) ab.addEventListener('click', () => analyzeActivityWithCoach(act, ab));
   const bb = container.querySelector('[data-back]');
   if (bb && onBack) bb.addEventListener('click', onBack);
+  bindRpeSelector(container, {
+    date: act.start_time ? String(act.start_time).slice(0, 10) : null,
+    durationMin: act.duration_seconds ? Math.round(act.duration_seconds / 60 * 10) / 10 : null,
+  });
+  rpeForActivity(id).then(r => {
+    if (!r) return;
+    container.querySelectorAll(`[data-rpe-for="${id}"] [data-rpe]`).forEach(b => {
+      b.classList.toggle('btn-primary', Number(b.dataset.rpe) === r);
+      b.classList.toggle('btn-outline', Number(b.dataset.rpe) !== r);
+    });
+  });
 }
 
 // Open an activity as a full page (replaces the modal). Back returns to the prior tab.
@@ -2396,18 +2514,7 @@ function workoutDetailBody(wo) {
     }
     stepsHtml += '</div>';
   }
-  let metricsHtml = '';
-  if (wo.completed && wo.completion_metrics) {
-    const cm = wo.completion_metrics;
-    metricsHtml = `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Completion Data</div><div class="detail-grid">
-      ${detailItem(cm.distance_meters ? (cm.distance_meters / 1000).toFixed(2) : '—', 'Distance')}
-      ${detailItem(cm.duration_seconds ? formatSeconds(cm.duration_seconds) : '—', 'Duration')}
-      ${detailItem(cm.avg_pace_sec_per_km ? formatPace(cm.avg_pace_sec_per_km) : '—', 'Pace')}
-      ${detailItem(cm.avg_hr || '—', 'Avg HR')}
-      ${detailItem(cm.max_hr || '—', 'Max HR')}
-      ${detailItem(cm.calories || '—', 'Calories')}
-    </div></div>`;
-  }
+  const metricsHtml = complianceHtml(wo.completion_metrics);
   return `
     ${wo.description ? `<div style="font-size:.88rem;color:var(--text-2);line-height:1.55;margin-bottom:8px">${escHtml(wo.description)}</div>` : ''}
     ${stepsHtml}
