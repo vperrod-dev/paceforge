@@ -71,3 +71,16 @@ class TestGarminStepConversion:
         step = WorkoutStep(step_type=WorkoutStepType.COOLDOWN, duration_seconds=600)
         result = _to_garmin_step(step, order=3)
         assert result.stepOrder == 3
+
+
+class TestSportInference:
+    def test_hyrox_and_station_workouts_push_as_fitness_equipment(self):
+        from paceforge.garmin.client import _sport_for
+        from paceforge.models.plan import Workout, WorkoutType
+
+        brick = Workout(name="Brick", workout_type=WorkoutType.HYROX_MIXED)
+        stations = Workout(name="Stations", workout_type=WorkoutType.CROSS_TRAINING)
+        run = Workout(name="Easy", workout_type=WorkoutType.EASY_RUN)
+        assert _sport_for(brick)["sportTypeKey"] == "fitness_equipment"
+        assert _sport_for(stations)["sportTypeKey"] == "fitness_equipment"
+        assert _sport_for(run)["sportTypeKey"] == "running"

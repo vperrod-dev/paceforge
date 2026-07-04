@@ -62,8 +62,12 @@ def test_station_percentile_flags_slow_station_as_weakest():
     assert out["weakest_3"][0] == "SkiErg_1000m"
 
 
-def test_station_at_median_is_fiftieth_percentile():
-    splits = _even_runs() + _all_station_medians()
+def test_station_at_cohort_average_is_fiftieth_percentile():
+    # Medians now come from the shared cohort benchmarks (Men/Open field averages).
+    from paceforge.hyrox.benchmarks import get_benchmarks
+
+    field = get_benchmarks("M")["field_avg"]
+    splits = _even_runs() + [_split("Row_1000m", field["Row_1000m"])]
     out = compute_station_percentiles([_race(splits)])
     assert out["stations"]["Row_1000m"]["percentile"] == 50.0
 

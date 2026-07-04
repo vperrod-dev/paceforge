@@ -60,6 +60,24 @@ Editing the plan = edit `data/plan.json` (move a workout's `scheduled_date`, swa
 type), `paceforge validate`, update `plan.md`, then `paceforge push` to re-upload the
 changed week (it deletes and re-creates the week's Garmin workouts to avoid dupes).
 
+For the routine cases run **`paceforge adapt --dry-run`** first: it deterministically
+(a) moves this week's missed quality session onto a later easy slot when spacing rules
+survive (drops it with a note when they don't — never cram), and (b) downgrades the
+next hard session to easy when the readiness composite is low or yesterday was rated
+RPE ≥ 9. Review the reported changes, drop `--dry-run` to apply, then push. You stay
+the judgement layer — override it when the athlete's context says otherwise.
+
+## HYROX training sessions (scaffolded, not free-text)
+A `--goal HYROX` scaffold now emits structured hybrid sessions: **compromised bricks**
+(`WorkoutFactory.hyrox_compromised_brick` — station effort + 1km repeats), **race
+simulations** (`hyrox_race_simulation`) and a weekly **station-strength day**
+(`station_day`, `cross_training`) that auto-targets the 2 weakest stations from
+`data/hyrox_analysis.json` `priorities` (`train_priority: true` = >60s over the
+athlete's own division/age benchmark, or a 2-weakest station). Keep these when
+personalising; they push to Garmin as structured workouts (cardio sport with a
+running-type fallback). Race analysis is cohort-aware — cite `benchmark_cohort`
+so the athlete knows "vs field" means *their* field.
+
 ## Fitness assessment & limiters → read `data/fitness.json`
 `scripts/build_site_data.py` runs `actions.fitness()`, which writes the full Fitness 2.0
 assessment (running engine/durability, load/recovery, strength/HYROX) plus a ranked

@@ -22,6 +22,7 @@ INTENSE_TYPES: frozenset[WorkoutType] = frozenset({
     WorkoutType.SPEED,
     WorkoutType.FARTLEK,
     WorkoutType.PROGRESSIVE,
+    WorkoutType.HYROX_MIXED,  # bricks/simulations are quality work, not easy days
 })
 
 MAX_WEEKLY_RAMP = 0.15  # >15% week-over-week build is injury territory

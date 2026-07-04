@@ -2834,6 +2834,7 @@ function hyroxDetailBody(r, coachMd, pastAvg = {}) {
     </tr>`;
   }).join('');
   const table = fxCard('Every split vs the field', icons.hyrox, `
+    ${r.benchmark_cohort ? `<div class="hint" style="margin-bottom:8px">Benchmarks: <b>vs your division — ${escHtml(r.benchmark_cohort)}</b>${r.benchmark_source && r.benchmark_source !== 'men_open_s7s8' ? ' (scaled from Men/Open season 7-8 data)' : ' (season 7-8 measured data)'}</div>` : ''}
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr style="border-bottom:1px solid var(--border)">
         <th style="padding:6px 8px;text-align:left;font-size:.72rem;color:var(--text-3)">Split</th>

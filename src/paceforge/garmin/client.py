@@ -35,6 +35,21 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TOKEN_DIR = "~/.garminconnect"
 
+# Structured-workout sport types. Running is the default; HYROX bricks and
+# station days go up as fitness_equipment (Garmin's cardio/strength sport) with
+# an automatic fall-back to running if the account/API rejects it.
+_RUNNING_SPORT = {"sportTypeId": 1, "sportTypeKey": "running"}
+_FITNESS_SPORT = {"sportTypeId": 6, "sportTypeKey": "fitness_equipment"}
+_SPORT_BY_WORKOUT_TYPE = {
+    "hyrox_mixed": _FITNESS_SPORT,
+    "cross_training": _FITNESS_SPORT,
+}
+
+
+def _sport_for(workout: Workout) -> dict:
+    return _SPORT_BY_WORKOUT_TYPE.get(str(workout.workout_type), _RUNNING_SPORT)
+
+
 # Garmin's numeric training-status codes (device DTO). 8 ("Strained") appears on
 # newer firmware; unmapped codes fall through as their raw string.
 _STATUS_MAP = {
@@ -753,35 +768,50 @@ class GarminClient:
             logger.warning("Failed to delete Garmin workout %s", workout_id, exc_info=True)
 
     def push_workout(self, workout: Workout, schedule_date: date | None = None, plan_paces: dict | None = None) -> dict:
-        """Upload a structured running workout to Garmin Connect and optionally schedule it."""
-        garmin_steps = []
-        for i, step in enumerate(workout.steps):
-            garmin_steps.append(_to_garmin_step(step, order=i + 1))
+        """Upload a structured workout to Garmin Connect and optionally schedule it.
 
-        description = _build_garmin_description(workout, plan_paces)
-
-        garmin_workout = RunningWorkout(
-            workoutName=workout.name,
-            description=description,
-            estimatedDurationInSecs=int(workout.estimated_duration_seconds or 3600),
-            workoutSegments=[
-                WorkoutSegment(
-                    segmentOrder=1,
-                    sportType={"sportTypeId": 1, "sportTypeKey": "running"},
-                    workoutSteps=garmin_steps,
-                )
-            ],
-        )
-
-        result = self.client.upload_running_workout(garmin_workout)
+        HYROX/station workouts go up as fitness_equipment (Garmin's cardio/strength
+        sport); if Garmin rejects that, we retry as a running workout with the
+        stations spelled out in the step descriptions — works on any watch.
+        """
+        sport = _sport_for(workout)
+        try:
+            result = self._upload(workout, sport, plan_paces)
+        except Exception:
+            if sport["sportTypeKey"] == "running":
+                raise
+            logger.warning("%s upload as %s rejected — retrying as running",
+                           workout.name, sport["sportTypeKey"], exc_info=True)
+            sport = _RUNNING_SPORT
+            result = self._upload(workout, sport, plan_paces)
         workout_id = result.get("workoutId")
-        logger.info("Uploaded workout %s (id=%s)", workout.name, workout_id)
+        result["sport_used"] = sport["sportTypeKey"]
+        logger.info("Uploaded workout %s (id=%s, sport=%s)",
+                    workout.name, workout_id, sport["sportTypeKey"])
 
         if schedule_date and workout_id:
             self.client.schedule_workout(workout_id, schedule_date.isoformat())
             logger.info("Scheduled workout %s on %s", workout_id, schedule_date)
 
         return result
+
+    def _upload(self, workout: Workout, sport: dict, plan_paces: dict | None) -> dict:
+        garmin_steps = [_to_garmin_step(step, order=i + 1)
+                        for i, step in enumerate(workout.steps)]
+        garmin_workout = RunningWorkout(
+            workoutName=workout.name,
+            description=_build_garmin_description(workout, plan_paces),
+            estimatedDurationInSecs=int(workout.estimated_duration_seconds or 3600),
+            sportType=sport,
+            workoutSegments=[
+                WorkoutSegment(
+                    segmentOrder=1,
+                    sportType=sport,
+                    workoutSteps=garmin_steps,
+                )
+            ],
+        )
+        return self.client.upload_running_workout(garmin_workout)
 
     # ── Weight & body composition ────────────────────────────────────
 
@@ -841,42 +871,51 @@ class GarminClient:
             logger.warning("Could not fetch body composition for %s", target_date, exc_info=True)
         return {}
 
-    def push_plan_week(self, workouts: list[Workout], plan_paces: dict | None = None) -> list[dict]:
+    def push_plan_week(self, workouts: list[Workout], plan_paces: dict | None = None) -> dict:
         """Push a list of workouts (typically one week) to Garmin Connect.
 
-        Deletes existing scheduled workouts in the date range first to
-        prevent duplicates when re-pushing after a reschedule.
+        Dedup: deletes each workout's previously-pushed Garmin copy by stored id
+        (``garmin_workout_id``), with a name+date-range sweep as the fallback for
+        workouts pushed before ids were recorded. Uploads are isolated per
+        workout — one failure doesn't abort the rest of the week. Sets
+        ``garmin_workout_id`` on each pushed workout (caller persists the plan).
         """
         active = [w for w in workouts if w.workout_type.value != "rest"]
         if not active:
-            return []
+            return {"pushed": [], "failed": []}
 
-        # Determine the date range covered by this batch
+        # Delete-by-id for previously pushed copies…
+        for w in active:
+            if w.garmin_workout_id:
+                self.delete_workout(w.garmin_workout_id)
+        # …then the legacy name+date sweep for anything pushed before ids existed.
         dates = [w.scheduled_date for w in active if w.scheduled_date]
-        if dates:
+        untracked = {w.name for w in active if not w.garmin_workout_id}
+        if dates and untracked:
             min_date, max_date = min(dates), max(dates)
-            push_names = {w.name for w in active}
             try:
-                existing = self.get_all_workouts()
-                for ex in existing:
+                for ex in self.get_all_workouts():
                     ex_date = str(ex.get("calendarDate") or "")[:10]
                     ex_id = ex.get("workoutId")
-                    ex_name = ex.get("workoutName", "")
-                    if not ex_id or not ex_date:
-                        continue
-                    if (
-                        ex_name in push_names
-                        and str(min_date) <= ex_date <= str(max_date)
-                    ):
+                    if (ex_id and ex_date and ex.get("workoutName", "") in untracked
+                            and str(min_date) <= ex_date <= str(max_date)):
                         self.delete_workout(ex_id)
             except Exception:
                 logger.warning("Could not clean up existing workouts before push", exc_info=True)
 
-        results = []
+        pushed: list[dict] = []
+        failed: list[dict] = []
         for w in active:
-            r = self.push_workout(w, schedule_date=w.scheduled_date, plan_paces=plan_paces)
-            results.append(r)
-        return results
+            try:
+                r = self.push_workout(w, schedule_date=w.scheduled_date, plan_paces=plan_paces)
+                if r.get("workoutId"):
+                    w.garmin_workout_id = int(r["workoutId"])
+                pushed.append({"name": w.name, "workout_id": r.get("workoutId"),
+                               "sport": r.get("sport_used")})
+            except Exception as e:
+                logger.warning("Push failed for %s", w.name, exc_info=True)
+                failed.append({"name": w.name, "error": f"{type(e).__name__}: {e}"})
+        return {"pushed": pushed, "failed": failed}
 
 
 def _fmt_pace(sec_per_km: float | None) -> str:

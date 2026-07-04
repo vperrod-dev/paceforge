@@ -44,6 +44,9 @@ def main(argv: list[str] | None = None) -> int:
     p_push.add_argument("--week", type=int, default=None)
     p_push.add_argument("--dry-run", action="store_true")
 
+    p_adapt = sub.add_parser("adapt", help="reflow missed sessions + readiness-gate hard work")
+    p_adapt.add_argument("--dry-run", action="store_true")
+
     for cmd, help_ in (("hyrox-search", "find your HYROX races (pick-list)"),
                        ("hyrox-import", "import chosen HYROX races with splits")):
         p = sub.add_parser(cmd, help=help_)
@@ -107,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
         elif args.cmd == "rpe":
             _emit(actions.log_rpe(args.activity_id, args.date, rpe=args.rpe,
                                   duration_min=args.duration_min, notes=args.notes))
+        elif args.cmd == "adapt":
+            _emit(actions.adapt(dry_run=args.dry_run))
         elif args.cmd == "hyrox-search":
             _emit(actions.hyrox_search(args.name, gender=args.gender, firstname=args.firstname))
         elif args.cmd == "hyrox-import":

@@ -221,6 +221,17 @@ def load_hyrox_results() -> list[dict]:
         return []
 
 
+def load_hyrox_analysis() -> dict | None:
+    """The built HYROX analysis (data/hyrox_analysis.json, from build_site_data)."""
+    p = _path("hyrox_analysis.json")
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text()) or None
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
 def load_benchmarks() -> dict | None:
     """User-entered strength/HYROX benchmarks (data/benchmarks.json); None if unset."""
     p = _path("benchmarks.json")

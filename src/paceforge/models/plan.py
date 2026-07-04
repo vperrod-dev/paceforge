@@ -87,6 +87,7 @@ class Workout(BaseModel):
     matched_activity_ids: list[int] = Field(default_factory=list, description="Garmin activity IDs matched to this workout")
     completion_analysis: str | None = Field(None, description="AI analysis of how the workout went")
     completion_metrics: dict | None = Field(None, description="Actual vs planned metrics from matched activity")
+    garmin_workout_id: int | None = Field(None, description="Garmin workout id from the last push (delete-by-id on re-push)")
 
     @model_validator(mode="before")
     @classmethod

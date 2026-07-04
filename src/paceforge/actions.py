@@ -382,7 +382,8 @@ def scaffold(goal: dict) -> dict:
     profile = store.load_profile()
     if profile is None:
         raise RuntimeError("No profile — run `paceforge sync` first.")
-    plan = generate_plan(profile, TrainingGoal.model_validate(goal))
+    plan = generate_plan(profile, TrainingGoal.model_validate(goal),
+                         hyrox_focus=_hyrox_focus_stations())
     store.save_plan(plan)
     return {
         "name": plan.name,
@@ -391,6 +392,27 @@ def scaffold(goal: dict) -> dict:
         "pace_source": plan.pace_source,
         "issues": validate_plan(plan),
     }
+
+
+def _hyrox_gender() -> str:
+    """The athlete's gender as recorded on the imported HYROX results (default M)."""
+    p = store._path("hyrox.json")
+    if p.exists():
+        import json as _json
+
+        try:
+            return _json.loads(p.read_text()).get("search_gender") or "M"
+        except Exception:
+            return "M"
+    return "M"
+
+
+def _hyrox_focus_stations() -> list | None:
+    """Weakest two non-running stations from race analysis, for session targeting."""
+    analysis = store.load_hyrox_analysis() or {}
+    stations = [p["name"] for p in analysis.get("priorities") or []
+                if not p.get("is_running") and p.get("name")]
+    return stations[:2] or None
 
 
 def analyze() -> dict:
@@ -418,8 +440,10 @@ def fitness() -> dict:
     running = compute_running_metrics(activities, details, profile)
     load = compute_load_recovery(store.load_history(), activities, profile,
                                  rpe_map=store.rpe_by_activity())
+    hyrox_data = store.load_hyrox_results()
+    gender = _hyrox_gender()
     strength = compute_strength_hyrox(
-        store.load_hyrox_results(), store.load_benchmarks(), profile, activities, details)
+        hyrox_data, store.load_benchmarks(), profile, activities, details, gender=gender)
     limiters = rank_limiters(running, load, strength, profile_vo2max=profile.vo2_max)
     plan = store.load_plan()
     compliance = weekly_compliance(plan, activities) if plan else None
@@ -557,8 +581,53 @@ def push(week: int | None = None, dry_run: bool = False) -> dict:
         "interval_pace": plan.interval_pace,
     }
     client = garmin_connect()
-    results = client.push_plan_week(workouts, plan_paces=paces)
-    return {"week": wk.week_number, "pushed": len(results), "workouts": summary}
+    result = client.push_plan_week(workouts, plan_paces=paces)
+    store.save_plan(plan)  # persist garmin_workout_id for delete-by-id on re-push
+    return {"week": wk.week_number, "pushed": len(result["pushed"]),
+            "failed": result["failed"], "workouts": summary,
+            "uploads": result["pushed"]}
+
+
+def adapt(dry_run: bool = False) -> dict:
+    """Deterministic plan adaptation: reflow missed quality sessions and
+    readiness-gate imminent hard work. The coach remains the judgement layer;
+    this gives it (and the athlete) a safe, rule-based lever."""
+    from datetime import timedelta
+
+    from paceforge.engine.adaptation import readiness_gate, reflow_missed_sessions
+    from paceforge.engine.load import compute_load_recovery
+
+    plan = store.load_plan()
+    if plan is None:
+        raise RuntimeError("No plan at data/plan.json.")
+    profile = store.load_profile()
+    if profile is None:
+        raise RuntimeError("No profile — run `paceforge sync` first.")
+
+    activities = store.load_activities()
+    load = compute_load_recovery(store.load_history(), activities, profile,
+                                 rpe_map=store.rpe_by_activity())
+    readiness = load.get("readiness_composite") or {}
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    yesterday_rpe = max(
+        (e["rpe"] for e in store.load_rpe()["entries"]
+         if str(e.get("date")) == yesterday and e.get("rpe")),
+        default=None,
+    )
+
+    changes = reflow_missed_sessions(plan)
+    changes += readiness_gate(plan, readiness, yesterday_rpe=yesterday_rpe)
+    issues = validate_plan(plan)
+    if not dry_run and changes and not issues:
+        store.save_plan(plan)
+    return {
+        "dry_run": dry_run,
+        "changes": changes,
+        "saved": bool(changes and not issues and not dry_run),
+        "validation_issues": issues,
+        "readiness": {"score": readiness.get("score"), "band": readiness.get("band")},
+        "yesterday_rpe": yesterday_rpe,
+    }
 
 
 def status() -> dict:

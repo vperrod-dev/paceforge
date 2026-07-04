@@ -103,8 +103,23 @@ def _fmt_time(secs: float | None) -> str:
     return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
 
 
-def analyze_race(result: HyroxRaceResult) -> dict:
-    """Analyze a single race result — running fade, time breakdown, comparisons."""
+def _cohort_benchmarks(result: HyroxRaceResult, gender: str = "M") -> dict:
+    """Benchmarks adjusted to the race's own division/age-group (lazy import —
+    benchmarks.py imports our base tables)."""
+    from paceforge.hyrox.benchmarks import get_benchmarks
+
+    return get_benchmarks(gender=gender, division=result.division,
+                          age_group=result.age_group)
+
+
+def analyze_race(result: HyroxRaceResult, gender: str = "M") -> dict:
+    """Analyze a single race result — running fade, time breakdown, comparisons.
+
+    Benchmarks are cohort-adjusted (gender/division/age-group) so "vs field"
+    means the athlete's OWN field, not the Men/Open average.
+    """
+    bench = _cohort_benchmarks(result, gender)
+    field_bench, top3_bench = bench["field_avg"], bench["top3_avg"]
     sd = _splits_dict(result)
 
     # Running analysis
@@ -150,8 +165,8 @@ def analyze_race(result: HyroxRaceResult) -> dict:
     split_analysis = []
     for split_name in RUNNING_SPLITS + STATION_SPLITS:
         athlete_time = sd.get(split_name)
-        field_avg = FIELD_AVG.get(split_name)
-        top3_avg = TOP3_AVG.get(split_name)
+        field_avg = field_bench.get(split_name)
+        top3_avg = top3_bench.get(split_name)
         if athlete_time is not None and field_avg:
             gap_field = round(athlete_time - field_avg, 1)
             gap_top3 = round(athlete_time - top3_avg, 1) if top3_avg else None
@@ -197,6 +212,8 @@ def analyze_race(result: HyroxRaceResult) -> dict:
         ],
         "split_analysis": split_analysis,
         "segments": _ordered_segments(result),
+        "benchmark_source": bench["source"],
+        "benchmark_cohort": bench["cohort"],
     }
 
 
@@ -231,15 +248,16 @@ def _ordered_segments(result: HyroxRaceResult) -> list[dict]:
     return segments
 
 
-def compute_training_priorities(result: HyroxRaceResult) -> list[dict]:
-    """Rank stations by improvement potential (gap vs top 3 average)."""
+def compute_training_priorities(result: HyroxRaceResult, gender: str = "M") -> list[dict]:
+    """Rank stations by improvement potential (gap vs cohort top-3 average)."""
+    bench = _cohort_benchmarks(result, gender)
     sd = _splits_dict(result)
     priorities = []
 
     for split_name in RUNNING_SPLITS + STATION_SPLITS:
         athlete_time = sd.get(split_name)
-        top3_avg = TOP3_AVG.get(split_name)
-        field_avg = FIELD_AVG.get(split_name)
+        top3_avg = bench["top3_avg"].get(split_name)
+        field_avg = bench["field_avg"].get(split_name)
 
         if athlete_time is None or top3_avg is None:
             continue
@@ -267,9 +285,15 @@ def compute_training_priorities(result: HyroxRaceResult) -> list[dict]:
     # Sort by priority score descending (biggest gaps first)
     priorities.sort(key=lambda x: x["priority_score"], reverse=True)
 
-    # Add rank
+    # Add rank + train_priority flags: >60s over the cohort benchmark, or one of
+    # the two weakest stations — the "biggest marginal gains" rule of thumb.
+    weakest_stations = [p["name"] for p in priorities if not p["is_running"]][:2]
     for i, p in enumerate(priorities):
         p["rank"] = i + 1
+        p["train_priority"] = bool(
+            (not p["is_running"] and p["gap_seconds"] > 60)
+            or p["name"] in weakest_stations
+        )
 
     return priorities
 

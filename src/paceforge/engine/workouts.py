@@ -589,6 +589,145 @@ class WorkoutFactory:
             steps=steps,
         )
 
+    # ── HYROX generators ─────────────────────────────────────────────
+    # Station names match paceforge.hyrox.models.STATION_SPLITS so weak-station
+    # priorities from race analysis can drive session focus directly.
+
+    _STATION_DISPLAY = {
+        "SkiErg_1000m": "Ski Erg 1000m", "Sled_Push_50m": "Sled Push 50m",
+        "Sled_Pull_50m": "Sled Pull 50m", "Burpee_Broad_Jump_80m": "Burpee Broad Jumps 80m",
+        "Row_1000m": "Row 1000m", "Farmers_Carry_200m": "Farmers Carry 200m",
+        "Sandbag_Lunges_100m": "Sandbag Lunges 100m", "Wall_Balls": "Wall Balls 75 reps",
+    }
+
+    def _station_name(self, station: str) -> str:
+        return self._STATION_DISPLAY.get(station, station.replace("_", " "))
+
+    def hyrox_compromised_brick(self, reps: int = 6, stations: list[str] | None = None,
+                                station_min: float = 3.0, pace_key: str = "threshold") -> Workout:
+        """Station effort + 1km run, repeated — running on tired legs is THE
+        HYROX-specific skill (race runs happen compromised, never fresh)."""
+        focus = stations or ["SkiErg_1000m", "Sled_Push_50m", "Row_1000m"]
+        rotation = ", ".join(self._station_name(s) for s in focus)
+        pace_lo, pace_hi = self._resolve_pace(pace_key)
+        run_sec = 1000 / 1000 * (pace_lo if pace_lo else 300) * reps
+        work_sec = reps * station_min * 60 + run_sec
+        dur = 10 * 60 + work_sec + 10 * 60
+        steps = [
+            self._warmup(10),
+            WorkoutStep(
+                step_type=WorkoutStepType.INTERVAL,
+                description=f"{reps} x (station effort + 1km compromised run)",
+                repeat_count=reps,
+                steps=[
+                    self._pace_step(
+                        WorkoutStepType.ACTIVE,
+                        f"{station_min:.0f} min hard station effort — rotate: {rotation}",
+                        duration_seconds=station_min * 60,
+                    ),
+                    self._pace_step(
+                        WorkoutStepType.INTERVAL,
+                        f"1 km at {pace_key} pace straight off the station",
+                        distance_meters=1000,
+                        pace_low=pace_lo,
+                        pace_high=pace_hi,
+                    ),
+                ],
+            ),
+            self._cooldown(10),
+        ]
+        return Workout(
+            workout_type=WorkoutType.HYROX_MIXED,
+            name=f"Compromised Brick — {reps}x(station + 1km)",
+            description=(
+                f"Alternate a {station_min:.0f}-min hard station effort ({rotation}) with a 1km "
+                f"run at {pace_key} pace, no rest between. Trains race-specific running on "
+                "loaded legs — hold the run pace even when the legs argue."
+            ),
+            purpose=TrainingPurpose.RACE_SPECIFICITY,
+            estimated_distance_meters=reps * 1000 + 4000,
+            estimated_duration_seconds=dur,
+            steps=steps,
+        )
+
+    def hyrox_race_simulation(self, segments: int = 4, stations: list[str] | None = None,
+                              pace_key: str = "threshold") -> Workout:
+        """Partial race rehearsal: N x (1km at race pace + full station), racing the
+        transitions too (roxzone is 'free time' — average athletes give away ~4 min)."""
+        order = stations or ["SkiErg_1000m", "Sled_Push_50m", "Burpee_Broad_Jump_80m", "Row_1000m"]
+        order = (order * ((segments // len(order)) + 1))[:segments]
+        pace_lo, pace_hi = self._resolve_pace(pace_key)
+        run_sec = segments * (pace_lo if pace_lo else 300)
+        dur = 10 * 60 + run_sec + segments * 4 * 60 + 10 * 60
+        steps: list[WorkoutStep] = [self._warmup(10)]
+        for i, station in enumerate(order, 1):
+            steps.append(self._pace_step(
+                WorkoutStepType.INTERVAL,
+                f"Run {i}: 1 km at race pace",
+                distance_meters=1000,
+                pace_low=pace_lo,
+                pace_high=pace_hi,
+            ))
+            steps.append(self._pace_step(
+                WorkoutStepType.ACTIVE,
+                f"Station {i}: {self._station_name(station)} at race effort — fast transition in/out",
+                duration_seconds=4 * 60,
+            ))
+        steps.append(self._cooldown(10))
+        return Workout(
+            workout_type=WorkoutType.HYROX_MIXED,
+            name=f"HYROX Simulation — {segments}x(1km + station)",
+            description=(
+                f"{segments} race segments at target pace with full stations: "
+                + " → ".join(self._station_name(s) for s in order)
+                + ". Practice the transitions like race day — walk nothing."
+            ),
+            purpose=TrainingPurpose.RACE_SPECIFICITY,
+            estimated_distance_meters=segments * 1000 + 4000,
+            estimated_duration_seconds=dur,
+            steps=steps,
+        )
+
+    def station_day(self, focus_stations: list[str] | None = None, sets: int = 4,
+                    work_sec: float = 90, rest_sec: float = 90) -> Workout:
+        """Structured station strength day (replaces the free-text notes day).
+        Focus defaults come from race analysis priorities — weakest stations first."""
+        focus = focus_stations or ["Sled_Push_50m", "Sled_Pull_50m", "Wall_Balls"]
+        names = [self._station_name(s) for s in focus]
+        steps: list[WorkoutStep] = [
+            self._pace_step(WorkoutStepType.WARMUP,
+                            "10 min general warmup + movement prep",
+                            duration_seconds=10 * 60),
+        ]
+        for name in names:
+            steps.append(WorkoutStep(
+                step_type=WorkoutStepType.INTERVAL,
+                description=f"{sets} x {name} — {work_sec:.0f}s hard / {rest_sec:.0f}s rest",
+                repeat_count=sets,
+                steps=[
+                    self._pace_step(WorkoutStepType.ACTIVE,
+                                    f"{name} at race effort",
+                                    duration_seconds=work_sec),
+                    self._pace_step(WorkoutStepType.REST,
+                                    "Rest — full reset",
+                                    duration_seconds=rest_sec),
+                ],
+            ))
+        steps.append(self._cooldown(5))
+        total = 10 * 60 + len(names) * sets * (work_sec + rest_sec) + 5 * 60
+        return Workout(
+            workout_type=WorkoutType.CROSS_TRAINING,
+            name=f"Station Strength — {' / '.join(names)}",
+            description=(
+                f"{sets} rounds each of {', '.join(names)} at race effort "
+                f"({work_sec:.0f}s on / {rest_sec:.0f}s off). Weakest stations first, "
+                "while fresh — quality beats volume here."
+            ),
+            purpose=TrainingPurpose.RACE_SPECIFICITY,
+            estimated_duration_seconds=total,
+            steps=steps,
+        )
+
     def race_pace_intervals(self, reps: int, rep_km: float, pace_key: str) -> Workout:
         warmup_sec = 10 * 60
         cooldown_sec = 10 * 60
