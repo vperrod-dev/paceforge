@@ -438,7 +438,7 @@ a{color:var(--emerald);text-decoration:none}
 // ── State ──────────────────────────────────────────────
 const state = {
   user: { name: 'Victor', email: 'vperrod@gmail.com', role: 'user' },
-  tab: 'home',
+  tab: 'today',
 };
 const REPO = 'vperrod/paceforge';     // owner/repo for GitHub actions
 const REF  = 'master';
@@ -908,6 +908,7 @@ function clearCache(prefix) { for (const k of Object.keys(cache)) { if (k.starts
 // SHELL / ROUTER
 // ═══════════════════════════════════════════════════════
 const NAV = [
+  ['today', 'Today', icons.spark, 'Readiness, today’s session & what’s trending'],
   ['home', 'Overview', icons.home, 'Your training command center'],
   ['fitness', 'Fitness', icons.fitness, 'Physiology, economy & race readiness'],
   ['plan', 'Plan', icons.plan, 'HYROX block — edit, sync & push'],
@@ -993,6 +994,7 @@ async function loadTab(tab) {
   page.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     switch (tab) {
+      case 'today': await renderToday(page); break;
       case 'home': await renderHome(page); break;
       case 'fitness': await renderFitness(page); break;
       case 'plan': await renderPlan(page); break;
@@ -1008,6 +1010,171 @@ async function loadTab(tab) {
 
 function emptyState(title, sub, icon) {
   return `<div class="empty"><div class="e-ico">${icon || icons.info}</div><div class="e-title">${title}</div>${sub ? `<div>${sub}</div>` : ''}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// VIEW: TODAY (default) — readiness + today's session + trends
+// ═══════════════════════════════════════════════════════
+function _trendArrow(delta, goodWhenUp = true) {
+  if (delta == null) return { icon: '·', color: 'var(--text-3)' };
+  const up = delta > 0;
+  const good = goodWhenUp ? up : !up;
+  return {
+    icon: Math.abs(delta) < 1e-9 ? '→' : up ? '↑' : '↓',
+    color: Math.abs(delta) < 1e-9 ? 'var(--text-2)' : good ? 'var(--emerald)' : 'var(--rose)',
+  };
+}
+
+function _seriesDelta(series, key, days) {
+  if (!series || series.length < 2) return null;
+  const last = series[series.length - 1];
+  const cutoff = new Date(Date.parse(last.date) - days * 86400e3).toISOString().slice(0, 10);
+  const past = [...series].reverse().find(p => p.date <= cutoff) || series[0];
+  return last[key] != null && past[key] != null ? last[key] - past[key] : null;
+}
+
+async function renderToday(page) {
+  const [fitness, plan, events, weekly, syncStatus, activities, rpeData] = await Promise.all([
+    cached('fitness', () => loadJSON('fitness.json').catch(() => null)),
+    planStore.get().catch(() => null),
+    loadJSON('events.json').catch(() => []),
+    loadJSON('weekly.json').catch(() => ({})),
+    loadSyncStatus(),
+    cached('activities', () => apiJson('/activities').catch(() => [])),
+    loadJSON('rpe.json').catch(() => ({ entries: [] })),
+  ]);
+
+  setTopbar('Today', new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+    `${syncChipHtml(syncStatus)}
+     <button class="btn btn-ghost btn-sm" id="td-coach">${icons.spark} Ask Coach</button>`);
+
+  const f = fitness || {};
+  const rd = (f.load || {}).readiness_composite || {};
+  const band = rd.band || '';
+  const bandColor = band === 'low' ? 'var(--rose)' : band === 'moderate' ? 'var(--amber)' : 'var(--emerald)';
+
+  // ── Today's (or next) planned session ──
+  const todayISO = new Date().toISOString().slice(0, 10);
+  let sessionCard = '';
+  let todaysWo = null, todaysIdx = null;
+  if (plan && plan.accepted) {
+    outer: for (let wk = 0; wk < (plan.weeks || []).length; wk++) {
+      const wos = plan.weeks[wk].workouts || [];
+      for (let wo = 0; wo < wos.length; wo++) {
+        const w = wos[wo];
+        if (w.workout_type !== 'rest' && w.scheduled_date >= todayISO) {
+          todaysWo = w; todaysIdx = [wk, wo];
+          break outer;
+        }
+      }
+    }
+  }
+  if (todaysWo) {
+    const isToday = todaysWo.scheduled_date === todayISO;
+    const dist = todaysWo.estimated_distance_meters ? (todaysWo.estimated_distance_meters / 1000).toFixed(1) + ' km' : '';
+    const dur = todaysWo.estimated_duration_seconds ? '~' + Math.round(todaysWo.estimated_duration_seconds / 60) + ' min' : '';
+    sessionCard = `<div class="card">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>${isToday ? "Today's session" : `Next session · ${todaysWo.scheduled_date}`}</div>
+        ${todaysWo.completed ? `<span class="chip" style="background:var(--emerald-d);color:var(--emerald)">${icons.check} done</span>` : ''}</div>
+      <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">${escHtml(todaysWo.name || 'Workout')}</div>
+      <div style="font-size:.84rem;color:var(--text-2)">${escHtml((todaysWo.workout_type || '').replace(/_/g, ' '))}${dist ? ' · ' + dist : ''}${dur ? ' · ' + dur : ''}</div>
+      ${todaysWo.description ? `<div style="font-size:.85rem;color:var(--text-2);line-height:1.5;margin-top:8px">${escHtml(todaysWo.description)}</div>` : ''}
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="td-open-wo">Open workout</button>
+        <button class="btn btn-outline btn-sm" id="td-goto-plan">Full plan</button>
+      </div>
+    </div>`;
+  } else {
+    sessionCard = `<div class="card">${emptyState('Nothing scheduled', plan ? 'Enjoy the rest day — recovery is training.' : 'Ask the Coach to build a plan.', icons.plan)}</div>`;
+  }
+
+  // ── Readiness gauge ──
+  const readinessCard = `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.heart}</span>Readiness</div></div>
+    <div style="display:flex;align-items:center;gap:18px">
+      <div style="font-family:var(--font-m);font-weight:800;font-size:2.6rem;color:${bandColor}">${rd.score != null ? Math.round(rd.score) : '—'}</div>
+      <div>
+        <div style="font-weight:700;color:${bandColor};text-transform:capitalize">${band || 'unknown'}</div>
+        ${rd.dominant_driver ? `<div style="font-size:.82rem;color:var(--text-2);margin-top:3px">Driver: ${escHtml(rd.dominant_driver)}</div>` : ''}
+        <div style="font-size:.78rem;color:var(--text-3);margin-top:3px">${band === 'low' ? 'Easy day — the hard work waits.' : band === 'moderate' ? 'Train, but keep quality honest.' : 'Green light for quality.'}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Trend arrows ──
+  const pmcSeries = ((f.load || {}).ctl_atl_tsb || {}).series || [];
+  const evSeries = ((f.running || {}).effective_vo2max || {}).series || [];
+  const ctlDelta = _seriesDelta(pmcSeries, 'ctl', 7);
+  const evDelta = _seriesDelta(evSeries, 'ewma', 28);
+  const comp = f.compliance || {};
+  const compWeeks = comp.weeks || [];
+  const lastWeek = compWeeks[compWeeks.length - 1] || {};
+  const ctlA = _trendArrow(ctlDelta), evA = _trendArrow(evDelta);
+  const compPct = lastWeek.compliance_pct;
+  const compColor = compPct == null ? 'var(--text-3)' : compPct >= 80 ? 'var(--emerald)' : compPct >= 50 ? 'var(--amber)' : 'var(--rose)';
+  const trendCard = `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.fitness}</span>Trending</div></div>
+    <div class="fx-grid">
+      ${metricCard('Fitness (CTL)', `${ctlA.icon} ${ctlDelta != null ? (ctlDelta > 0 ? '+' : '') + ctlDelta.toFixed(1) : '—'}`, 'vs 7 days ago', ctlA.color)}
+      ${metricCard('Effective VO₂max', `${evA.icon} ${evDelta != null ? (evDelta > 0 ? '+' : '') + evDelta.toFixed(1) : '—'}`, 'vs 28 days ago', evA.color)}
+      ${metricCard('This week on plan', compPct != null ? compPct + '%' : '—', 'green-band sessions', compColor)}
+    </div>
+  </div>`;
+
+  // ── Race countdown ──
+  const nextEvent = (events || []).filter(e => e.date >= todayISO).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const eventCard = nextEvent ? (() => {
+    const days = Math.ceil((Date.parse(nextEvent.date) - Date.parse(todayISO)) / 86400e3);
+    return `<div class="card">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Next race</div></div>
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="font-family:var(--font-m);font-weight:800;font-size:2.2rem;color:var(--sky)">${days}<span style="font-size:.9rem;color:var(--text-3)"> days</span></div>
+        <div><div style="font-weight:700">${escHtml(nextEvent.name || nextEvent.type || 'Race')}</div>
+        <div style="font-size:.82rem;color:var(--text-2)">${nextEvent.date}${nextEvent.goal_time ? ' · goal ' + escHtml(String(nextEvent.goal_time)) : ''}</div></div>
+      </div>
+    </div>`;
+  })() : '';
+
+  // ── RPE check-in: most recent activity (48h) without a rating ──
+  let pending = {};
+  try { pending = JSON.parse(localStorage.getItem('pf_rpe_pending') || '{}'); } catch {}
+  const rated = new Set((rpeData.entries || []).map(e => e.activity_id).filter(Boolean));
+  Object.keys(pending).forEach(k => rated.add(Number(k)));
+  const cutoff48 = new Date(Date.now() - 48 * 3600e3).toISOString();
+  const unrated = (activities || []).find(a => a.start_time >= cutoff48 && !rated.has(a.activity_id));
+  const rpeCard = unrated ? `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.edit}</span>How hard was it?</div></div>
+    <div style="font-size:.88rem;margin-bottom:2px"><b>${escHtml(unrated.name || unrated.activity_type)}</b> · ${formatTimeAgo(unrated.start_time)}</div>
+    ${rpeSelectorHtml(unrated.activity_id, null)}
+  </div>` : '';
+
+  // ── Weekly review headline ──
+  const weeklyHeadline = weekly && (weekly.headline || (typeof weekly.content === 'string' && weekly.content.split('\n').find(l => l.trim() && !l.startsWith('#'))));
+  const weeklyCard = weeklyHeadline ? `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Coach's week review</div></div>
+    <div style="font-size:.9rem;line-height:1.55">${escHtml(weeklyHeadline)}</div>
+    ${weekly.this_week && weekly.this_week.length ? `<ul style="margin:10px 0 0 18px;font-size:.85rem;color:var(--text-2)">${weekly.this_week.map(t => `<li style="margin-bottom:4px">${escHtml(typeof t === 'string' ? t : t.action || '')}</li>`).join('')}</ul>` : ''}
+  </div>` : '';
+
+  page.innerHTML = `<div class="fade-in"><div class="dash-grid">
+    <div class="span-7">${sessionCard}</div>
+    <div class="span-5">${readinessCard}</div>
+    <div class="span-7">${trendCard}</div>
+    <div class="span-5">${eventCard || weeklyCard || ''}</div>
+    ${rpeCard ? `<div class="span-7">${rpeCard}</div>` : ''}
+    ${eventCard && weeklyCard ? `<div class="span-5">${weeklyCard}</div>` : ''}
+  </div></div>`;
+
+  on('td-coach', 'click', () => openCoachModal());
+  on('sync-chip', 'click', () => goTab('settings'));
+  on('td-goto-plan', 'click', () => goTab('plan'));
+  if (todaysWo) on('td-open-wo', 'click', () => showWorkoutSheet(todaysWo, todaysIdx[0], todaysIdx[1]));
+  if (unrated) {
+    bindRpeSelector(page, {
+      date: String(unrated.start_time).slice(0, 10),
+      durationMin: unrated.duration_seconds ? Math.round(unrated.duration_seconds / 60 * 10) / 10 : null,
+    });
+  }
 }
 
 // ═══════════════════════════════════════════════════════

@@ -17,6 +17,8 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
 .venv/bin/paceforge analyze             # full analytics over the stored profile
 .venv/bin/paceforge plan --goal MARATHON --date 2026-10-04 --level intermediate
 .venv/bin/paceforge validate            # check data/plan.json against the rules
+.venv/bin/paceforge adapt [--dry-run]   # reflow missed sessions + readiness-gate hard work
+.venv/bin/paceforge rpe 7 <activity_id> # log session RPE (HR-less strength/HYROX load)
 .venv/bin/paceforge push [--week N] [--dry-run]   # upload a plan week to Garmin
 .venv/bin/paceforge-mcp                 # stdio MCP server (Claude desktop app)
 ```
@@ -24,8 +26,9 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
 ## Architecture
 
 - **`data/*.json`** — the database. `profile.json` (UserFitnessProfile),
-  `plan.json` (TrainingPlan), `activities.json` (list). Git is the history.
-  Override the dir with `PACEFORGE_DATA_DIR`.
+  `plan.json` (TrainingPlan), `activities.json` (list), `rpe.json` (session
+  effort ratings), `sync-status.json` (last sync outcome — the UI's freshness
+  signal). Git is the history. Override the dir with `PACEFORGE_DATA_DIR`.
 - **`store.py`** — load/save the JSON files via Pydantic. No DB.
 - **`actions.py`** — all behaviour (sync, scaffold, analyze, validate, push,
   status, Garmin auth). The CLI and MCP server are thin wrappers over it.

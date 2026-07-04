@@ -134,6 +134,11 @@ the time breakdown. To review a race:
    language) · **Top limiters** (≤3, each with the metric evidence) · **This week** (1–2 named
    sessions with pace/HR targets, readiness-gated) · **This block** (theme + re-test date) ·
    **What we can't see yet** (data gaps → benchmarks to enter) · **One thing to NOT do** (a guardrail).
+5. **Also write the structured `data/weekly.json`** so the dashboard's Today view can render it:
+   `{"generated_at": "<iso date>", "headline": "<one plain-language sentence>",
+   "limiters": [<the ≤3 names>], "this_week": ["<action>", ...], "compliance_pct": <int|null>,
+   "content_md": "<the full week-review markdown>", "content": "<same markdown — legacy key>"}`.
+   `headline` and `this_week` are what the athlete sees on the home screen — make them land.
 
 ## Session RPE → `data/rpe.json`
 The athlete rates sessions 1–10 in the dashboard (or `paceforge rpe <1-10> <activity_id>`).
