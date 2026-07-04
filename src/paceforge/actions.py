@@ -18,7 +18,8 @@ import logging
 import os
 import sys
 import tarfile
-from datetime import date
+import time
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from paceforge import store
@@ -84,7 +85,22 @@ def login() -> str:
     client = GarminClient(email, password, token_dir=str(token_dir))
     if client.login() == "mfa_required":
         client.complete_mfa(_ask("MFA code: ").strip())
+    # The refresh token lasts ~a year from this moment; recording the date is the
+    # only way to warn before the silent "sync just stopped working" cliff.
+    store.save_token_meta({"login_date": date.today().isoformat()})
     return _export_token(token_dir)
+
+
+def _token_age_days() -> int | None:
+    """Days since the last interactive login (None if unknown)."""
+    meta = store.load_token_meta() or {}
+    login_date = meta.get("login_date")
+    if not login_date:
+        return None
+    try:
+        return (date.today() - date.fromisoformat(str(login_date))).days
+    except ValueError:
+        return None
 
 
 def export_token() -> str:
@@ -99,29 +115,67 @@ def export_token() -> str:
 
 
 def sync(lookback_days: int = 90, details_limit: int = 40) -> dict:
-    """Pull metrics + activities from Garmin into data/*.json (+ recent splits)."""
-    client = garmin_connect()
-    profile = client.get_fitness_profile(lookback_days=lookback_days)
-    store.save_profile(profile)
-    store.append_daily_history(profile)
-    store.save_activities(profile.recent_activities)
-    new_details = _sync_details(client, limit=details_limit)
-    matched = _match_plan()
-    # Write the refreshed token back to disk so the workflow can persist it to
-    # the GARMIN_TOKEN secret — keeps the headless token from going stale.
-    try:
-        client.dump_tokens(str(_token_dir()))
-    except Exception:
-        logger.debug("Token re-dump after sync failed", exc_info=True)
-    return {
-        "vo2_max": profile.vo2_max,
-        "training_readiness": profile.training_readiness,
-        "hrv_status": profile.hrv_status,
-        "training_status": profile.training_status,
-        "activities": len(profile.recent_activities),
-        "new_details": new_details,
-        "matched_workouts": matched,
+    """Pull metrics + activities from Garmin into data/*.json (+ recent splits).
+
+    Always writes data/sync-status.json — the UI's only truthful signal of whether
+    the numbers on screen are fresh — then re-raises on hard failure.
+    """
+    now = datetime.now(UTC).isoformat(timespec="seconds")
+    prev = store.load_sync_status() or {}
+    status: dict = {
+        "schema": 1,
+        "last_attempt": now,
+        "last_success": prev.get("last_success"),
+        "result": "failed",
+        "error": None,
+        "endpoints": {},
+        "counters": {},
+        "token": {"refreshed": False, "age_days": _token_age_days()},
     }
+    try:
+        client = garmin_connect()
+        profile = client.get_fitness_profile(lookback_days=lookback_days)
+        status["endpoints"] = client.endpoint_report
+        store.save_profile(profile)
+        history = store.append_daily_history(profile)
+        store.save_activities(profile.recent_activities)
+        new_details, detail_failures = _sync_details(client, limit=details_limit)
+        matched = _match_plan()
+        # Write the refreshed token back to disk so the workflow can persist it to
+        # the GARMIN_TOKEN secret — keeps the headless token from going stale.
+        try:
+            client.dump_tokens(str(_token_dir()))
+            status["token"]["refreshed"] = True
+        except Exception:
+            logger.debug("Token re-dump after sync failed", exc_info=True)
+        status["counters"] = {
+            "activities": len(profile.recent_activities),
+            "new_details": new_details,
+            "detail_failures": detail_failures,
+            "matched_workouts": matched,
+            "history_written": history["written"],
+            "history_skip_reason": history["reason"],
+        }
+        failed = sorted(k for k, v in status["endpoints"].items() if not v.get("ok"))
+        partial = bool(failed) or history["reason"] == "skipped_all_null"
+        status["result"] = "partial" if partial else "ok"
+        status["last_success"] = now
+        return {
+            "vo2_max": profile.vo2_max,
+            "training_readiness": profile.training_readiness,
+            "hrv_status": profile.hrv_status,
+            "training_status": profile.training_status,
+            "activities": len(profile.recent_activities),
+            "new_details": new_details,
+            "matched_workouts": matched,
+            "result": status["result"],
+            "failed_endpoints": failed,
+        }
+    except Exception as e:
+        status["error"] = f"{type(e).__name__}: {e}"
+        raise
+    finally:
+        store.save_sync_status(status)
 
 
 def _match_plan() -> int:
@@ -239,10 +293,10 @@ def _trim_detail(detail: dict) -> dict:
     return out
 
 
-def _sync_details(client: GarminClient, limit: int = 40) -> int:
+def _sync_details(client: GarminClient, limit: int = 40) -> tuple[int, int]:
     """Fetch + store per-activity splits for the recent ``limit`` activities plus any
     matched by the current plan. Incremental (skips stored ids); best-effort per
-    activity so one bad fetch never fails the whole sync. Returns count newly stored.
+    activity so one bad fetch never fails the whole sync. Returns (stored, failed).
     """
     ids: list = [a.activity_id for a in store.load_activities()[:limit]]
     plan = store.load_plan()
@@ -253,6 +307,7 @@ def _sync_details(client: GarminClient, limit: int = 40) -> int:
 
     seen: set = set()
     fetched = 0
+    failed = 0
     for aid in ids:
         if aid is None or aid in seen:
             continue
@@ -262,11 +317,27 @@ def _sync_details(client: GarminClient, limit: int = 40) -> int:
         if store.has_detail(aid) and (store.load_detail(aid) or {}).get("v", 0) >= _DETAIL_VERSION:
             continue
         try:
-            store.save_detail(aid, _trim_detail(client.get_activity_detail(aid)))
+            store.save_detail(aid, _trim_detail(_fetch_detail(client, aid)))
             fetched += 1
         except Exception:
             logger.warning("activity detail fetch failed for %s", aid, exc_info=True)
-    return fetched
+            failed += 1
+        # This loop fans out ~6 endpoint calls per activity; pace it so a
+        # 40-activity backfill doesn't trip Garmin's rate limiting.
+        time.sleep(0.5)
+    return fetched, failed
+
+
+def _fetch_detail(client: GarminClient, activity_id: int) -> dict:
+    """One detail fetch with a single retry when Garmin rate-limits (HTTP 429)."""
+    try:
+        return client.get_activity_detail(activity_id)
+    except Exception as e:
+        if "429" not in str(e):
+            raise
+        logger.warning("Rate-limited fetching %s — retrying once in 10s", activity_id)
+        time.sleep(10)
+        return client.get_activity_detail(activity_id)
 
 
 def scaffold(goal: dict) -> dict:
@@ -473,4 +544,5 @@ def status() -> dict:
             "weeks": plan.total_weeks,
             "accepted": plan.accepted,
         },
+        "sync": store.load_sync_status(),
     }

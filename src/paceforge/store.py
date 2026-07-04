@@ -63,24 +63,97 @@ _HISTORY_FIELDS = (
     "weekly_mileage_km",
 )
 
+# max_hr and weekly_mileage_km derive from the activity list, so they survive a
+# failed wellness fetch — a row carrying only those two is still a failed sync.
+_WELLNESS_FIELDS = tuple(f for f in _HISTORY_FIELDS if f not in ("max_hr", "weekly_mileage_km"))
 
-def append_daily_history(profile: UserFitnessProfile) -> None:
-    """Append one slim wellness snapshot for the profile's date to history.jsonl.
 
-    Upserts by date (a re-sync the same day overwrites that day's row). Trend
-    metrics need this daily series — every day not stored is permanently lost.
+def append_daily_history(profile: UserFitnessProfile) -> dict:
+    """Upsert one slim wellness snapshot for the profile's date into history.jsonl.
+
+    Trend metrics need this daily series — every day not stored is permanently
+    lost. Garmin endpoints fail intermittently, so a fetch can hand us a profile
+    full of nulls; unlike profile.json (see save_profile) history rows are
+    permanent, so an all-null snapshot is skipped outright and a partial one is
+    merged field-by-field with any existing row for the same date.
     """
     p = profile.model_dump()
     date = p.get("profile_date")
     if not date:
-        return
+        return {"written": False, "reason": "no_profile_date"}
     date = str(date)
     row = {"date": date, **{f: p.get(f) for f in _HISTORY_FIELDS}}
-    rows = [r for r in load_history() if r.get("date") != date]
+    if all(row[f] in _EMPTY for f in _WELLNESS_FIELDS):
+        return {"written": False, "reason": "skipped_all_null"}
+    rows = load_history()
+    for old in rows:
+        if old.get("date") == date:
+            for f in _HISTORY_FIELDS:
+                if row[f] in _EMPTY and old.get(f) not in _EMPTY:
+                    row[f] = old[f]
+            break
+    rows = [r for r in rows if r.get("date") != date]
     rows.append(row)
     rows.sort(key=lambda r: r.get("date") or "")
     _write(_path("history.jsonl"),
            "\n".join(json.dumps(r, default=str) for r in rows) + "\n")
+    return {"written": True, "reason": None}
+
+
+def repair_history() -> dict:
+    """One-shot cleanup of history.jsonl: drop all-null rows, merge duplicate dates.
+
+    Rows written before append_daily_history learned to skip failed syncs can be
+    entirely null (every wellness field empty) — they poison the trend series.
+    """
+    rows = load_history()
+    merged: dict[str, dict] = {}
+    dropped = 0
+    for row in rows:
+        date = str(row.get("date") or "")
+        if not date or all(row.get(f) in _EMPTY for f in _WELLNESS_FIELDS):
+            dropped += 1
+            continue
+        if date in merged:
+            for f in _HISTORY_FIELDS:
+                if row.get(f) not in _EMPTY:
+                    merged[date][f] = row[f]
+        else:
+            merged[date] = {"date": date, **{f: row.get(f) for f in _HISTORY_FIELDS}}
+    out = sorted(merged.values(), key=lambda r: r["date"])
+    _write(_path("history.jsonl"),
+           "\n".join(json.dumps(r, default=str) for r in out) + "\n")
+    return {"kept": len(out), "dropped": dropped}
+
+
+def load_token_meta() -> dict | None:
+    """Garmin token provenance (data/token-meta.json) — written by ``login()``."""
+    p = _path("token-meta.json")
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text()) or None
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def save_token_meta(meta: dict) -> None:
+    _write(_path("token-meta.json"), json.dumps(meta, indent=2, default=str))
+
+
+def load_sync_status() -> dict | None:
+    """The last sync attempt's outcome (data/sync-status.json); None if never synced."""
+    p = _path("sync-status.json")
+    if not p.exists():
+        return None
+    try:
+        return json.loads(p.read_text()) or None
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def save_sync_status(status: dict) -> None:
+    _write(_path("sync-status.json"), json.dumps(status, indent=2, default=str))
 
 
 def load_all_details() -> dict[int, dict]:

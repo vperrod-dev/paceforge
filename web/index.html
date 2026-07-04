@@ -264,6 +264,10 @@ a{color:var(--emerald);text-decoration:none}
 .conn-status{display:inline-flex;align-items:center;gap:7px;font-size:.82rem;font-weight:600;padding:5px 11px;border-radius:var(--r-pill)}
 .conn-on{background:var(--emerald-d);color:var(--emerald)}
 .conn-off{background:var(--elevated);color:var(--text-3)}
+.sync-chip{display:inline-flex;align-items:center;gap:6px;font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;white-space:nowrap}
+.sync-chip.sync-ok{background:var(--emerald-d);color:var(--emerald)}
+.sync-chip.sync-warn{background:var(--amber-d);color:var(--amber)}
+.sync-chip.sync-err{background:var(--rose-d);color:var(--rose)}
 
 /* ── Sub tabs ── */
 .sub-tabs{display:flex;gap:7px;overflow-x:auto;padding-bottom:8px;margin-bottom:20px;scrollbar-width:thin}
@@ -462,13 +466,57 @@ async function apiJson(path, opts = {}) {
     case '/plans': { const plan = await planStore.get().catch(() => null); return plan ? [plan] : []; }
     case '/activities': return loadJSON('activities.json');
     case '/auth/profile': return profileMeta();
-    case '/garmin/status': { const pr = await loadJSON('profile.json').catch(() => null); return { connected: !!(pr && pr.profile_date) }; }
+    case '/garmin/status': {
+      // Truthful connection state: derived from the last sync attempt's outcome,
+      // not from profile.json merely existing (which survives failed syncs).
+      const ss = await loadSyncStatus();
+      if (ss) {
+        const ts = ss.last_success || ss.last_attempt;
+        const fresh = ts && (Date.now() - Date.parse(ts)) < 48 * 3600 * 1000;
+        return { connected: ss.result !== 'failed' && !!fresh, sync: ss };
+      }
+      const pr = await loadJSON('profile.json').catch(() => null);
+      return { connected: !!(pr && pr.profile_date), sync: null };
+    }
     case '/weekly-overview': return loadJSON('weekly.json').catch(() => ({ content: null }));
     case '/feed': return feedFromActivities();
     default:
       if (p.startsWith('/feed/')) return [];
       return null;
   }
+}
+
+async function loadSyncStatus() {
+  return loadJSON('sync-status.json').catch(() => null);
+}
+
+// Topbar freshness chip: green synced / amber partial-or-stale / red failing.
+// The only honest signal — profile.json keeps old values across failed syncs.
+function syncChipHtml(ss) {
+  if (!ss) return '';
+  const ts = ss.last_success || ss.last_attempt;
+  const hours = ts ? (Date.now() - Date.parse(ts)) / 3.6e6 : Infinity;
+  const failed = Object.entries(ss.endpoints || {}).filter(([, v]) => !v.ok).map(([k]) => k.replace(/_/g, ' '));
+  let cls = 'ok', label = `Synced ${formatTimeAgo(ts)}`, title = 'Garmin sync healthy';
+  if (ss.result === 'partial') {
+    cls = 'warn';
+    label = `Partial sync · ${formatTimeAgo(ts)}`;
+    title = failed.length ? `Failed: ${failed.join(', ')}` : 'Some wellness data missing';
+  }
+  if (ss.result === 'ok' && hours > 48) {
+    cls = 'warn'; label = `Stale · synced ${formatTimeAgo(ts)}`; title = 'No recent sync run';
+  }
+  if (ss.result === 'failed') {
+    cls = 'err';
+    label = ss.last_success ? `Sync failing · last good ${formatTimeAgo(ss.last_success)}` : 'Sync failing';
+    title = ss.error || 'Sync is failing';
+  }
+  const age = ss.token && ss.token.age_days;
+  if (age != null && age >= 300 && cls === 'ok') {
+    cls = 'warn'; label += ` · token ${age}d old`;
+    title = 'Garmin token expires ~yearly — run `paceforge login` soon';
+  }
+  return `<span class="sync-chip sync-${cls}" id="sync-chip" title="${escHtml(title)}"><span class="dotmark"></span>${escHtml(label)}</span>`;
 }
 
 async function profileMeta() {
@@ -914,18 +962,20 @@ function emptyState(title, sub, icon) {
 // VIEW: OVERVIEW (dashboard)
 // ═══════════════════════════════════════════════════════
 async function renderHome(page) {
-  const [analytics, activities, plan, profile, events] = await Promise.all([
+  const [analytics, activities, plan, profile, events, syncStatus] = await Promise.all([
     cached('analytics', () => apiJson('/profile/analytics').catch(() => null)),
     cached('activities', () => apiJson('/activities').catch(() => [])),
     cached('plans', () => apiJson('/plans').catch(() => [])).then(p => p[0] || null),
     loadJSON('profile.json').catch(() => ({})),
     loadJSON('events.json').catch(() => []),
+    loadSyncStatus(),
   ]);
 
   const a = analytics || {}, snap = a.snapshot || {}, aero = a.aerobic || {}, lr = a.load_recovery || {}, rp = a.race_predictions || {};
 
   setTopbar('Overview', greeting() + ', ' + (state.user.name || 'Runner'),
-    `<button class="btn btn-ghost btn-sm" id="ov-coach">${icons.spark} Ask Coach</button>
+    `${syncChipHtml(syncStatus)}
+     <button class="btn btn-ghost btn-sm" id="ov-coach">${icons.spark} Ask Coach</button>
      <button class="btn btn-primary btn-sm" id="ov-sync">${icons.sync} Sync Garmin</button>`);
 
   // ── Hero stats ──
@@ -955,6 +1005,7 @@ async function renderHome(page) {
   page.innerHTML = html;
   on('ov-sync', 'click', e => syncFromGarmin(e.currentTarget));
   on('ov-coach', 'click', () => openCoachModal());
+  on('sync-chip', 'click', () => goTab('settings'));
   bindActivityRows(page, activities);
   bindWeekJump(page);
 }
@@ -2724,6 +2775,18 @@ async function fetchLastSyncRun() {
   } catch { return null; }
 }
 
+// Per-endpoint outcome of the last sync (from sync-status.json) — makes a
+// "partial" sync explain itself instead of silently showing stale numbers.
+function syncEndpointTable(ss) {
+  const eps = ss && ss.endpoints ? Object.entries(ss.endpoints) : [];
+  if (!eps.length) return '';
+  const bad = eps.filter(([, v]) => !v.ok);
+  if (!bad.length) return `<div class="settings-row"><span class="settings-label">Endpoints</span><span class="settings-value" style="color:var(--emerald)">all ${eps.length} OK</span></div>`;
+  return `<div class="settings-row" style="align-items:flex-start"><span class="settings-label">Failed endpoints</span><span class="settings-value" style="text-align:right">
+    ${bad.map(([k, v]) => `<div style="color:var(--rose)">${escHtml(k.replace(/_/g, ' '))}<span style="color:var(--text-3);font-weight:400"> — ${escHtml((v.error || '').slice(0, 80))}</span></div>`).join('')}
+  </span></div>`;
+}
+
 function syncRunHtml(run) {
   if (!githubToken.has()) return '<span style="color:var(--text-3)">add a token to see live runs</span>';
   if (!run) return '<span style="color:var(--text-3)">no runs yet</span>';
@@ -2742,13 +2805,23 @@ async function renderSettings(page) {
   state.user = { name: profile.name, email: profile.email, role: profile.role };
   try { localStorage.setItem('pf_user', JSON.stringify(state.user)); } catch {}
   let garminStatus = 'Not connected';
-  try { const gs = await apiJson('/garmin/status'); garminStatus = gs.connected ? 'Connected' : 'Not connected'; } catch {}
+  let syncStatus = null;
+  try {
+    const gs = await apiJson('/garmin/status');
+    garminStatus = gs.connected ? 'Connected' : 'Not connected';
+    syncStatus = gs.sync;
+  } catch {}
   const tokenSet = githubToken.has();
   const lastRun = await fetchLastSyncRun();
   const events = await loadJSON('events.json').catch(() => []);
-  const dataAsOf = profile.created_at
-    ? `${profile.created_at.slice(0, 10)} · ${formatTimeAgo(profile.created_at)}`
-    : '—';
+  // Last *successful* sync — profile.created_at survives failed syncs, so it
+  // only serves as the fallback when sync-status.json doesn't exist yet.
+  const dataAsOf = syncStatus && syncStatus.last_success
+    ? `${syncStatus.last_success.slice(0, 10)} · ${formatTimeAgo(syncStatus.last_success)}`
+    : (profile.created_at
+      ? `${profile.created_at.slice(0, 10)} · ${formatTimeAgo(profile.created_at)}`
+      : '—');
+  const tokenAge = syncStatus && syncStatus.token ? syncStatus.token.age_days : null;
 
   page.innerHTML = `<div class="fade-in"><div class="dash-grid">
     <div class="span-6">
@@ -2763,8 +2836,11 @@ async function renderSettings(page) {
           <div class="card-title"><span class="ico">${icons.sync}</span>Garmin Sync</div>
           <span class="conn-status ${garminStatus==='Connected'?'conn-on':'conn-off'}"><span class="dotmark"></span>${garminStatus}</span>
         </div>
-        <div class="settings-row"><span class="settings-label">Data current as of</span><span class="settings-value">${dataAsOf}</span></div>
+        <div class="settings-row"><span class="settings-label">Last successful sync</span><span class="settings-value">${dataAsOf}</span></div>
+        ${syncStatus && syncStatus.result !== 'ok' ? `<div class="settings-row"><span class="settings-label">Last attempt</span><span class="settings-value" style="color:var(--rose)">${escHtml(syncStatus.result)}${syncStatus.error ? ` — ${escHtml(syncStatus.error)}` : ''}</span></div>` : ''}
+        ${tokenAge != null ? `<div class="settings-row"><span class="settings-label">Garmin token age</span><span class="settings-value" ${tokenAge >= 300 ? 'style="color:var(--amber);font-weight:700"' : ''}>${tokenAge} days${tokenAge >= 300 ? ' — expires ~yearly, run `paceforge login` soon' : ''}</span></div>` : ''}
         <div class="settings-row"><span class="settings-label">Last sync run</span><span class="settings-value">${syncRunHtml(lastRun)}</span></div>
+        ${syncEndpointTable(syncStatus)}
         <button class="btn btn-ghost btn-block mt" id="set-sync-now">${icons.sync} Sync now</button>
       </div>
     </div>
