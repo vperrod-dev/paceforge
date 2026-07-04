@@ -28,14 +28,18 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
 - **`data/*.json`** — the database. `profile.json` (UserFitnessProfile),
   `plan.json` (TrainingPlan), `activities.json` (list), `rpe.json` (session
   effort ratings), `sync-status.json` (last sync outcome — the UI's freshness
-  signal). Git is the history. Override the dir with `PACEFORGE_DATA_DIR`.
+  signal), `token-meta.json` (login date → token-age warnings). Git is the
+  history. Override the dir with `PACEFORGE_DATA_DIR`.
 - **`store.py`** — load/save the JSON files via Pydantic. No DB.
 - **`actions.py`** — all behaviour (sync, scaffold, analyze, validate, push,
   status, Garmin auth). The CLI and MCP server are thin wrappers over it.
 - **`cli.py`** / **`mcp_server.py`** — two entrypoints, same logic.
-- **`engine/`** — VDOT maths (`vdot.py`), workout factory (`workouts.py`),
-  template planner (`planner.py`, LLM-free), `adaptation.py`, `analytics.py`
-  (the health/running analysis), and `validate.py` (plan rule checks).
+- **`engine/`** — VDOT maths (`vdot.py`), workout factory (`workouts.py`, incl.
+  HYROX brick/simulation/station-day builders), template planner (`planner.py`,
+  LLM-free), `adaptation.py` (reflow + readiness gate), `validate.py` (plan rule
+  checks), and the Fitness 2.0 modules: `durability.py`, `curves.py`, `enviro.py`,
+  `load.py` (incl. sRPE), `compliance.py`, `matching.py`, `strength.py`,
+  `limiters.py`. `analytics.py` is the LEGACY snapshot analysis.
 - **`garmin/client.py`** — reads metrics, uploads structured workouts.
 - **`hyrox/`** — race-result analyzer vs field benchmarks.
 

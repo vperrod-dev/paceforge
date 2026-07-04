@@ -1,5 +1,16 @@
 # PaceForge Fitness 2.0 — Athlete Assessment & Coach Feedback Plan
 
+> **STATUS: SHIPPED (July 2026).** All phases are implemented; this file is kept as
+> design rationale. Where each phase landed:
+> Phase 0 → `data/history.jsonl` + `scripts/repair_history.py` (null-row protection) ·
+> Phase 1 → `engine/durability.py` (+ `engine/curves.py` pace curves, `engine/enviro.py`
+> heat adjustment, effective VO2max) ·
+> Phase 2 → `engine/load.py` (incl. sRPE load from `data/rpe.json`) +
+> `engine/compliance.py` plan-vs-actual ·
+> Phase 3 → `hyrox/benchmarks.py` cohort benchmarks + HYROX builders in
+> `engine/workouts.py` + `engine/adaptation.py` (`paceforge adapt`) ·
+> Phase 4 → `engine/limiters.py` → the `coach_input` contract the coach skill consumes.
+
 Grounded in 3 parallel sports-science research streams (running performance/economy/endurance;
 load/recovery/wellbeing; HYROX-strength + coaching engine). Feasibility tags:
 **[NOW]** computable from current data · **[SERIES]** uses the HR/pace time-series we already store ·
@@ -16,7 +27,8 @@ Current analytics measure **capacity** (VDOT, VO2max, threshold, economy grades)
 ## Phase 0 — Foundations (prerequisite)
 - **Fix 2 data-quality bugs** (they corrupt zone math, TRIMP, thresholds):
   - `max_hr = 230` is a garbage default → derive true HRmax from observed activity max-HR (or 220−age) and store it.
-  - `lactate_threshold_speed = 0.386 m/s` is a units bug → fix normalization (`_normalize_lt_speed`).
+  - `lactate_threshold_speed = 0.386 m/s` is a units bug → fix normalization. *(Fixed —
+    the canonical `normalize_lt_speed` now lives in `engine/vdot.py`.)*
 - **Start storing daily history** → `data/history.jsonl`, one slim row appended per sync: date + readiness, training_status, training_load_7day, load_focus, hrv_status, hrv_last_night_ms, resting_hr, body_battery hi/lo, sleep_score + stages, stress avg/hi, weekly_mileage. Backfill an `activity_load` series from existing `activities.json` (TE + HR + duration are already there). **Every day not stored is permanently lost** — ship this first.
 
 ## Phase 1 — Running engine & durability (high-value, computable now)

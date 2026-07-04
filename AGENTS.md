@@ -10,25 +10,42 @@ Full orientation is in [CLAUDE.md](CLAUDE.md) — read it. Key points:
 ```
 src/paceforge/
 ├── store.py          # load/save data/* (the "database"): profile, plan, activities,
-│                     # details, history, benchmarks, hyrox
-├── actions.py        # all behaviour; CLI + MCP are thin wrappers. sync(), analyze(),
-│                     # fitness() (Fitness 2.0 assessment), plan/push/validate
+│                     # details, history, benchmarks, hyrox, rpe, sync-status,
+│                     # token-meta
+├── actions.py        # all behaviour; CLI + MCP are thin wrappers. sync() (writes
+│                     # sync-status.json), analyze(), fitness() (Fitness 2.0),
+│                     # plan/push/validate, adapt(), log_rpe()
 ├── cli.py            # `paceforge` command
-├── mcp_server.py     # `paceforge-mcp` stdio server (Claude desktop)
+├── mcp_server.py     # `paceforge-mcp` stdio server (Claude desktop) — incl. the
+│                     # log_rpe + get_fitness tools
 ├── engine/           # LLM-free maths:
-│   ├── vdot, workouts, planner, adaptation, validate   # plan construction + rules
-│   ├── analytics.py          # legacy snapshot/aerobic/economy/race analysis
-│   ├── durability.py         # running engine: CS/D', EF, decoupling, HRR, 80/20…
-│   ├── load.py               # CTL/ATL/TSB, ACWR, HRV, sleep, readiness…
+│   ├── vdot, workouts, planner, validate   # plan construction + rules (incl. HYROX
+│   │                 # brick/simulation/station-day builders in workouts.py)
+│   ├── adaptation.py         # pace recalc + reflow_missed_sessions + readiness_gate
+│   ├── analytics.py          # LEGACY snapshot analysis (superseded by Fitness 2.0)
+│   ├── durability.py         # running engine: CS/D', EF, decoupling, HRR, 80/20,
+│   │                         # effective VO2max…
+│   ├── curves.py             # pace-duration curves (fresh / fatigued / seasons)
+│   ├── enviro.py             # heat/humidity pace adjustment (uses stored weather)
+│   ├── load.py               # CTL/ATL/TSB, ACWR, HRV, sleep, readiness… + sRPE load
+│   ├── compliance.py         # plan-vs-actual bands (green/yellow/orange/red) + rollup
+│   ├── matching.py           # activity↔workout matching (runs by distance,
+│   │                         # hyrox_mixed/cross_training by duration)
 │   ├── strength.py           # HYROX stations, hybrid balance (needs benchmarks)
 │   └── limiters.py           # ranks limiters → coach_input contract
-├── garmin/client.py  # reads metrics + per-sample series, uploads workouts
-└── hyrox/            # hyresult.py (per-race ranks+splits via hyresult.com), analyzer.py (vs field benchmarks)
+├── garmin/client.py  # reads metrics + per-sample series (per-endpoint failure
+│                     # report), uploads workouts (fitness_equipment sport for HYROX
+│                     # with running fallback, delete-by-id dedup)
+└── hyrox/            # hyresult.py (per-race ranks+splits via hyresult.com),
+                      # analyzer.py + benchmarks.py (cohort gender/division/age tables)
 web/index.html        # the GitHub Pages dashboard (reads committed data/*.json)
 scripts/build_site_data.py  # precomputes analytics/fitness/hyrox_analysis.json for the web (CI)
 data/                 # profile.json, plan.json, activities.json, history.jsonl,
                       # details/{id}.json (splits + time-series), analyses/{id}.md +
-                      # analyses/hyrox-{id}.md, hyrox.json, benchmarks.json, events.json
+                      # analyses/hyrox-{id}.md, hyrox.json, hyrox_analysis.json,
+                      # benchmarks.json, events.json, rpe.json (session effort),
+                      # sync-status.json (last sync outcome), token-meta.json,
+                      # weekly.json, fitness.json, analytics.json
 ```
 
 ## HYROX + events flow (serverless writes)
@@ -42,8 +59,15 @@ that writes `data/*.json` + commits → `pages.yml` (which reacts to those workf
   whereas hyresult has every race with per-race Overall + Age-group ranks and full splits.
   (The legacy `search`/`import` results.hyrox.com modes still exist in `hyrox.yml`.)
 - `save-events.yml` → `data/events.json`.
+- `save-benchmarks.yml` → `data/benchmarks.json` (Strength-tab form).
+- `save-rpe.yml` → upserts one entry into `data/rpe.json` (the RPE pills on activity
+  detail / workout sheet / Today's check-in).
 - `build_site_data.py` derives `data/hyrox_analysis.json` (`{races, priorities, progression}`)
   from `hyrox.json` at deploy time.
+
+Sync trust: `sync.yml` refreshes the `GARMIN_TOKEN` secret and commits `data/` even on
+failure, and opens/auto-closes a `sync-failure` issue; `data/sync-status.json` is the
+UI's freshness signal — never infer freshness from `profile.json` existing.
 
 ## The AI / validation split
 Deterministic facts (paces, plan structure) stay in code. Claude **proposes** a plan
@@ -54,7 +78,7 @@ Never invent paces — the engine derives them.
 ```bash
 .venv/bin/ruff check src/ tests/    # lint (must pass before commit)
 .venv/bin/pytest tests/ -q          # tests (must pass before push)
-.venv/bin/paceforge sync|analyze|plan|validate|push|status|hyrox-import-profile
+.venv/bin/paceforge sync|analyze|plan|validate|adapt|rpe|push|status|hyrox-import-profile
 ```
 
 ## Conventions
