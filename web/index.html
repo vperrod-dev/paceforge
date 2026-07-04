@@ -2830,7 +2830,18 @@ function pacingCard(r) {
       <div style="width:100%;max-width:22px;height:${h}px;background:${c};border-radius:3px 3px 0 0"></div>
       <div class="hint" style="font-size:.62rem">${escHtml(s.display_time)}</div></div>`;
   }).join('');
+  const pq = r.pacing_quality || {};
+  const scoreColor = pq.score >= 75 ? 'var(--emerald)' : pq.score >= 45 ? 'var(--amber)' : 'var(--rose)';
+  const quality = pq.available ? `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+      <div><div class="eyebrow">Pacing score</div>
+        <div style="font-family:var(--font-m);font-size:1.7rem;font-weight:800;color:${scoreColor}">${pq.score}<span style="font-size:.85rem;color:var(--text-3)">/100</span></div></div>
+      <div class="hint" style="flex:1">Run spread ${Math.round(pq.spread_seconds)}s (elite &lt;15s) · worst run ${Math.round(pq.worst_deviation_seconds)}s off your average (elite ≈28s) · slowest: Run ${pq.slowest_run}</div>
+    </div>
+    ${(pq.flags || []).map(f => `<div style="display:flex;gap:8px;padding:3px 0"><span style="color:${scoreColor};font-weight:700">•</span><span style="font-size:.83rem;line-height:1.45">${escHtml(f)}</span></div>`).join('')}
+    <div style="height:8px"></div>` : '';
   return fxCard('Pacing', icons.activity || icons.hyrox, `
+    ${quality}
     <div class="eyebrow" style="margin-bottom:4px">Run laps — height = time, colour = field percentile</div>
     <div style="display:flex;align-items:flex-end;gap:5px;height:74px">${bars}</div>
     <div class="hint" style="margin:8px 0 2px">Cumulative time across the race</div>
@@ -2841,15 +2852,24 @@ function pacingCard(r) {
 // Roxzone (transition) spotlight — often the biggest hidden time loss.
 function roxzoneCard(r) {
   if (!r.roxzone_pct) return '';
+  const rz = r.roxzone_analysis || {};
   const heavy = r.roxzone_pct >= 8;
+  const rec = rz.recoverable_seconds || 0;
+  const detail = rz.available ? `
+    <div class="fx-grid" style="margin-top:10px">
+      ${metricCard('Per pass', fmtSecs(rz.per_pass_seconds), '~16 zone passes · elite ≈15s', rz.per_pass_seconds <= 17 ? 'var(--emerald)' : rz.per_pass_seconds <= 25 ? 'var(--amber)' : 'var(--rose)')}
+      ${metricCard('% of race', rz.pct_of_race + '%', 'field average ≈ ' + rz.benchmark_pct + '%', rz.pct_of_race <= rz.benchmark_pct ? 'var(--emerald)' : 'var(--rose)')}
+      ${metricCard('vs your field', rz.vs_field_seconds != null ? (rz.vs_field_seconds <= 0 ? '−' : '+') + fmtSecs(Math.abs(rz.vs_field_seconds)) : '—', 'cohort roxzone avg', rz.vs_field_seconds <= 0 ? 'var(--emerald)' : 'var(--rose)')}
+    </div>` : '';
   return fxCard('Roxzone — your transitions', icons.hyrox, `
     <div style="display:flex;align-items:baseline;gap:10px">
       <div style="font-family:var(--font-m);font-size:1.6rem;font-weight:700;color:${heavy ? 'var(--rose)' : 'var(--emerald)'}">${escHtml(r.roxzone_display)}</div>
       <div class="hint">${r.roxzone_pct}% of your race</div>
     </div>
-    <div class="hint" style="margin-top:6px">${heavy
-      ? 'That is a lot of standing time — drill station entries/exits and a brisk walk-to-work tempo; transitions cost more total time than any single weak station for most athletes.'
-      : 'Tidy transitions — keep moving through the roxzone and you hold this edge.'}</div>`);
+    ${detail}
+    <div class="hint" style="margin-top:8px">${rec > 30
+      ? `Roxzone is "free time" — ~${fmtSecs(rec)} recoverable to elite transitions (${fmtSecs(270)} total) with zero extra fitness: jog the zone, rehearse entries/exits, gear staged.`
+      : 'Elite-grade transitions — you give away almost nothing in the zone. Protect this habit.'}</div>`);
 }
 
 // Phase 3 — this race vs your average across your other races.
@@ -2880,6 +2900,253 @@ function fmtSecs(secs) {
   if (secs == null) return '—';
   const t = Math.round(secs), m = Math.floor(t / 60), s = t % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function fmtRaceTime(secs) {
+  if (secs == null) return '—';
+  const t = Math.round(secs), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// Map a finish time to an estimated field percentile by interpolating the
+// athlete's own (time, percentile) points across their races. Own-data anchored —
+// no benchmark table can know this athlete's typical fields better.
+function estimatePercentile(races, seconds) {
+  const pts = (races || [])
+    .filter(x => Number(x.rank) && Number(x.field_size) && x.total_time)
+    .map(x => ({ t: x.total_time, p: 100 * (Number(x.field_size) - Number(x.rank)) / Number(x.field_size) }))
+    .sort((a, b) => a.t - b.t);
+  if (pts.length < 2) return null;
+  if (seconds <= pts[0].t) {
+    const [a, b] = [pts[0], pts[1]];
+    const slope = (b.p - a.p) / (b.t - a.t || 1);
+    return Math.max(1, Math.min(99, Math.round(a.p + slope * (seconds - a.t))));
+  }
+  if (seconds >= pts[pts.length - 1].t) {
+    const [a, b] = [pts[pts.length - 2], pts[pts.length - 1]];
+    const slope = (b.p - a.p) / (b.t - a.t || 1);
+    return Math.max(1, Math.min(99, Math.round(b.p + slope * (seconds - pts[pts.length - 1].t))));
+  }
+  for (let i = 1; i < pts.length; i++) {
+    if (seconds <= pts[i].t) {
+      const [a, b] = [pts[i - 1], pts[i]];
+      const f = (seconds - a.t) / (b.t - a.t || 1);
+      return Math.max(1, Math.min(99, Math.round(a.p + f * (b.p - a.p))));
+    }
+  }
+  return null;
+}
+
+// ── "Where your minutes are hiding" — time-recoverable waterfall ──
+// Red bars ranked by seconds lost vs the chosen target; the headline number is
+// the total a coach would call "on the table".
+function waterfallRows(items, maxSeconds) {
+  return items.map(i => {
+    const w = Math.max(3, Math.round(100 * i.seconds / (maxSeconds || 1)));
+    return `<div style="display:flex;align-items:center;gap:10px;padding:3px 0">
+      <div style="width:126px;font-size:.8rem">${escHtml(i.display)}${i.is_run ? '' : ' <span style="color:var(--text-3);font-size:.68rem">station</span>'}</div>
+      <div style="flex:1;height:14px;background:var(--border-s);border-radius:4px;overflow:hidden">
+        <div style="width:${w}%;height:100%;background:var(--rose);opacity:.85"></div></div>
+      <div style="width:56px;text-align:right;font-family:var(--font-m);font-size:.78rem;font-weight:600;color:var(--rose)">+${fmtSecs(i.seconds)}</div>
+    </div>`;
+  }).join('');
+}
+
+function waterfallCard(r, stationBests) {
+  const tl = r.time_lost || {};
+  // "vs your PB" is derived here: each segment vs your best across all races.
+  const prItems = (r.segments || []).map(s => {
+    const best = stationBests && stationBests[s.name];
+    return best && s.seconds - best.seconds > 0.5
+      ? { name: s.name, display: s.display, seconds: Math.round((s.seconds - best.seconds) * 10) / 10, is_run: s.is_run }
+      : null;
+  }).filter(Boolean).sort((a, b) => b.seconds - a.seconds);
+  const views = {
+    top3: { label: 'vs cohort top-3', data: tl.vs_top3 || { total: 0, items: [] } },
+    field: { label: 'vs cohort average', data: tl.vs_field || { total: 0, items: [] } },
+    pr: { label: 'vs your PBs', data: { total: Math.round(prItems.reduce((a, b) => a + b.seconds, 0) * 10) / 10, items: prItems } },
+  };
+  const body = Object.entries(views).map(([key, v]) => {
+    const items = v.data.items.slice(0, 10);
+    const maxS = items.length ? items[0].seconds : 1;
+    return `<div data-wf-view="${key}" style="display:${key === 'top3' ? 'block' : 'none'}">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px">
+        <div style="font-family:var(--font-m);font-size:1.7rem;font-weight:800;color:var(--rose)">${fmtSecs(v.data.total)}</div>
+        <div class="hint">recoverable ${v.label}</div>
+      </div>
+      ${items.length ? waterfallRows(items, maxS) : '<div class="hint">Nothing on the table — you beat this benchmark everywhere.</div>'}
+    </div>`;
+  }).join('');
+  return fxCard('Where your minutes are hiding', icons.hyrox, `
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      ${Object.entries(views).map(([key, v]) =>
+        `<button class="btn btn-sm ${key === 'top3' ? 'btn-primary' : 'btn-outline'}" data-wf-btn="${key}">${v.label}</button>`).join('')}
+    </div>
+    ${body}
+    <div class="hint" style="margin-top:8px">Seconds lost per segment, biggest first — only segments where you're behind count. Fixing the top two rows is usually worth more than everything else combined.</div>`);
+}
+
+// ── What-if finish simulator (hyresult-style) ──
+function simulatorCard(r, races, stationBests) {
+  const segs = (r.split_analysis || []);
+  if (!segs.length || !r.total_time) return '';
+  const stations = segs.filter(s => !s.is_run);
+  const stationRows = stations.map(s => `
+    <div style="display:flex;align-items:center;gap:8px;padding:3px 0" data-sim-row="${escHtml(s.name)}">
+      <div style="width:126px;font-size:.8rem">${escHtml(s.display)}</div>
+      <button class="btn-icon" data-sim-minus="${escHtml(s.name)}" aria-label="faster">−</button>
+      <div style="width:52px;text-align:center;font-family:var(--font-m);font-size:.8rem" data-sim-val="${escHtml(s.name)}">${fmtSecs(s.athlete_seconds)}</div>
+      <button class="btn-icon" data-sim-plus="${escHtml(s.name)}" aria-label="slower">+</button>
+      <div class="hint" style="flex:1;text-align:right" data-sim-delta="${escHtml(s.name)}"></div>
+    </div>`).join('');
+  return fxCard('What-if simulator', icons.spark, `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-outline btn-sm" data-sim-preset="reset">Reset</button>
+      <button class="btn btn-outline btn-sm" data-sim-preset="weak2field">2 weakest → cohort avg</button>
+      <button class="btn btn-outline btn-sm" data-sim-preset="weak2top3">2 weakest → top-3</button>
+      <button class="btn btn-outline btn-sm" data-sim-preset="prs">All stations → your PBs</button>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:10px">
+      <div><div class="eyebrow">Simulated finish</div>
+        <div style="font-family:var(--font-m);font-size:1.9rem;font-weight:800;color:var(--emerald)" id="sim-total">${fmtRaceTime(r.total_time)}</div></div>
+      <div><div class="eyebrow">vs actual</div>
+        <div style="font-family:var(--font-m);font-size:1.1rem;font-weight:700" id="sim-delta">±0:00</div></div>
+      <div><div class="eyebrow">est. percentile</div>
+        <div style="font-family:var(--font-m);font-size:1.1rem;font-weight:700" id="sim-pct">—</div></div>
+    </div>
+    ${stationRows}
+    <div class="hint" style="margin-top:8px">Steppers move a station ±5s (your runs and roxzone stay as raced). Percentile is interpolated from your own races' placings — an estimate, not a promise.</div>`);
+}
+
+function bindSimulator(page, r, races, stationBests) {
+  const base = {};
+  (r.split_analysis || []).filter(s => !s.is_run).forEach(s => { base[s.name] = s.athlete_seconds; });
+  const sim = { ...base };
+  const stationsMeta = {};
+  (r.split_analysis || []).filter(s => !s.is_run).forEach(s => { stationsMeta[s.name] = s; });
+
+  function refresh() {
+    let total = r.total_time;
+    Object.keys(base).forEach(k => { total += sim[k] - base[k]; });
+    const delta = total - r.total_time;
+    const el = id => page.querySelector('#' + id);
+    if (el('sim-total')) el('sim-total').textContent = fmtRaceTime(total);
+    if (el('sim-delta')) {
+      el('sim-delta').textContent = (delta <= 0 ? '−' : '+') + fmtSecs(Math.abs(delta));
+      el('sim-delta').style.color = delta < 0 ? 'var(--emerald)' : delta > 0 ? 'var(--rose)' : 'var(--text-2)';
+    }
+    const pct = estimatePercentile(races, total);
+    const basePct = estimatePercentile(races, r.total_time);
+    if (el('sim-pct')) el('sim-pct').textContent = pct != null ? `${pct}th${basePct != null && pct !== basePct ? ` (${pct > basePct ? '+' : ''}${pct - basePct})` : ''}` : '—';
+    Object.keys(base).forEach(k => {
+      const v = page.querySelector(`[data-sim-val="${k}"]`);
+      const d = page.querySelector(`[data-sim-delta="${k}"]`);
+      if (v) { v.textContent = fmtSecs(sim[k]); v.style.color = sim[k] < base[k] ? 'var(--emerald)' : ''; }
+      if (d) d.textContent = sim[k] !== base[k] ? `${sim[k] < base[k] ? '−' : '+'}${fmtSecs(Math.abs(sim[k] - base[k]))}` : '';
+    });
+  }
+
+  page.querySelectorAll('[data-sim-minus]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.simMinus; sim[k] = Math.max(30, sim[k] - 5); refresh();
+  }));
+  page.querySelectorAll('[data-sim-plus]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.simPlus; sim[k] += 5; refresh();
+  }));
+  page.querySelectorAll('[data-sim-preset]').forEach(b => b.addEventListener('click', () => {
+    const preset = b.dataset.simPreset;
+    Object.keys(base).forEach(k => { sim[k] = base[k]; });
+    if (preset === 'weak2field' || preset === 'weak2top3') {
+      const key = preset === 'weak2field' ? 'field_avg' : 'top3_avg';
+      Object.values(stationsMeta)
+        .filter(s => s[key] != null && s.athlete_seconds > s[key])
+        .sort((a, b) => (b.athlete_seconds - b[key]) - (a.athlete_seconds - a[key]))
+        .slice(0, 2)
+        .forEach(s => { sim[s.name] = s[key]; });
+    } else if (preset === 'prs') {
+      Object.keys(base).forEach(k => {
+        const best = stationBests && stationBests[k];
+        if (best && best.seconds < base[k]) sim[k] = best.seconds;
+      });
+    }
+    refresh();
+  }));
+  refresh();
+}
+
+// ── Cumulative gap-to-top-3 + per-segment standing ──
+function gapCurveCard(r) {
+  const segs = (r.segments || []).filter(s => s.cumulative_gap_top3 != null);
+  if (segs.length < 6) return '';
+  const gaps = segs.map(s => s.cumulative_gap_top3);
+  const final = gaps[gaps.length - 1];
+  // Which segments open the gap fastest (biggest per-segment increase)?
+  const jumps = segs.map((s, i) => ({ display: s.display, inc: gaps[i] - (i ? gaps[i - 1] : 0) }))
+    .sort((a, b) => b.inc - a.inc).slice(0, 2).filter(j => j.inc > 5);
+  return fxCard('Gap to the top-3 through the race', icons.hyrox, `
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px">
+      <div style="font-family:var(--font-m);font-size:1.5rem;font-weight:800;color:${final > 0 ? 'var(--rose)' : 'var(--emerald)'}">${final > 0 ? '+' : '−'}${fmtSecs(Math.abs(final))}</div>
+      <div class="hint">${final > 0 ? 'behind' : 'ahead of'} your cohort's top-3 pace at the finish</div>
+    </div>
+    ${miniChart(gaps, { color: final > 0 ? 'var(--rose)' : 'var(--emerald)', fmt: v => (v > 0 ? '+' : '−') + fmtSecs(Math.abs(v)) })}
+    <div class="hint" style="margin-top:6px">Cumulative seconds vs top-3 average after each segment — where the line jumps is where the race is decided.${jumps.length ? ` Biggest jumps: <b>${jumps.map(j => `${escHtml(j.display)} (+${Math.round(j.inc)}s)`).join(', ')}</b>.` : ''}</div>`);
+}
+
+function standingCard(r) {
+  const segs = (r.segments || []).filter(s => s.percentile != null);
+  if (segs.length < 6) return '';
+  return fxCard('Your standing, segment by segment', icons.activity || icons.hyrox, `
+    ${miniChart(segs.map(s => s.percentile), { color: 'var(--sky)', fmt: v => Math.round(v) + 'th' })}
+    <div class="hint" style="margin-top:6px">Field percentile at each segment in race order (higher = nearer the front). Rises on your strengths, dips where the field takes time back. Note: per-segment standing, not cumulative race position.</div>`);
+}
+
+// ── Target-time split calculator ──
+function targetCalcCard(r) {
+  if (!r.total_time || !(r.segments || []).length) return '';
+  return fxCard('Target-time splits', icons.plan, `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <label class="hint" for="tgt-time">Goal finish</label>
+      <input id="tgt-time" class="mono-input" style="width:110px" placeholder="e.g. 1:15:00" value="">
+      <button class="btn btn-primary btn-sm" id="tgt-go">Build my splits</button>
+    </div>
+    <div id="tgt-out"><div class="hint">Enter a goal — your actual splits are scaled to it, so the plan respects your personal strengths instead of a generic table.</div></div>`);
+}
+
+function bindTargetCalc(page, r) {
+  const btn = page.querySelector('#tgt-go');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const raw = (page.querySelector('#tgt-time') || {}).value || '';
+    const parts = raw.trim().split(':').map(Number);
+    let goal = null;
+    if (parts.length === 3) goal = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    else if (parts.length === 2) goal = parts[0] * 3600 + parts[1] * 60;  // h:mm
+    const out = page.querySelector('#tgt-out');
+    if (!goal || !isFinite(goal) || goal < 2400 || goal > 3 * 3600) {
+      out.innerHTML = '<div class="hint" style="color:var(--rose)">Enter a goal like 1:15:00 (between 0:40:00 and 3:00:00).</div>';
+      return;
+    }
+    const factor = goal / r.total_time;
+    const rows = (r.segments || []).map(s => {
+      const tgt = s.seconds * factor;
+      const delta = tgt - s.seconds;
+      return `<tr>
+        <td style="padding:4px 8px;font-size:.8rem">${escHtml(s.display)}</td>
+        <td style="padding:4px 8px;font-family:var(--font-m);font-size:.78rem;text-align:right;color:var(--text-3)">${escHtml(s.display_time)}</td>
+        <td style="padding:4px 8px;font-family:var(--font-m);font-size:.78rem;text-align:right;font-weight:700">${fmtSecs(tgt)}</td>
+        <td style="padding:4px 8px;font-family:var(--font-m);font-size:.78rem;text-align:right;color:${delta < 0 ? 'var(--emerald)' : 'var(--rose)'}">${delta < 0 ? '−' : '+'}${fmtSecs(Math.abs(delta))}</td>
+      </tr>`;
+    }).join('');
+    const rox = r.roxzone ? `<div class="hint" style="margin-top:6px">Roxzone budget: ${fmtSecs(r.roxzone * factor)} (was ${escHtml(r.roxzone_display)}).</div>` : '';
+    out.innerHTML = `
+      <div class="hint" style="margin-bottom:6px">${factor < 1 ? `You need to find <b>${fmtSecs(r.total_time - goal)}</b> vs this race (${Math.round((1 - factor) * 100)}% faster everywhere — or more where you're weakest).` : 'That goal is slower than this race — you already have it.'}</div>
+      <div style="overflow-x:auto;max-height:320px;overflow-y:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:4px 8px;text-align:left;font-size:.7rem;color:var(--text-3)">Segment</th>
+          <th style="padding:4px 8px;text-align:right;font-size:.7rem;color:var(--text-3)">Raced</th>
+          <th style="padding:4px 8px;text-align:right;font-size:.7rem;color:var(--text-3)">Target</th>
+          <th style="padding:4px 8px;text-align:right;font-size:.7rem;color:var(--text-3)">Δ</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>${rox}`;
+  });
 }
 
 // Per-race ranks: Overall (position in the gender field) + Age-group.
@@ -2939,10 +3206,22 @@ function hyroxProgressionSection(prog, priorities) {
       </span></div>`;
   }).join('');
   const focus = (priorities || []).slice(0, 4).map(p =>
-    `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border-s)">
-      <span style="font-size:.84rem;font-weight:500">${escHtml(p.display)}</span>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-s)">
+      <span style="font-size:.84rem;font-weight:500">${escHtml(p.display)}${p.train_priority ? ' ' + pill('train priority', 'var(--rose)') : ''}</span>
       <span class="hint">${p.gap_seconds > 0 ? '+' + Math.round(p.gap_seconds) + 's vs top-3 (' + p.gap_pct + '%)' : 'at top-3 level'}</span>
     </div>`).join('');
+
+  const pt = prog.percentile_trend || {};
+  const overallPct = (pt.overall || []).map(p => p.percentile);
+  const competitivenessCard = overallPct.length >= 2 ? `
+    <div class="span-6"><div class="card" style="height:100%">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.fitness}</span>Competitiveness</div>
+        ${pill('now ' + overallPct[overallPct.length - 1] + 'th pct', pctColor(overallPct[overallPct.length - 1]))}</div>
+      <div class="hint" style="margin-bottom:4px">Overall field percentile per race — rank-based, so it controls for how strong each field was.</div>
+      ${miniChart(overallPct, { color: 'var(--sky)', fmt: v => Math.round(v) + 'th' })}
+      <div class="hint" style="margin-top:8px">Run-fade trend per race (lower = better pacing)</div>
+      ${sparkline(prog.fade_trend)}
+    </div></div>` : '';
 
   return `<div class="dash-grid">
     <div class="span-6"><div class="card" style="height:100%">
@@ -2954,15 +3233,57 @@ function hyroxProgressionSection(prog, priorities) {
       <div class="hint" style="margin-top:8px">Finish-time trend (lower is better)</div>
       ${sparkline(prog.total_trend)}
     </div></div>
-    <div class="span-6"><div class="card" style="height:100%">
+    ${competitivenessCard}
+    <div class="span-${competitivenessCard ? '12' : '6'}"><div class="card" style="height:100%">
       <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Focus for next race</div></div>
-      <div class="hint" style="margin-bottom:6px">Biggest gaps to the top-3 field in your latest race.</div>
+      <div class="hint" style="margin-bottom:6px">Biggest gaps to the top-3 field in your latest race. <span style="color:var(--rose)">Train priority</span> = &gt;60s over your division benchmark, or a 2-weakest station.</div>
       ${focus || '<div class="hint">No priorities computed.</div>'}
     </div></div>
+    ${heatmapCard(prog)}
     ${stationRows ? `<div class="span-12"><div class="card">
       <div class="card-h"><div class="card-title">Station evolution — first race → latest</div></div>
       ${stationRows}</div></div>` : ''}
   </div>`;
+}
+
+// ── Career heatmap: races × segments, coloured by field percentile ──
+// One glance separates chronic limiters (red columns) from one-off bad days
+// (red rows) — the "whole career at a glance" view.
+function heatmapCard(prog) {
+  const pt = (prog || {}).percentile_trend || {};
+  const stations = pt.stations || {};
+  const events = (pt.overall || []).map(p => ({ index: p.race_index, event: p.event }));
+  if (!events.length || !Object.keys(stations).length) return '';
+  // Column order = race order of segments; rows = races.
+  const colNames = Object.keys(stations);
+  const order = ['Running_1', 'SkiErg_1000m', 'Running_2', 'Sled_Push_50m', 'Running_3',
+    'Sled_Pull_50m', 'Running_4', 'Burpee_Broad_Jump_80m', 'Running_5', 'Row_1000m',
+    'Running_6', 'Farmers_Carry_200m', 'Running_7', 'Sandbag_Lunges_100m', 'Running_8',
+    'Wall_Balls'].filter(n => colNames.includes(n));
+  const byRace = {};
+  order.forEach(name => (stations[name] || []).forEach(p => {
+    (byRace[p.race_index] = byRace[p.race_index] || {})[name] = p.percentile;
+  }));
+  const short = n => n.startsWith('Running_') ? 'R' + n.slice(8)
+    : { SkiErg_1000m: 'Ski', Sled_Push_50m: 'SlPu', Sled_Pull_50m: 'SlPl',
+        Burpee_Broad_Jump_80m: 'BBJ', Row_1000m: 'Row', Farmers_Carry_200m: 'FC',
+        Sandbag_Lunges_100m: 'SL', Wall_Balls: 'WB' }[n] || n.slice(0, 4);
+  const head = `<tr><th style="padding:4px 6px;text-align:left;font-size:.68rem;color:var(--text-3)">Race</th>
+    ${order.map(n => `<th style="padding:4px 3px;font-size:.64rem;color:var(--text-3)" title="${escHtml(n.replace(/_/g, ' '))}">${short(n)}</th>`).join('')}</tr>`;
+  const rows = events.map(e => {
+    const cells = order.map(n => {
+      const p = (byRace[e.index] || {})[n];
+      const bg = p == null ? 'transparent' : `color-mix(in srgb, ${pctColor(p)} ${Math.round(20 + p * 0.55)}%, transparent)`;
+      return `<td style="padding:0"><div title="${escHtml(e.event)} · ${escHtml(n.replace(/_/g, ' '))} · ${p != null ? p + 'th pct' : 'no data'}"
+        style="margin:1px;height:22px;border-radius:3px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:.62rem;font-family:var(--font-m);color:var(--text-2)">${p != null ? p : ''}</div></td>`;
+    }).join('');
+    return `<tr><td style="padding:2px 6px;font-size:.72rem;white-space:nowrap">${escHtml(e.event)}</td>${cells}</tr>`;
+  }).join('');
+  return `<div class="span-12"><div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Every race × every segment</div></div>
+    <div class="hint" style="margin-bottom:8px">Field percentile per segment across your career. A red <b>column</b> is a chronic limiter worth training; a red <b>row</b> was just a bad day.</div>
+    <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%">${head}${rows}</table></div>
+  </div></div>`;
 }
 
 // ── Single-race detail ──
@@ -2979,6 +3300,8 @@ async function openHyroxRace(id) {
   ((data && data.races) || []).filter(x => x.id !== id).forEach(o =>
     (o.segments || []).forEach(s => { (acc[s.name] = acc[s.name] || []).push(s.seconds); }));
   Object.entries(acc).forEach(([k, v]) => { pastAvg[k] = v.reduce((a, b) => a + b, 0) / v.length; });
+  const races = (data && data.races) || [];
+  const stationBests = ((data && data.progression) || {}).station_bests || {};
   setTopbar(r.city || 'Race', 'HYROX race detail', '');
   page.innerHTML = `<div class="fade-in">
     <div class="detail-head">
@@ -2986,11 +3309,26 @@ async function openHyroxRace(id) {
       <div><div class="detail-h-title">${escHtml(r.city || 'Race')}</div>
         <div class="detail-h-sub">${escHtml(r.event_date || '')}${r.division ? ' · ' + escHtml(r.division) : ''}${hyroxRankText(r)} · ${escHtml(r.total_display || '')}</div></div>
     </div>
-    ${hyroxDetailBody(r, coachMd, pastAvg)}
+    ${hyroxDetailBody(r, coachMd, pastAvg, stationBests, races)}
   </div>`;
   page.querySelector('[data-back]')?.addEventListener('click', () => goTab('hyrox'));
   on('hyrox-coach', 'click', () => askCoachAboutRace(r));
+  bindWaterfall(page);
+  bindSimulator(page, r, races, stationBests);
+  bindTargetCalc(page, r);
   document.querySelector('.page')?.scrollTo({ top: 0 });
+}
+
+function bindWaterfall(page) {
+  page.querySelectorAll('[data-wf-btn]').forEach(b => b.addEventListener('click', () => {
+    page.querySelectorAll('[data-wf-btn]').forEach(x => {
+      x.classList.toggle('btn-primary', x === b);
+      x.classList.toggle('btn-outline', x !== b);
+    });
+    page.querySelectorAll('[data-wf-view]').forEach(v => {
+      v.style.display = v.dataset.wfView === b.dataset.wfBtn ? 'block' : 'none';
+    });
+  }));
 }
 
 function hyroxRaceFeedback(r) {
@@ -3005,7 +3343,7 @@ function hyroxRaceFeedback(r) {
   return { behind, ahead, mistakes };
 }
 
-function hyroxDetailBody(r, coachMd, pastAvg = {}) {
+function hyroxDetailBody(r, coachMd, pastAvg = {}, stationBests = {}, races = []) {
   const bar = (label, pct, color) => hrZoneLikeBar(label, pct, color);
   const rankCell = (label, value, sub) => `<div style="flex:1;min-width:90px">
       <div class="eyebrow">${label}</div>
@@ -3061,9 +3399,11 @@ function hyroxDetailBody(r, coachMd, pastAvg = {}) {
         <div class="hint" style="margin-bottom:10px">No written review yet. Ask the coach for a personalised breakdown of this race.</div>
         <button class="btn btn-outline btn-sm" id="hyrox-coach">${icons.spark} Ask coach to review this race</button></div>`;
 
-  return ranks + stationPercentileCard(r.segments) + stationRadarCard(r.segments)
-    + pacingCard(r) + roxzoneCard(r) + breakdown + feedback
-    + comparePastCard(r, pastAvg) + table + coach;
+  return ranks + waterfallCard(r, stationBests) + simulatorCard(r, races, stationBests)
+    + stationPercentileCard(r.segments) + stationRadarCard(r.segments)
+    + pacingCard(r) + standingCard(r) + gapCurveCard(r) + roxzoneCard(r)
+    + breakdown + feedback
+    + comparePastCard(r, pastAvg) + targetCalcCard(r) + table + coach;
 }
 
 function askCoachAboutRace(r) {

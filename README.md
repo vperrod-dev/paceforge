@@ -53,7 +53,15 @@ deployed by `pages.yml` and re-deployed automatically after each sync:
   stations vs roxzone, every split vs the field & top-3 average, a deterministic coach
   read (weaknesses, pacing mistakes, strengths), an optional Claude-written race review,
   and a cross-race **progression** view (finish-time trend, per-station evolution, and
-  your biggest gaps to fix next). All benchmarks are **cohort-adjusted** — compared to
+  your biggest gaps to fix next). Each race also gets a **time-recoverable waterfall**
+  ("where your minutes are hiding" vs the cohort average, top-3, or your own PBs), a
+  **what-if simulator** (adjust any station, see the projected finish + percentile), a
+  **pacing-quality score** with execution flags, a **cumulative gap-to-top-3 curve**, a
+  **per-segment standing line**, roxzone "free time" math, and a **target-time split
+  calculator**; the progression view adds a **competitiveness trend** (rank-based
+  percentile per race) and a **career heatmap** (every race × every segment, coloured by
+  field percentile — chronic limiters vs one-off bad days at a glance). All benchmarks
+  are **cohort-adjusted** — compared to
   your own gender/division/age-group field (labelled on the split table), and stations
   more than 60s off the benchmark (or your two weakest) are flagged as training
   priorities. A `--goal HYROX` plan schedules real hybrid training around them:

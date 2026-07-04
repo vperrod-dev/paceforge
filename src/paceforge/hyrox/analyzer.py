@@ -112,6 +112,61 @@ def _cohort_benchmarks(result: HyroxRaceResult, gender: str = "M") -> dict:
                           age_group=result.age_group)
 
 
+# Published pacing benchmarks (hyroxdatalab.com run-variance analysis): elites keep
+# run1→run8 spread under ~15 s/km and deviate ≤~27 s from their average on the worst
+# run; recreational athletes roughly double that. HYROX runs are 1 km, so seconds
+# per split ≈ s/km directly.
+_ELITE_RUN_SPREAD_S = 15.0
+_TOO_FAST_START_S = 20.0
+_ELITE_WORST_DEV_S = 27.5
+_REC_WORST_DEV_S = 51.4
+
+
+def _pacing_quality(valid_runs: list[float]) -> dict:
+    """Grade the 8-run pacing (0-100) and flag the classic execution errors."""
+    if len(valid_runs) < 4:
+        return {"available": False}
+    mean = sum(valid_runs) / len(valid_runs)
+    spread = max(valid_runs) - min(valid_runs)
+    fade = valid_runs[-1] - valid_runs[0]
+    worst_dev = max(r - mean for r in valid_runs)
+    slowest_idx = valid_runs.index(max(valid_runs)) + 1
+
+    flags: list[str] = []
+    if valid_runs[0] == min(valid_runs) and fade > _TOO_FAST_START_S:
+        flags.append(
+            f"Went out too fast — Run 1 was your fastest and you gave back "
+            f"{fade:.0f}s by Run {len(valid_runs)}. Elites keep the spread under "
+            f"{_ELITE_RUN_SPREAD_S:.0f}s."
+        )
+    if slowest_idx >= 7:
+        flags.append(
+            f"Late-race collapse — Run {slowest_idx} was your slowest. The slowest run "
+            "should land mid-race (5-6); a run-7/8 low point means pacing or aerobic base."
+        )
+    if worst_dev > _REC_WORST_DEV_S:
+        flags.append(
+            f"Worst run drifted {worst_dev:.0f}s off your average — recreational-level "
+            f"variance (elite ≈ {_ELITE_WORST_DEV_S:.0f}s). Even pacing is free speed."
+        )
+    if not flags and spread <= _ELITE_RUN_SPREAD_S:
+        flags.append(f"Elite-level pacing — {spread:.0f}s spread across all runs. Protect this.")
+
+    # 0-100: full marks at elite spread/deviation, linear penalty beyond.
+    score = 100.0
+    score -= max(0.0, spread - _ELITE_RUN_SPREAD_S) * 1.2
+    score -= max(0.0, worst_dev - _ELITE_WORST_DEV_S) * 0.8
+    return {
+        "available": True,
+        "score": round(max(0.0, min(100.0, score))),
+        "spread_seconds": round(spread, 1),
+        "fade_seconds": round(fade, 1),
+        "worst_deviation_seconds": round(worst_dev, 1),
+        "slowest_run": slowest_idx,
+        "flags": flags,
+    }
+
+
 def analyze_race(result: HyroxRaceResult, gender: str = "M") -> dict:
     """Analyze a single race result — running fade, time breakdown, comparisons.
 
@@ -150,6 +205,8 @@ def analyze_race(result: HyroxRaceResult, gender: str = "M") -> dict:
         running_class = "Moderate Drop-off"
     else:
         running_class = "Severe Fade"
+
+    pacing_quality = _pacing_quality(valid_runs)
 
     # Running stats
     avg_run = round(sum(valid_runs) / len(valid_runs), 1) if valid_runs else 0
@@ -211,21 +268,74 @@ def analyze_race(result: HyroxRaceResult, gender: str = "M") -> dict:
             for i in range(len(run_times))
         ],
         "split_analysis": split_analysis,
-        "segments": _ordered_segments(result),
+        "segments": _ordered_segments(result, top3_bench),
+        "pacing_quality": pacing_quality,
+        "time_lost": _time_lost_waterfall(split_analysis, roxzone, field_bench, top3_bench),
+        "roxzone_analysis": _roxzone_analysis(roxzone, total, field_bench),
         "benchmark_source": bench["source"],
         "benchmark_cohort": bench["cohort"],
     }
 
 
-def _ordered_segments(result: HyroxRaceResult) -> list[dict]:
+def _time_lost_waterfall(split_analysis: list[dict], roxzone: float,
+                         field_bench: dict, top3_bench: dict) -> dict:
+    """Seconds recoverable per segment vs the cohort — the "where are my minutes
+    hiding" ranking. Only positive gaps count (a segment you already beat the
+    benchmark on has nothing to recover)."""
+    def _items(gap_key: str, rox_bench: float | None) -> dict:
+        items = [
+            {"name": s["name"], "display": s["display"], "seconds": s[gap_key],
+             "is_run": s["is_run"]}
+            for s in split_analysis
+            if s.get(gap_key) is not None and s[gap_key] > 0
+        ]
+        if roxzone and rox_bench and roxzone - rox_bench > 0:
+            items.append({"name": "Roxzone_Time", "display": "Roxzone",
+                          "seconds": round(roxzone - rox_bench, 1), "is_run": False})
+        items.sort(key=lambda i: i["seconds"], reverse=True)
+        return {"total": round(sum(i["seconds"] for i in items), 1), "items": items}
+
+    return {
+        "vs_field": _items("gap_vs_field", field_bench.get("Roxzone_Time")),
+        "vs_top3": _items("gap_vs_top3", top3_bench.get("Roxzone_Time")),
+    }
+
+
+# Roxzone benchmarks (hyroxdatalab.com roxzone-efficiency analysis): transitions are
+# ~6.5% of race time on average; elites total 4-5 min across ~16 zone passes
+# (~15 s each) while recreational athletes give away 3+ extra minutes.
+_ROXZONE_PASSES = 16
+_ELITE_ROXZONE_S = 270.0
+_BENCH_ROXZONE_PCT = 6.5
+
+
+def _roxzone_analysis(roxzone: float, total: float, field_bench: dict) -> dict:
+    if not roxzone or not total:
+        return {"available": False}
+    field_rox = field_bench.get("Roxzone_Time")
+    return {
+        "available": True,
+        "per_pass_seconds": round(roxzone / _ROXZONE_PASSES, 1),
+        "pct_of_race": round(100 * roxzone / total, 1),
+        "benchmark_pct": _BENCH_ROXZONE_PCT,
+        "vs_field_seconds": round(roxzone - field_rox, 1) if field_rox else None,
+        "vs_elite_seconds": round(roxzone - _ELITE_ROXZONE_S, 1),
+        "recoverable_seconds": round(max(0.0, roxzone - _ELITE_ROXZONE_S), 1),
+    }
+
+
+def _ordered_segments(result: HyroxRaceResult, top3_bench: dict | None = None) -> list[dict]:
     """Every segment in race order with cumulative time + rank/percentile.
 
-    Powers the cumulative pacing curve and the per-station rank chart.
+    Powers the cumulative pacing curve, the per-segment standing line, and the
+    cumulative gap-to-top-3 curve (where in the race the gap actually opens).
     """
     sd = _splits_dict(result)
     ranks = _splits_rank(result)
+    top3_bench = top3_bench or {}
     segments = []
     cumulative = 0.0
+    cumulative_gap = 0.0
     for name in HYROX_SPLIT_NAMES:
         if name == "Roxzone_Time":
             continue
@@ -233,6 +343,9 @@ def _ordered_segments(result: HyroxRaceResult) -> list[dict]:
         if secs is None:
             continue
         cumulative += secs
+        top3 = top3_bench.get(name)
+        if top3:
+            cumulative_gap += secs - top3
         rank, field_size = ranks.get(name, (0, 0))
         segments.append({
             "name": name,
@@ -240,6 +353,7 @@ def _ordered_segments(result: HyroxRaceResult) -> list[dict]:
             "seconds": secs,
             "display_time": _fmt_time(secs),
             "cumulative": round(cumulative, 1),
+            "cumulative_gap_top3": round(cumulative_gap, 1) if top3_bench else None,
             "rank": rank or None,
             "field_size": field_size or None,
             "percentile": _percentile(rank, field_size) if rank and field_size else None,
@@ -391,6 +505,29 @@ def compute_race_progression(results: list[HyroxRaceResult]) -> dict:
             "improvement_seconds": improvement_seconds,
         })
 
+    # Percentile trend — rank-derived, so it controls for field strength/course:
+    # "am I getting more competitive?" rather than just "am I getting faster?".
+    overall_pct = []
+    for i, r in enumerate(sorted_results):
+        try:
+            rank, field = int(r.rank), int(r.field_size)
+        except (TypeError, ValueError):
+            continue
+        if rank and field:
+            overall_pct.append({
+                "race_index": i + 1,
+                "event": race_entries[i]["event_date"],
+                "percentile": _percentile(rank, field),
+            })
+    station_pct: dict[str, list[dict]] = {}
+    for i, r in enumerate(sorted_results):
+        for name, (rank, field) in _splits_rank(r).items():
+            station_pct.setdefault(name, []).append({
+                "race_index": i + 1,
+                "event": race_entries[i]["event_date"],
+                "percentile": _percentile(rank, field),
+            })
+
     return {
         "races": race_entries,
         "total_trend": total_trend,
@@ -403,4 +540,5 @@ def compute_race_progression(results: list[HyroxRaceResult]) -> dict:
             for k, v in station_bests.items()
         },
         "station_comparison": station_comparison,
+        "percentile_trend": {"overall": overall_pct, "stations": station_pct},
     }
