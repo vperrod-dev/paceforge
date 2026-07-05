@@ -1664,7 +1664,31 @@ function renderStrength(f) {
     stationCard = fxCard('HYROX stations vs the field', icons.hyrox, `${rows}
       ${weak ? `<div class="hint" style="margin-top:8px">Weakest: <b style="color:var(--rose)">${escHtml(weak)}</b> · roxzone ${rox.roxzone_sec ? Math.round(rox.roxzone_sec / 60) + ':' + String(Math.round(rox.roxzone_sec % 60)).padStart(2, '0') : '—'}</div>` : ''}`);
   }
-  return balCard + stationCard + benchmarkForm(f);
+  return balCard + hyroxSegmentsCard(f) + stationCard + benchmarkForm(f);
+}
+
+// Auto-segmentation of a recorded HYROX sim/race into run / station / roxzone,
+// derived from Garmin typed splits (no manual tagging). Shows the latest session.
+function hyroxSegmentsCard(f) {
+  const list = f.hyrox_segments || [];
+  if (!list.length) return '';
+  const latest = list[0];
+  const seg = latest.segments || {};
+  const parts = [['run', 'Run', 'var(--sky)'], ['station', 'Station', 'var(--violet)'], ['roxzone', 'Roxzone', 'var(--amber)']];
+  const fmtDur = x => Math.floor(x / 60) + ':' + String(Math.round(x % 60)).padStart(2, '0');
+  const bar = parts.map(([k, , c]) => {
+    const pct = (seg[k] || {}).share_pct || 0;
+    return pct > 0 ? `<div style="width:${pct}%;background:${c}" title="${k} ${pct}%"></div>` : '';
+  }).join('');
+  const legend = parts.map(([k, label, c]) => {
+    const d = seg[k] || {};
+    return `<div class="zrow"><div class="zlbl" style="width:120px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${c};margin-right:6px"></span>${label}</div><div class="ztrack"><div class="zfill" style="width:${Math.max(d.share_pct || 0, 1)}%;background:${c}"></div></div><div class="zval">${fmtDur(d.duration_s || 0)}</div></div>`;
+  }).join('');
+  return fxCard('HYROX session segmentation', icons.hyrox, `
+    <div class="hint" style="margin-bottom:8px">${escHtml(latest.name || 'Session')}${latest.date ? ' · ' + latest.date : ''} · auto-split from typed splits (no manual tagging)</div>
+    <div style="display:flex;height:14px;border-radius:6px;overflow:hidden;margin-bottom:12px">${bar}</div>
+    ${legend}
+    <div class="hint" style="margin-top:8px">Total moving time ${fmtDur(latest.total_duration_s || 0)}${list.length > 1 ? ` · ${list.length} segmented sessions` : ''}</div>`);
 }
 
 function benchmarkForm(f) {
