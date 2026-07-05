@@ -37,10 +37,12 @@ what each unlocks for HYROX training. Companion to `garmin-data-roadmap.md`
 
 ## Recommended build order
 
-1. **Done (this pass):** overnight respiration + SpO2 → illness watch;
+1. **Done:** overnight respiration + SpO2 → illness watch;
    running tolerance cross-check; morning readiness + hill score (#45).
-2. **Typed splits** (`get_activity_typed_splits`) — auto-segment recorded HYROX
-   sims/races into run/station/roxzone; feeds the analyzer without manual entry.
+2. **Done — Typed splits** (`get_activity_typed_splits`) — recorded HYROX sims/races
+   auto-segment into run/station/roxzone via `engine/segments.py` (`fitness()` →
+   `hyrox_segments`, Strength-tab card); classified by run/walk/stand typing, no
+   manual entry.
 3. **Exercise sets** (`get_activity_exercise_sets`) — strength tonnage into the
    load model (today strength is sRPE-only); station-strength progression.
 4. **USB FIT workout export** (`paceforge export-fit`) — cheap push fallback.
