@@ -20,8 +20,11 @@ from pathlib import Path
 from paceforge import actions
 from paceforge.hyrox.analyzer import (
     analyze_race,
+    compute_compromise_by_station,
+    compute_pacing_strategy_effectiveness,
     compute_race_progression,
     compute_training_priorities,
+    predict_next_race,
 )
 from paceforge.hyrox.models import HyroxRaceResult
 
@@ -62,6 +65,9 @@ def _build_hyrox() -> dict:
         "races": races,
         "priorities": compute_training_priorities(latest, gender=gender) if latest else [],
         "progression": compute_race_progression(results),
+        "prediction": predict_next_race(results, gender=gender),
+        "compromise_by_station": compute_compromise_by_station(results, gender=gender),
+        "pacing_strategy": compute_pacing_strategy_effectiveness(results, gender=gender),
     }
 
 

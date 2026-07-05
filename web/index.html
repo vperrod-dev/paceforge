@@ -2759,7 +2759,7 @@ async function renderHyroxPage(page) {
   }
   const ordered = [...races].sort((a, b) => String(b.event_date).localeCompare(String(a.event_date)));
   page.innerHTML = `<div class="fade-in">
-    ${hyroxProgressionSection(data.progression, data.priorities)}
+    ${hyroxProgressionSection(data.progression, data.priorities, data.prediction, data.compromise_by_station, data.pacing_strategy)}
     <div class="eyebrow" style="margin:22px 0 12px">Your races</div>
     <div class="grid cols-auto">${ordered.map(hyroxRaceCard).join('')}</div>
   </div>`;
@@ -3185,7 +3185,7 @@ function sparkline(values, { width = 220, height = 44 } = {}) {
   </svg>`;
 }
 
-function hyroxProgressionSection(prog, priorities) {
+function hyroxProgressionSection(prog, priorities, prediction, compromiseByStation, pacingStrategy) {
   if (!prog || !prog.num_races) return '';
   const best = prog.best_race;
   const improvingPill = prog.num_races >= 3
@@ -3239,11 +3239,63 @@ function hyroxProgressionSection(prog, priorities) {
       <div class="hint" style="margin-bottom:6px">Biggest gaps to the top-3 field in your latest race. <span style="color:var(--rose)">Train priority</span> = &gt;60s over your division benchmark, or a 2-weakest station.</div>
       ${focus || '<div class="hint">No priorities computed.</div>'}
     </div></div>
+    ${predictionCard(prediction)}
+    ${pacingStrategyCard(pacingStrategy)}
+    ${compromiseByStationCard(compromiseByStation)}
     ${heatmapCard(prog)}
     ${stationRows ? `<div class="span-12"><div class="card">
       <div class="card-h"><div class="card-title">Station evolution — first race → latest</div></div>
       ${stationRows}</div></div>` : ''}
   </div>`;
+}
+
+// ── Next-race projection (own-history trend, cohort fallback) ──
+function predictionCard(prediction) {
+  if (!prediction || prediction.predicted_seconds == null) return '';
+  const trendColor = prediction.trend === 'improving' ? 'var(--emerald)'
+    : prediction.trend === 'slowing' ? 'var(--rose)' : 'var(--amber)';
+  const trendLabel = prediction.trend ? prediction.trend[0].toUpperCase() + prediction.trend.slice(1) : '';
+  return `<div class="span-6"><div class="card" style="height:100%">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Next-race projection</div>
+      ${trendLabel ? pill(trendLabel, trendColor) : ''}</div>
+    <div style="font-family:var(--font-m);font-size:1.9rem;font-weight:800">${escHtml(prediction.predicted_display)}</div>
+    <div class="hint" style="margin-top:6px">${escHtml(prediction.basis)}</div>
+  </div></div>`;
+}
+
+// ── Career-level: does this athlete's own pacing discipline correlate with better results? ──
+function pacingStrategyCard(pacing) {
+  if (!pacing || !pacing.available) return '';
+  const color = pacing.correlation < -0.3 ? 'var(--emerald)' : pacing.correlation > 0.3 ? 'var(--rose)' : 'var(--text-3)';
+  return `<div class="span-6"><div class="card" style="height:100%">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Does even pacing pay off for you?</div>
+      <span style="font-family:var(--font-m);font-weight:700;color:${color}">r = ${pacing.correlation}</span></div>
+    <div class="hint">${escHtml(pacing.read)} <span style="color:var(--text-3)">(${pacing.races_used} races)</span></div>
+  </div></div>`;
+}
+
+// ── Compromised running attributed to the station that caused it ──
+function compromiseByStationCard(cbs) {
+  if (!cbs || !cbs.available || !(cbs.stations || []).length) return '';
+  const max = Math.max(...cbs.stations.map(s => Math.abs(s.excess_fade_pct)), 1);
+  const rows = cbs.stations.map(s => {
+    const width = Math.min(100, Math.abs(s.excess_fade_pct) / max * 100);
+    const color = s.excess_fade_pct > 0 ? 'var(--rose)' : 'var(--emerald)';
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px">
+        <span>Run ${s.run_position} — after ${escHtml(s.station_display)}</span>
+        <span style="font-family:var(--font-m);font-weight:700;color:${color}">${s.excess_fade_pct > 0 ? '+' : ''}${s.excess_fade_pct}%</span>
+      </div>
+      <div style="height:6px;border-radius:3px;background:var(--border-s)">
+        <div style="height:100%;border-radius:3px;width:${width}%;background:${color}"></div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="span-12"><div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Compromised running, by station</div></div>
+    <div class="hint" style="margin-bottom:10px">Run-pace fade at each stage vs. how much the field typically fades by that same point — isolates which transition costs <b>you</b> more than it costs the average athlete. Positive = worse than expected there; negative = you hold up better than the field.</div>
+    ${rows}
+  </div></div>`;
 }
 
 // ── Career heatmap: races × segments, coloured by field percentile ──
