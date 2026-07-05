@@ -122,6 +122,10 @@ class UserFitnessProfile(BaseModel):
     # Fitness Age
     fitness_age: int | None = Field(None, description="Garmin estimated fitness age")
 
+    # Hill Score — uphill-running strength/endurance composite, independent of
+    # the flat-ground endurance score above.
+    hill_score: float | None = Field(None, description="Garmin Hill Score (uphill-running composite)")
+
 
 class GoalType(StrEnum):
     FIVE_K = "5K"
