@@ -296,15 +296,16 @@ class GarminClient:
                     if not fitness_age:
                         fitness_age = vo2_data[0].get("generic", {}).get("fitnessAge")
 
-        # Training readiness (returns a list, not a dict)
+        # Training readiness — the morning (post-wakeup) reading specifically:
+        # get_training_readiness can return several same-day readings (e.g. a
+        # post-nap recompute), and taking tr_data[0] isn't guaranteed to be the
+        # morning one that Garmin's own Morning Report and our readiness math
+        # both assume.
         readiness = None
         with self._endpoint("training_readiness"):
-            tr_data = self.client.get_training_readiness(yesterday)
-            if tr_data:
-                if isinstance(tr_data, list) and len(tr_data) > 0:
-                    readiness = tr_data[0].get("score")
-                elif isinstance(tr_data, dict):
-                    readiness = tr_data.get("score")
+            tr_data = self.client.get_morning_training_readiness(yesterday)
+            if isinstance(tr_data, dict):
+                readiness = tr_data.get("score")
 
         # HRV
         hrv_status = None
@@ -338,6 +339,18 @@ class GarminClient:
                     es_data.get("overallScore")
                     or es_data.get("enduranceScore")
                     or es_data.get("compositeScore")
+                )
+
+        # Hill Score — uphill-running strength/endurance composite (separate
+        # model from the flat-ground endurance score above).
+        hill_score = None
+        with self._endpoint("hill_score"):
+            hs_data = self.client.get_hill_score(yesterday)
+            if hs_data and isinstance(hs_data, dict):
+                hill_score = (
+                    hs_data.get("overallScore")
+                    or hs_data.get("hillScore")
+                    or hs_data.get("compositeScore")
                 )
 
         # Body composition (weight)
@@ -612,6 +625,7 @@ class GarminClient:
             training_load_7day=training_load_7day,
             load_focus=load_focus,
             fitness_age=fitness_age,
+            hill_score=hill_score,
         )
 
     # ── Activity detail ──────────────────────────────────────────────

@@ -59,9 +59,13 @@ deployed by `pages.yml` and re-deployed automatically after each sync:
   **pacing-quality score** with execution flags, a **cumulative gap-to-top-3 curve**, a
   **per-segment standing line**, roxzone "free time" math, and a **target-time split
   calculator**; the progression view adds a **competitiveness trend** (rank-based
-  percentile per race) and a **career heatmap** (every race × every segment, coloured by
-  field percentile — chronic limiters vs one-off bad days at a glance). All benchmarks
-  are **cohort-adjusted** — compared to
+  percentile per race), a **career heatmap** (every race × every segment, coloured by
+  field percentile — chronic limiters vs one-off bad days at a glance), a **next-race
+  projection** (trend across your own race history, or a cohort estimate with none yet),
+  a **pacing-strategy effectiveness** read (does even pacing actually correlate with
+  better results for *you*, across your career), and **compromised running by station**
+  (which transition costs you more running fade than it costs the field, once ordinary
+  race-fatigue is subtracted out). All benchmarks are **cohort-adjusted** — compared to
   your own gender/division/age-group field (labelled on the split table), and stations
   more than 60s off the benchmark (or your two weakest) are flagged as training
   priorities. A `--goal HYROX` plan schedules real hybrid training around them:
