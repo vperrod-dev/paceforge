@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from paceforge.hyrox.models import (
     HYROX_SPLIT_NAMES,
     RUNNING_SPLITS,
@@ -412,23 +414,26 @@ def compute_training_priorities(result: HyroxRaceResult, gender: str = "M") -> l
     return priorities
 
 
+def _race_sort_key(r: HyroxRaceResult) -> str:
+    """Chronological sort key: 'YYYY-MM-DD' event_date, else a bare year pulled
+    out of a 'City YYYY' string, else '0000' (undated races sort first)."""
+    ed = r.event_date or ""
+    if len(ed) >= 10 and ed[4] == "-":
+        return ed
+    m = re.search(r'\d{4}', ed)
+    return m.group() if m else "0000"
+
+
+def _sorted_by_date(results: list[HyroxRaceResult]) -> list[HyroxRaceResult]:
+    return sorted(results, key=_race_sort_key)
+
+
 def compute_race_progression(results: list[HyroxRaceResult]) -> dict:
     """Compute progression trends across multiple races."""
     if not results:
         return {"races": [], "total_trend": [], "fade_trend": [], "improving": False}
 
-    # Sort races chronologically by event_date
-    def _sort_key(r: HyroxRaceResult) -> str:
-        ed = r.event_date or ""
-        # If already YYYY-MM-DD format, use directly
-        if len(ed) >= 10 and ed[4] == "-":
-            return ed
-        # Try to extract year from "City YYYY" format
-        import re
-        m = re.search(r'\d{4}', ed)
-        return m.group() if m else "0000"
-
-    sorted_results = sorted(results, key=_sort_key)
+    sorted_results = _sorted_by_date(results)
 
     race_entries = []
     for i, r in enumerate(sorted_results):
@@ -542,3 +547,175 @@ def compute_race_progression(results: list[HyroxRaceResult]) -> dict:
         "station_comparison": station_comparison,
         "percentile_trend": {"overall": overall_pct, "stations": station_pct},
     }
+
+
+def predict_next_race(results: list[HyroxRaceResult], gender: str = "M") -> dict:
+    """Project the athlete's next HYROX finish time from their own race history.
+
+    With 2+ races: an ordinary-least-squares trend line over race index vs.
+    total time, extrapolated one race forward and clamped to within the
+    athlete's own observed range (a short series shouldn't be allowed to
+    extrapolate to an implausible time). With exactly 1 race: that race's time,
+    with no trend to fit. With 0: the field average for the athlete's gender
+    from `hyrox.benchmarks` — a population estimate, not a personal one.
+    """
+    if not results:
+        from paceforge.hyrox.benchmarks import get_benchmarks
+
+        bench = get_benchmarks(gender=gender)
+        total = sum(bench["field_avg"].values())
+        return {
+            "predicted_seconds": round(total, 1),
+            "predicted_display": _fmt_time(total),
+            "method": "cohort_field_average",
+            "races_used": 0,
+            "basis": "No race history yet — field average for your gender.",
+        }
+
+    totals = [r.total_time_seconds for r in _sorted_by_date(results) if r.total_time_seconds]
+    if len(totals) < 2:
+        latest = totals[-1] if totals else None
+        return {
+            "predicted_seconds": round(latest, 1) if latest else None,
+            "predicted_display": _fmt_time(latest),
+            "method": "latest_race",
+            "races_used": len(totals),
+            "basis": "Only one timed race on record — using it as the estimate.",
+        }
+
+    n = len(totals)
+    xs = list(range(n))
+    mean_x, mean_y = sum(xs) / n, sum(totals) / n
+    variance = sum((x - mean_x) ** 2 for x in xs)
+    slope = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, totals)) / variance
+    intercept = mean_y - slope * mean_x
+    predicted = intercept + slope * n  # one race past the last observed index
+
+    lower, upper = min(totals) * 0.85, max(totals) * 1.3
+    predicted = min(max(predicted, lower), upper)
+    trend = "improving" if slope < -1 else ("slowing" if slope > 1 else "plateauing")
+
+    return {
+        "predicted_seconds": round(predicted, 1),
+        "predicted_display": _fmt_time(predicted),
+        "method": "trend",
+        "races_used": n,
+        "trend": trend,
+        "seconds_per_race": round(slope, 1),
+        "basis": f"Linear trend across your last {n} races.",
+    }
+
+
+def goal_pace_plan(target_seconds: float, results: list[HyroxRaceResult] | None = None,
+                   gender: str = "M", division: str = "", age_group: str | None = None) -> dict:
+    """Split a target finish time across every segment (the inverse of the
+    what-if simulator: goal time in, target splits out).
+
+    Scales the athlete's own most recent race pacing shape to the target time
+    when race history exists (preserves their real strengths/weaknesses
+    instead of an average athlete's), falling back to the cohort field
+    average when there's no race on record yet.
+    """
+    if not target_seconds or target_seconds <= 0:
+        return {"available": False, "reason": "invalid_target"}
+
+    results = results or []
+    if results:
+        base_race = _sorted_by_date(results)[-1]
+        base = _splits_dict(base_race)
+        base = {k: v for k, v in base.items() if v is not None}
+        base_total = base_race.total_time_seconds or sum(base.values())
+        source = "own_last_race"
+    else:
+        from paceforge.hyrox.benchmarks import get_benchmarks
+
+        bench = get_benchmarks(gender=gender, division=division, age_group=age_group)
+        base = bench["field_avg"]
+        base_total = sum(base.values())
+        source = "cohort_field_average"
+
+    if not base_total:
+        return {"available": False, "reason": "no_baseline"}
+
+    scale = target_seconds / base_total
+    splits = []
+    for name in HYROX_SPLIT_NAMES:
+        secs = base.get(name)
+        if secs is None:
+            continue
+        target = round(secs * scale, 1)
+        splits.append({
+            "name": name,
+            "display": SPLIT_DISPLAY_NAMES.get(name, name),
+            "target_seconds": target,
+            "target_display": _fmt_time(target),
+            "is_run": name in RUNNING_SPLITS,
+        })
+
+    return {
+        "available": True,
+        "target_seconds": target_seconds,
+        "target_display": _fmt_time(target_seconds),
+        "source": source,
+        "scale_factor": round(scale, 4),
+        "splits": splits,
+    }
+
+
+# Fixed HYROX station order: which station immediately precedes each run.
+# Run 1 has no preceding station (it's the race-opening baseline).
+_STATION_BEFORE_RUN: dict[int, str] = {
+    2: "SkiErg_1000m",
+    3: "Sled_Push_50m",
+    4: "Sled_Pull_50m",
+    5: "Burpee_Broad_Jump_80m",
+    6: "Row_1000m",
+    7: "Farmers_Carry_200m",
+    8: "Sandbag_Lunges_100m",
+}
+
+
+def compute_compromise_by_station(results: list[HyroxRaceResult], gender: str = "M") -> dict:
+    """Career-level: which station transition costs the most *extra* running
+    fade, once the ordinary cumulative-fatigue curve is subtracted out.
+
+    HYROX's station order is fixed, so "run N" and "the run right after
+    station X" are the same partition — every athlete slows down through the
+    race regardless of which station they just did. This isolates the
+    station-specific cost by comparing the athlete's own fade-from-Run-1 % at
+    each position against the field's average fade-from-Run-1 % at that same
+    position (from `hyrox.benchmarks`); the field curve stands in for
+    "expected" fatigue by race stage. A positive excess means that transition
+    costs this athlete more than it costs the field; negative means they hold
+    up better than average through it.
+    """
+    per_position: dict[int, list[float]] = {i: [] for i in _STATION_BEFORE_RUN}
+    for r in results:
+        bench = _cohort_benchmarks(r, gender)
+        field = bench["field_avg"]
+        sd = _splits_dict(r)
+        run1, field_run1 = sd.get("Running_1"), field.get("Running_1")
+        if not run1 or not field_run1:
+            continue
+        for i in _STATION_BEFORE_RUN:
+            run_i, field_run_i = sd.get(f"Running_{i}"), field.get(f"Running_{i}")
+            if run_i is None or field_run_i is None:
+                continue
+            athlete_pct = (run_i - run1) / run1 * 100
+            field_pct = (field_run_i - field_run1) / field_run1 * 100
+            per_position[i].append(athlete_pct - field_pct)
+
+    stations = []
+    for i, station in _STATION_BEFORE_RUN.items():
+        vals = per_position[i]
+        if not vals:
+            continue
+        stations.append({
+            "run_position": i,
+            "station": station,
+            "station_display": SPLIT_DISPLAY_NAMES.get(station, station),
+            "excess_fade_pct": round(sum(vals) / len(vals), 1),
+            "races_used": len(vals),
+        })
+    stations.sort(key=lambda s: s["excess_fade_pct"], reverse=True)
+    return {"available": bool(stations), "stations": stations}
