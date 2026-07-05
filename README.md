@@ -98,7 +98,8 @@ each with the metric evidence and a concrete "this week" action.
   conditions-adjusted before comparison (`engine/enviro.py`).
 - **Load & recovery** (`engine/load.py`): TRIMP load, CTL/ATL/TSB (fitness-fatigue-form), ACWR,
   monotony/strain, injury-spike guardrail, HRV baseline/CV, sleep debt/architecture, an overtraining
-  early-warning composite, and a daily readiness score — alongside Garmin's native status. Sessions
+  early-warning composite, an **illness watch** (overnight respiration + SpO2 vs baseline, corroborated
+  by RHR/HRV), and a daily readiness score — alongside Garmin's native status and running tolerance. Sessions
   without heart-rate data (gym strength, station work) count too, via your **session RPE** rating
   (Foster sRPE, pooled into the same load series).
 - **Plan-vs-actual** (`engine/compliance.py`): every session graded against the plan

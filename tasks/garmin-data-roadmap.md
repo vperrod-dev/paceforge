@@ -12,6 +12,14 @@ fixes a latent bug — the old code could grab a post-nap reading instead of the
 AFTER_WAKEUP_RESET one) and Hill Score (`get_hill_score`, a new uphill-running
 composite independent of the flat-ground endurance score).
 
+**Shipped 2026-07-05:** overnight respiration (`get_respiration_data`) + SpO2
+(`get_spo2_data`) feeding a new illness-watch signal in `engine/load.py`
+(respiratory evidence gates it — cardio-only patterns stay with the
+overtraining composite), and running tolerance (`get_running_tolerance`,
+daily aggregation) stored as a Garmin-native cross-check beside the ACWR
+guardrail. Full surface map (Connect IQ, FIT developer fields, sideloading,
+live data): `garmin-interaction-map.md`.
+
 ## Next up
 
 1. **Race-prediction trend** (`get_race_predictions(startdate, enddate)`) — the
