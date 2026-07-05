@@ -126,6 +126,17 @@ class UserFitnessProfile(BaseModel):
     # the flat-ground endurance score above.
     hill_score: float | None = Field(None, description="Garmin Hill Score (uphill-running composite)")
 
+    # Overnight respiration & pulse ox — illness early-warning signals.
+    respiration_avg_sleep: float | None = Field(
+        None, description="Average overnight respiration rate (breaths/min)"
+    )
+    spo2_avg: float | None = Field(None, description="Average overnight SpO2 (%)")
+
+    # Running tolerance — Garmin's impact-load capacity estimate.
+    running_tolerance: float | None = Field(
+        None, description="Garmin running tolerance (impact-load capacity)"
+    )
+
 
 class GoalType(StrEnum):
     FIVE_K = "5K"

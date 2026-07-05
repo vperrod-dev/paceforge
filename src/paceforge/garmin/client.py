@@ -353,6 +353,42 @@ class GarminClient:
                     or hs_data.get("compositeScore")
                 )
 
+        # Overnight respiration & pulse ox — illness early-warning signals:
+        # elevated overnight respiration and depressed SpO2 both move days
+        # before HRV/RHR react to an oncoming infection.
+        respiration_avg = None
+        with self._endpoint("respiration"):
+            resp_data = self.client.get_respiration_data(yesterday)
+            if resp_data and isinstance(resp_data, dict):
+                respiration_avg = (
+                    resp_data.get("avgSleepRespirationValue")
+                    or resp_data.get("avgWakingRespirationValue")
+                )
+
+        spo2_avg = None
+        with self._endpoint("spo2"):
+            spo2_data = self.client.get_spo2_data(yesterday)
+            if spo2_data and isinstance(spo2_data, dict):
+                spo2_avg = (
+                    spo2_data.get("averageSpO2")
+                    or spo2_data.get("avgSleepSpO2")
+                    or spo2_data.get("averageSPO2")
+                )
+
+        # Running tolerance — Garmin's impact-load capacity model; stored as a
+        # cross-check against the home-grown ACWR guardrail in engine/load.py.
+        running_tolerance = None
+        with self._endpoint("running_tolerance"):
+            rt_data = self.client.get_running_tolerance(yesterday, yesterday, aggregation="daily")
+            if rt_data and isinstance(rt_data, list) and isinstance(rt_data[-1], dict):
+                last = rt_data[-1]
+                running_tolerance = (
+                    last.get("tolerance")
+                    or last.get("runningTolerance")
+                    or last.get("overallTolerance")
+                    or last.get("weeklyRunningDistanceCapability")
+                )
+
         # Body composition (weight)
         weight = None
         with self._endpoint("body_composition"):
@@ -626,6 +662,9 @@ class GarminClient:
             load_focus=load_focus,
             fitness_age=fitness_age,
             hill_score=hill_score,
+            respiration_avg_sleep=respiration_avg,
+            spo2_avg=spo2_avg,
+            running_tolerance=running_tolerance,
         )
 
     # ── Activity detail ──────────────────────────────────────────────
