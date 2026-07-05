@@ -44,6 +44,9 @@ def main(argv: list[str] | None = None) -> int:
     p_push.add_argument("--week", type=int, default=None)
     p_push.add_argument("--dry-run", action="store_true")
 
+    p_adapt = sub.add_parser("adapt", help="reflow missed sessions + readiness-gate hard work")
+    p_adapt.add_argument("--dry-run", action="store_true")
+
     for cmd, help_ in (("hyrox-search", "find your HYROX races (pick-list)"),
                        ("hyrox-import", "import chosen HYROX races with splits")):
         p = sub.add_parser(cmd, help=help_)
@@ -52,6 +55,14 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--gender", default="M", choices=["M", "F"])
         if cmd == "hyrox-import":
             p.add_argument("--urls", default="", help="comma-separated athlete URLs to import")
+
+    p_rpe = sub.add_parser("rpe", help="log a session RPE (1-10) for training load")
+    p_rpe.add_argument("rpe", type=int, help="perceived exertion 1-10")
+    p_rpe.add_argument("activity_id", type=int, nargs="?", default=None,
+                       help="Garmin activity id (omit with --date for unrecorded sessions)")
+    p_rpe.add_argument("--date", default=None, help="session date YYYY-MM-DD")
+    p_rpe.add_argument("--duration-min", type=float, default=None)
+    p_rpe.add_argument("--notes", default="")
 
     sub.add_parser("export-token", help="print current on-disk token as a GARMIN_TOKEN blob")
 
@@ -96,6 +107,11 @@ def main(argv: list[str] | None = None) -> int:
             print("valid")
         elif args.cmd == "push":
             _emit(actions.push(week=args.week, dry_run=args.dry_run))
+        elif args.cmd == "rpe":
+            _emit(actions.log_rpe(args.activity_id, args.date, rpe=args.rpe,
+                                  duration_min=args.duration_min, notes=args.notes))
+        elif args.cmd == "adapt":
+            _emit(actions.adapt(dry_run=args.dry_run))
         elif args.cmd == "hyrox-search":
             _emit(actions.hyrox_search(args.name, gender=args.gender, firstname=args.firstname))
         elif args.cmd == "hyrox-import":

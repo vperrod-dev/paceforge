@@ -636,6 +636,80 @@ def _economy_vs_pace(runs: list) -> EconomyVsPace:
 # ── public entry point ─────────────────────────────────────────────────
 
 
+def compute_effective_vo2max(activities: list, details: dict, profile) -> dict[str, Any]:
+    """Runalyze-style effective VO2max per run: what fitness does each ordinary
+    run imply, given the pace it produced at the HR it cost?
+
+    VO2 at velocity from Daniels & Gilbert; %VO2max from %HRmax via the Swain
+    relation (%VO2max ≈ (%HRmax − 37) / 63). Blends true VO2max with running
+    economy — which is exactly why its TREND is the useful signal. Hot-day runs
+    are conditions-adjusted first so summer doesn't read as detraining.
+    """
+    from paceforge.engine.enviro import adjusted_pace
+
+    max_hr = getattr(profile, "max_hr", None)
+    if not max_hr:
+        return {"available": False, "note": "no max HR on profile"}
+
+    points: list[dict] = []
+    for a in activities or []:
+        if not _is_run(getattr(a, "activity_type", None)):
+            continue
+        pace = getattr(a, "avg_pace_sec_per_km", None)
+        hr = getattr(a, "avg_hr", None)
+        dur = getattr(a, "duration_seconds", None) or 0
+        st = getattr(a, "start_time", None)
+        if not (pace and hr and st) or dur < 20 * 60 or not (180 < pace < 600):
+            continue
+        pct_hrmax = hr / max_hr
+        pct_vo2 = (pct_hrmax * 100 - 37) / 63
+        if pct_vo2 < 0.4:  # too easy to say anything about the ceiling
+            continue
+        detail = (details or {}).get(getattr(a, "activity_id", None)) or {}
+        pace = adjusted_pace(pace, detail.get("weather")) or pace
+        v = 60_000 / pace  # m/min
+        vo2 = -4.60 + 0.182258 * v + 0.000104 * v * v
+        eff = vo2 / pct_vo2
+        if 25 < eff < 90:
+            points.append({"date": str(st)[:10], "t": st, "effective_vo2max": round(eff, 1)})
+
+    if len(points) < 3:
+        return {"available": False, "note": f"only {len(points)} usable runs"}
+
+    points.sort(key=lambda p: p["t"])
+    # The HR→%VO2max inversion systematically overshoots (Runalyze solves the
+    # same problem with a per-athlete correction factor); calibrate the LEVEL
+    # to Garmin's lab-grade estimate and keep the per-run TREND, which is the
+    # signal this metric exists for.
+    raw_mean = sum(p["effective_vo2max"] for p in points) / len(points)
+    garmin_vo2 = getattr(profile, "vo2_max", None)
+    correction = (garmin_vo2 / raw_mean) if garmin_vo2 and raw_mean > 0 else 1.0
+    for p in points:
+        p["effective_vo2max"] = round(p["effective_vo2max"] * correction, 1)
+    # 42-day EWMA over the run series (same time constant as CTL — fitness-speed).
+    ewma = None
+    for p in points:
+        ewma = p["effective_vo2max"] if ewma is None else \
+            ewma + (p["effective_vo2max"] - ewma) * (1 - 2.718281828 ** (-1 / 42))
+        p["ewma"] = round(ewma, 1)
+    t0, t1 = points[0]["t"], points[-1]["t"]
+    weeks = max(_days_since(t0, t1) / 7.0, 0.1)
+    xs = [_days_since(t0, p["t"]) / 7.0 for p in points]
+    reg = _linreg(xs, [p["effective_vo2max"] for p in points])
+    series = [{"date": p["date"], "value": p["effective_vo2max"], "ewma": p["ewma"]}
+              for p in points]
+    return {
+        "available": True,
+        "current": points[-1]["ewma"],
+        "trend_per_week": round(reg[0], 2) if reg else None,
+        "n": len(points),
+        "window_weeks": round(weeks, 1),
+        "calibrated_to_garmin": correction != 1.0,
+        "correction_factor": round(correction, 3),
+        "series": series[-60:],
+    }
+
+
 def compute_running_metrics(activities: list, details: dict, profile) -> dict[str, Any]:
     """Compute running-engine & durability metrics. Never raises on missing data."""
     details = details or {}
@@ -654,6 +728,7 @@ def compute_running_metrics(activities: list, details: dict, profile) -> dict[st
     pacing = _pacing(runs, details)
     vvo2 = _vvo2max(runs, profile)
     economy = _economy_vs_pace(runs)
+    eff_vo2 = compute_effective_vo2max(activities, details, profile)
 
     ef_direction = None
     if ef.available and ef.trend_per_week is not None:
@@ -681,5 +756,6 @@ def compute_running_metrics(activities: list, details: dict, profile) -> dict[st
         "pacing": asdict(pacing),
         "vvo2max": asdict(vvo2),
         "economy_vs_pace": asdict(economy),
+        "effective_vo2max": eff_vo2,
         "headline": headline,
     }

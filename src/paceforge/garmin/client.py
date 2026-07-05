@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from datetime import date, timedelta
 from pathlib import Path
@@ -17,7 +18,7 @@ from garminconnect.workout import (
     create_repeat_group,
 )
 
-from paceforge.engine.analytics import _normalize_lt_speed
+from paceforge.engine.vdot import normalize_lt_speed as _normalize_lt_speed
 from paceforge.models.plan import (
     Workout,
     WorkoutStepType,
@@ -33,6 +34,29 @@ from paceforge.models.profile import (
 logger = logging.getLogger(__name__)
 
 DEFAULT_TOKEN_DIR = "~/.garminconnect"
+
+# Structured-workout sport types. Running is the default; HYROX bricks and
+# station days go up as fitness_equipment (Garmin's cardio/strength sport) with
+# an automatic fall-back to running if the account/API rejects it.
+_RUNNING_SPORT = {"sportTypeId": 1, "sportTypeKey": "running"}
+_FITNESS_SPORT = {"sportTypeId": 6, "sportTypeKey": "fitness_equipment"}
+_SPORT_BY_WORKOUT_TYPE = {
+    "hyrox_mixed": _FITNESS_SPORT,
+    "cross_training": _FITNESS_SPORT,
+}
+
+
+def _sport_for(workout: Workout) -> dict:
+    return _SPORT_BY_WORKOUT_TYPE.get(str(workout.workout_type), _RUNNING_SPORT)
+
+
+# Garmin's numeric training-status codes (device DTO). 8 ("Strained") appears on
+# newer firmware; unmapped codes fall through as their raw string.
+_STATUS_MAP = {
+    0: "No Status", 1: "Detraining", 2: "Recovery", 3: "Maintaining",
+    4: "Productive", 5: "Peaking", 6: "Overreaching", 7: "Unproductive",
+    8: "Strained",
+}
 
 
 class GarminClient:
@@ -51,6 +75,19 @@ class GarminClient:
         self._prompt_mfa = prompt_mfa or (lambda: input("MFA code: "))
         self._client: Garmin | None = None
         self._mfa_state: dict | None = None
+        # Per-endpoint outcome of the last get_fitness_profile() call — the
+        # sync-status file surfaces this so partial fetches stop being invisible.
+        self.endpoint_report: dict[str, dict] = {}
+
+    @contextlib.contextmanager
+    def _endpoint(self, name: str):
+        """Best-effort fetch guard: swallow the error but record it in endpoint_report."""
+        try:
+            yield
+            self.endpoint_report[name] = {"ok": True}
+        except Exception as e:
+            logger.warning("Could not fetch %s", name, exc_info=True)
+            self.endpoint_report[name] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
     def login(self) -> str | None:
         """Authenticate with Garmin Connect.
@@ -173,6 +210,7 @@ class GarminClient:
         # Garmin populates daily metrics after sleep/wakeup — use yesterday
         # for endpoints that return empty data when today has no readings yet.
         yesterday = (date.today() - timedelta(days=1)).isoformat()
+        self.endpoint_report = {}
 
         # Basic stats
         stats = self.client.get_stats(today) or {}
@@ -184,7 +222,7 @@ class GarminClient:
         load_focus = None
         vo2 = None
         fitness_age = None
-        try:
+        with self._endpoint("training_status"):
             ts_data = self.client.get_training_status(yesterday)
             if ts_data and isinstance(ts_data, dict):
                 # VO2max lives inside mostRecentVO2Max
@@ -210,11 +248,6 @@ class GarminClient:
                     if device_data:
                         raw_status = device_data.get("trainingStatus")
                         if isinstance(raw_status, (int, float)):
-                            _STATUS_MAP = {
-                                0: "No Status", 1: "Detraining", 2: "Recovery",
-                                3: "Maintaining", 4: "Productive", 5: "Peaking",
-                                6: "Overreaching", 7: "Unproductive",
-                            }
                             training_status = _STATUS_MAP.get(int(raw_status), str(raw_status))
                         elif isinstance(raw_status, str) and raw_status:
                             training_status = raw_status
@@ -252,54 +285,41 @@ class GarminClient:
                         or ts_data.get("trainingStatusLabel")
                     )
                     if isinstance(training_status, (int, float)):
-                        _STATUS_MAP = {
-                            0: "No Status", 1: "Detraining", 2: "Recovery",
-                            3: "Maintaining", 4: "Productive", 5: "Peaking",
-                            6: "Overreaching", 7: "Unproductive",
-                        }
                         training_status = _STATUS_MAP.get(int(training_status), str(training_status))
-        except Exception:
-            logger.warning("Could not fetch training status", exc_info=True)
 
         # VO2 max fallback — try dedicated endpoint if not found in training status
         if not vo2:
-            try:
+            with self._endpoint("vo2_max"):
                 vo2_data = self.client.get_max_metrics(yesterday)
                 if vo2_data and isinstance(vo2_data, list) and len(vo2_data) > 0:
                     vo2 = vo2_data[0].get("generic", {}).get("vo2MaxPreciseValue")
                     if not fitness_age:
                         fitness_age = vo2_data[0].get("generic", {}).get("fitnessAge")
-            except Exception:
-                logger.warning("Could not fetch VO2 max", exc_info=True)
 
         # Training readiness (returns a list, not a dict)
         readiness = None
-        try:
+        with self._endpoint("training_readiness"):
             tr_data = self.client.get_training_readiness(yesterday)
             if tr_data:
                 if isinstance(tr_data, list) and len(tr_data) > 0:
                     readiness = tr_data[0].get("score")
                 elif isinstance(tr_data, dict):
                     readiness = tr_data.get("score")
-        except Exception:
-            logger.warning("Could not fetch training readiness", exc_info=True)
 
         # HRV
         hrv_status = None
         hrv_value = None
-        try:
+        with self._endpoint("hrv"):
             hrv_data = self.client.get_hrv_data(yesterday)
             if hrv_data:
                 summary = hrv_data.get("hrvSummary") or {}
                 hrv_status = summary.get("status")
                 hrv_value = summary.get("lastNightAvg") or summary.get("weeklyAvg")
-        except Exception:
-            logger.warning("Could not fetch HRV", exc_info=True)
 
         # Lactate threshold
         lt_hr = None
         lt_speed = None
-        try:
+        with self._endpoint("lactate_threshold"):
             lt_data = self.client.get_lactate_threshold(latest=True)
             if lt_data and isinstance(lt_data, dict):
                 shr = lt_data.get("speed_and_heart_rate") or lt_data.get("speedAndHeartRate") or {}
@@ -308,12 +328,10 @@ class GarminClient:
                     # Garmin returns LT speed in inconsistent units — normalize to m/s
                     # at ingestion so the stored profile is correct everywhere.
                     lt_speed = _normalize_lt_speed(shr.get("speed"))
-        except Exception:
-            logger.warning("Could not fetch lactate threshold", exc_info=True)
 
         # Endurance score
         endurance = None
-        try:
+        with self._endpoint("endurance_score"):
             es_data = self.client.get_endurance_score(yesterday)
             if es_data and isinstance(es_data, dict):
                 endurance = (
@@ -321,12 +339,10 @@ class GarminClient:
                     or es_data.get("enduranceScore")
                     or es_data.get("compositeScore")
                 )
-        except Exception:
-            logger.warning("Could not fetch endurance score", exc_info=True)
 
         # Body composition (weight)
         weight = None
-        try:
+        with self._endpoint("body_composition"):
             bc_data = self.client.get_body_composition(today)
             if bc_data and isinstance(bc_data, dict):
                 # Weight could be in grams or kg depending on API version
@@ -335,14 +351,12 @@ class GarminClient:
                     weight = round(w / 1000, 1)
                 elif w:
                     weight = round(w, 1)
-        except Exception:
-            logger.warning("Could not fetch body composition", exc_info=True)
 
         # Body Battery
         bb_current = None
         bb_high = None
         bb_low = None
-        try:
+        with self._endpoint("body_battery"):
             bb_data = self.client.get_body_battery(today)
             logger.debug("Body battery raw type=%s", type(bb_data).__name__)
             if bb_data and isinstance(bb_data, (list, dict)):
@@ -380,8 +394,6 @@ class GarminClient:
                         bb_high = bb_data.get("bodyBatteryHigh") or bb_data.get("high")
                         bb_low = bb_data.get("bodyBatteryLow") or bb_data.get("low")
             logger.debug("Body battery parsed: current=%s high=%s low=%s", bb_current, bb_high, bb_low)
-        except Exception:
-            logger.warning("Could not fetch body battery", exc_info=True)
 
         # Sleep data
         sleep_score = None
@@ -390,7 +402,7 @@ class GarminClient:
         sleep_light = None
         sleep_rem = None
         sleep_awake = None
-        try:
+        with self._endpoint("sleep"):
             sl_data = self.client.get_sleep_data(today)
             logger.debug("Sleep data raw keys=%s", list(sl_data.keys()) if isinstance(sl_data, dict) else type(sl_data).__name__)
             if sl_data and isinstance(sl_data, dict):
@@ -407,14 +419,12 @@ class GarminClient:
                 sleep_rem = daily.get("remSleepSeconds")
                 sleep_awake = daily.get("awakeSleepSeconds")
             logger.debug("Sleep parsed: score=%s duration=%s", sleep_score, sleep_duration)
-        except Exception:
-            logger.warning("Could not fetch sleep data", exc_info=True)
 
         # Stress data
         stress_avg = None
         stress_high = None
         stress_low = None
-        try:
+        with self._endpoint("stress"):
             st_data = self.client.get_stress_data(today)
             logger.debug("Stress data raw keys=%s", list(st_data.keys()) if isinstance(st_data, dict) else type(st_data).__name__)
             if st_data and isinstance(st_data, dict):
@@ -426,12 +436,10 @@ class GarminClient:
                 stress_high = st_data.get("highStressDuration") or st_data.get("maxStressLevel")
                 stress_low = st_data.get("lowStressDuration") or st_data.get("minStressLevel")
             logger.debug("Stress parsed: avg=%s", stress_avg)
-        except Exception:
-            logger.warning("Could not fetch stress data", exc_info=True)
 
         # Race predictions
         predictions: list[RacePrediction] = []
-        try:
+        with self._endpoint("race_predictions"):
             rp_data = self.client.get_race_predictions()
             if rp_data:
                 logger.debug("Race predictions raw: %s", type(rp_data).__name__)
@@ -465,12 +473,10 @@ class GarminClient:
                                 }
                                 label = _DIST_NORM.get(dist, dist)
                                 predictions.append(RacePrediction(distance=label, predicted_seconds=secs))
-        except Exception:
-            logger.warning("Could not fetch race predictions", exc_info=True)
 
         # Personal records
         personal_records: list[PersonalRecord] = []
-        try:
+        with self._endpoint("personal_records"):
             pr_data = self.client.get_personal_record()
             if pr_data and isinstance(pr_data, (list, dict)):
                 items = pr_data if isinstance(pr_data, list) else pr_data.get("personalRecords", [])
@@ -494,14 +500,12 @@ class GarminClient:
                         personal_records.append(
                             PersonalRecord(distance=label, time_seconds=float(time_s), record_date=str(pr_date) if pr_date else None)
                         )
-        except Exception:
-            logger.warning("Could not fetch personal records", exc_info=True)
 
         # Recent activities (multiple types supported)
         activities: list[RecentActivity] = []
         # None => Garmin returns every activity type (runs, cardio, strength, …).
         _act_types = activity_types or [None]
-        try:
+        with self._endpoint("activities"):
             start = (date.today() - timedelta(days=lookback_days)).isoformat()
             raw: list = []
             for _atype in _act_types:
@@ -548,8 +552,6 @@ class GarminClient:
                         avg_respiration_rate=act.get("avgRespirationRate"),
                     )
                 )
-        except Exception:
-            logger.warning("Could not fetch recent activities", exc_info=True)
 
         # Weekly mileage estimate
         weekly_km = None
@@ -559,7 +561,7 @@ class GarminClient:
 
         # HR zones
         zones: list[HRZone] = []
-        try:
+        with self._endpoint("hr_zones"):
             zone_data = hr_data.get("heartRateZones")
             if zone_data:
                 for i, z in enumerate(zone_data, 1):
@@ -570,8 +572,6 @@ class GarminClient:
                             high_bpm=z.get("endBPM", 0),
                         )
                     )
-        except Exception:
-            logger.warning("Could not parse HR zones", exc_info=True)
 
         return UserFitnessProfile(
             garmin_display_name=stats.get("displayName"),
@@ -768,35 +768,50 @@ class GarminClient:
             logger.warning("Failed to delete Garmin workout %s", workout_id, exc_info=True)
 
     def push_workout(self, workout: Workout, schedule_date: date | None = None, plan_paces: dict | None = None) -> dict:
-        """Upload a structured running workout to Garmin Connect and optionally schedule it."""
-        garmin_steps = []
-        for i, step in enumerate(workout.steps):
-            garmin_steps.append(_to_garmin_step(step, order=i + 1))
+        """Upload a structured workout to Garmin Connect and optionally schedule it.
 
-        description = _build_garmin_description(workout, plan_paces)
-
-        garmin_workout = RunningWorkout(
-            workoutName=workout.name,
-            description=description,
-            estimatedDurationInSecs=int(workout.estimated_duration_seconds or 3600),
-            workoutSegments=[
-                WorkoutSegment(
-                    segmentOrder=1,
-                    sportType={"sportTypeId": 1, "sportTypeKey": "running"},
-                    workoutSteps=garmin_steps,
-                )
-            ],
-        )
-
-        result = self.client.upload_running_workout(garmin_workout)
+        HYROX/station workouts go up as fitness_equipment (Garmin's cardio/strength
+        sport); if Garmin rejects that, we retry as a running workout with the
+        stations spelled out in the step descriptions — works on any watch.
+        """
+        sport = _sport_for(workout)
+        try:
+            result = self._upload(workout, sport, plan_paces)
+        except Exception:
+            if sport["sportTypeKey"] == "running":
+                raise
+            logger.warning("%s upload as %s rejected — retrying as running",
+                           workout.name, sport["sportTypeKey"], exc_info=True)
+            sport = _RUNNING_SPORT
+            result = self._upload(workout, sport, plan_paces)
         workout_id = result.get("workoutId")
-        logger.info("Uploaded workout %s (id=%s)", workout.name, workout_id)
+        result["sport_used"] = sport["sportTypeKey"]
+        logger.info("Uploaded workout %s (id=%s, sport=%s)",
+                    workout.name, workout_id, sport["sportTypeKey"])
 
         if schedule_date and workout_id:
             self.client.schedule_workout(workout_id, schedule_date.isoformat())
             logger.info("Scheduled workout %s on %s", workout_id, schedule_date)
 
         return result
+
+    def _upload(self, workout: Workout, sport: dict, plan_paces: dict | None) -> dict:
+        garmin_steps = [_to_garmin_step(step, order=i + 1)
+                        for i, step in enumerate(workout.steps)]
+        garmin_workout = RunningWorkout(
+            workoutName=workout.name,
+            description=_build_garmin_description(workout, plan_paces),
+            estimatedDurationInSecs=int(workout.estimated_duration_seconds or 3600),
+            sportType=sport,
+            workoutSegments=[
+                WorkoutSegment(
+                    segmentOrder=1,
+                    sportType=sport,
+                    workoutSteps=garmin_steps,
+                )
+            ],
+        )
+        return self.client.upload_running_workout(garmin_workout)
 
     # ── Weight & body composition ────────────────────────────────────
 
@@ -856,42 +871,51 @@ class GarminClient:
             logger.warning("Could not fetch body composition for %s", target_date, exc_info=True)
         return {}
 
-    def push_plan_week(self, workouts: list[Workout], plan_paces: dict | None = None) -> list[dict]:
+    def push_plan_week(self, workouts: list[Workout], plan_paces: dict | None = None) -> dict:
         """Push a list of workouts (typically one week) to Garmin Connect.
 
-        Deletes existing scheduled workouts in the date range first to
-        prevent duplicates when re-pushing after a reschedule.
+        Dedup: deletes each workout's previously-pushed Garmin copy by stored id
+        (``garmin_workout_id``), with a name+date-range sweep as the fallback for
+        workouts pushed before ids were recorded. Uploads are isolated per
+        workout — one failure doesn't abort the rest of the week. Sets
+        ``garmin_workout_id`` on each pushed workout (caller persists the plan).
         """
         active = [w for w in workouts if w.workout_type.value != "rest"]
         if not active:
-            return []
+            return {"pushed": [], "failed": []}
 
-        # Determine the date range covered by this batch
+        # Delete-by-id for previously pushed copies…
+        for w in active:
+            if w.garmin_workout_id:
+                self.delete_workout(w.garmin_workout_id)
+        # …then the legacy name+date sweep for anything pushed before ids existed.
         dates = [w.scheduled_date for w in active if w.scheduled_date]
-        if dates:
+        untracked = {w.name for w in active if not w.garmin_workout_id}
+        if dates and untracked:
             min_date, max_date = min(dates), max(dates)
-            push_names = {w.name for w in active}
             try:
-                existing = self.get_all_workouts()
-                for ex in existing:
+                for ex in self.get_all_workouts():
                     ex_date = str(ex.get("calendarDate") or "")[:10]
                     ex_id = ex.get("workoutId")
-                    ex_name = ex.get("workoutName", "")
-                    if not ex_id or not ex_date:
-                        continue
-                    if (
-                        ex_name in push_names
-                        and str(min_date) <= ex_date <= str(max_date)
-                    ):
+                    if (ex_id and ex_date and ex.get("workoutName", "") in untracked
+                            and str(min_date) <= ex_date <= str(max_date)):
                         self.delete_workout(ex_id)
             except Exception:
                 logger.warning("Could not clean up existing workouts before push", exc_info=True)
 
-        results = []
+        pushed: list[dict] = []
+        failed: list[dict] = []
         for w in active:
-            r = self.push_workout(w, schedule_date=w.scheduled_date, plan_paces=plan_paces)
-            results.append(r)
-        return results
+            try:
+                r = self.push_workout(w, schedule_date=w.scheduled_date, plan_paces=plan_paces)
+                if r.get("workoutId"):
+                    w.garmin_workout_id = int(r["workoutId"])
+                pushed.append({"name": w.name, "workout_id": r.get("workoutId"),
+                               "sport": r.get("sport_used")})
+            except Exception as e:
+                logger.warning("Push failed for %s", w.name, exc_info=True)
+                failed.append({"name": w.name, "error": f"{type(e).__name__}: {e}"})
+        return {"pushed": pushed, "failed": failed}
 
 
 def _fmt_pace(sec_per_km: float | None) -> str:

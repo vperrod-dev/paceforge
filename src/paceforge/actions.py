@@ -18,7 +18,8 @@ import logging
 import os
 import sys
 import tarfile
-from datetime import date
+import time
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from paceforge import store
@@ -84,7 +85,22 @@ def login() -> str:
     client = GarminClient(email, password, token_dir=str(token_dir))
     if client.login() == "mfa_required":
         client.complete_mfa(_ask("MFA code: ").strip())
+    # The refresh token lasts ~a year from this moment; recording the date is the
+    # only way to warn before the silent "sync just stopped working" cliff.
+    store.save_token_meta({"login_date": date.today().isoformat()})
     return _export_token(token_dir)
+
+
+def _token_age_days() -> int | None:
+    """Days since the last interactive login (None if unknown)."""
+    meta = store.load_token_meta() or {}
+    login_date = meta.get("login_date")
+    if not login_date:
+        return None
+    try:
+        return (date.today() - date.fromisoformat(str(login_date))).days
+    except ValueError:
+        return None
 
 
 def export_token() -> str:
@@ -99,41 +115,109 @@ def export_token() -> str:
 
 
 def sync(lookback_days: int = 90, details_limit: int = 40) -> dict:
-    """Pull metrics + activities from Garmin into data/*.json (+ recent splits)."""
-    client = garmin_connect()
-    profile = client.get_fitness_profile(lookback_days=lookback_days)
-    store.save_profile(profile)
-    store.append_daily_history(profile)
-    store.save_activities(profile.recent_activities)
-    new_details = _sync_details(client, limit=details_limit)
-    matched = _match_plan()
-    # Write the refreshed token back to disk so the workflow can persist it to
-    # the GARMIN_TOKEN secret — keeps the headless token from going stale.
-    try:
-        client.dump_tokens(str(_token_dir()))
-    except Exception:
-        logger.debug("Token re-dump after sync failed", exc_info=True)
-    return {
-        "vo2_max": profile.vo2_max,
-        "training_readiness": profile.training_readiness,
-        "hrv_status": profile.hrv_status,
-        "training_status": profile.training_status,
-        "activities": len(profile.recent_activities),
-        "new_details": new_details,
-        "matched_workouts": matched,
+    """Pull metrics + activities from Garmin into data/*.json (+ recent splits).
+
+    Always writes data/sync-status.json — the UI's only truthful signal of whether
+    the numbers on screen are fresh — then re-raises on hard failure.
+    """
+    now = datetime.now(UTC).isoformat(timespec="seconds")
+    prev = store.load_sync_status() or {}
+    status: dict = {
+        "schema": 1,
+        "last_attempt": now,
+        "last_success": prev.get("last_success"),
+        "result": "failed",
+        "error": None,
+        "endpoints": {},
+        "counters": {},
+        "token": {"refreshed": False, "age_days": _token_age_days()},
     }
+    try:
+        client = garmin_connect()
+        profile = client.get_fitness_profile(lookback_days=lookback_days)
+        status["endpoints"] = client.endpoint_report
+        store.save_profile(profile)
+        history = store.append_daily_history(profile)
+        store.save_activities(profile.recent_activities)
+        new_details, detail_failures = _sync_details(client, limit=details_limit)
+        matched = _match_plan()
+        # Write the refreshed token back to disk so the workflow can persist it to
+        # the GARMIN_TOKEN secret — keeps the headless token from going stale.
+        try:
+            client.dump_tokens(str(_token_dir()))
+            status["token"]["refreshed"] = True
+        except Exception:
+            logger.debug("Token re-dump after sync failed", exc_info=True)
+        status["counters"] = {
+            "activities": len(profile.recent_activities),
+            "new_details": new_details,
+            "detail_failures": detail_failures,
+            "matched_workouts": matched,
+            "history_written": history["written"],
+            "history_skip_reason": history["reason"],
+        }
+        failed = sorted(k for k, v in status["endpoints"].items() if not v.get("ok"))
+        partial = bool(failed) or history["reason"] == "skipped_all_null"
+        status["result"] = "partial" if partial else "ok"
+        status["last_success"] = now
+        return {
+            "vo2_max": profile.vo2_max,
+            "training_readiness": profile.training_readiness,
+            "hrv_status": profile.hrv_status,
+            "training_status": profile.training_status,
+            "activities": len(profile.recent_activities),
+            "new_details": new_details,
+            "matched_workouts": matched,
+            "result": status["result"],
+            "failed_endpoints": failed,
+        }
+    except Exception as e:
+        status["error"] = f"{type(e).__name__}: {e}"
+        raise
+    finally:
+        store.save_sync_status(status)
+
+
+def log_rpe(activity_id: int | None = None, when: str | None = None, *,
+            rpe: int, duration_min: float | None = None, notes: str = "",
+            source: str = "cli") -> dict:
+    """Record a session RPE (1-10). Keyed by activity_id, or by date for sessions
+    the watch didn't record. HR-less strength/HYROX work only counts toward
+    training load through these entries (Foster session-RPE)."""
+    if not 1 <= int(rpe) <= 10:
+        raise RuntimeError("RPE must be 1-10.")
+    entry_date = when
+    if activity_id is not None:
+        act = next((a for a in store.load_activities() if a.activity_id == activity_id), None)
+        if act is None:
+            raise RuntimeError(f"Unknown activity {activity_id} — sync first.")
+        entry_date = entry_date or str(act.start_time)[:10]
+        if duration_min is None and act.duration_seconds:
+            duration_min = round(act.duration_seconds / 60, 1)
+    if entry_date is None:
+        raise RuntimeError("Provide an activity_id or a date.")
+    if activity_id is None and not duration_min:
+        raise RuntimeError("Date-only entries need duration_min to compute load.")
+    entry = {"activity_id": activity_id, "date": str(entry_date), "rpe": int(rpe),
+             "duration_min": duration_min, "notes": notes or None, "source": source}
+    store.upsert_rpe(entry)
+    matched = _match_plan()  # copies RPE onto the matched workout
+    return {"saved": entry, "entries": len(store.load_rpe()["entries"]),
+            "matched_workouts": matched}
 
 
 def _match_plan() -> int:
-    """Re-match stored activities to the active plan's workouts. Returns matched count."""
+    """Re-match stored activities to the plan and annotate plan-vs-actual compliance."""
+    from paceforge.engine.compliance import annotate_plan
     from paceforge.engine.matching import match_plan_to_activities
 
     plan = store.load_plan()
     if not plan:
         return 0
-    changed = match_plan_to_activities(plan, store.load_activities())
-    if changed:
-        store.save_plan(plan)
+    activities = store.load_activities()
+    changed = match_plan_to_activities(plan, activities, rpe_map=store.rpe_by_activity())
+    annotate_plan(plan, activities)
+    store.save_plan(plan)
     return changed
 
 
@@ -239,10 +323,10 @@ def _trim_detail(detail: dict) -> dict:
     return out
 
 
-def _sync_details(client: GarminClient, limit: int = 40) -> int:
+def _sync_details(client: GarminClient, limit: int = 40) -> tuple[int, int]:
     """Fetch + store per-activity splits for the recent ``limit`` activities plus any
     matched by the current plan. Incremental (skips stored ids); best-effort per
-    activity so one bad fetch never fails the whole sync. Returns count newly stored.
+    activity so one bad fetch never fails the whole sync. Returns (stored, failed).
     """
     ids: list = [a.activity_id for a in store.load_activities()[:limit]]
     plan = store.load_plan()
@@ -253,6 +337,7 @@ def _sync_details(client: GarminClient, limit: int = 40) -> int:
 
     seen: set = set()
     fetched = 0
+    failed = 0
     for aid in ids:
         if aid is None or aid in seen:
             continue
@@ -262,11 +347,27 @@ def _sync_details(client: GarminClient, limit: int = 40) -> int:
         if store.has_detail(aid) and (store.load_detail(aid) or {}).get("v", 0) >= _DETAIL_VERSION:
             continue
         try:
-            store.save_detail(aid, _trim_detail(client.get_activity_detail(aid)))
+            store.save_detail(aid, _trim_detail(_fetch_detail(client, aid)))
             fetched += 1
         except Exception:
             logger.warning("activity detail fetch failed for %s", aid, exc_info=True)
-    return fetched
+            failed += 1
+        # This loop fans out ~6 endpoint calls per activity; pace it so a
+        # 40-activity backfill doesn't trip Garmin's rate limiting.
+        time.sleep(0.5)
+    return fetched, failed
+
+
+def _fetch_detail(client: GarminClient, activity_id: int) -> dict:
+    """One detail fetch with a single retry when Garmin rate-limits (HTTP 429)."""
+    try:
+        return client.get_activity_detail(activity_id)
+    except Exception as e:
+        if "429" not in str(e):
+            raise
+        logger.warning("Rate-limited fetching %s — retrying once in 10s", activity_id)
+        time.sleep(10)
+        return client.get_activity_detail(activity_id)
 
 
 def scaffold(goal: dict) -> dict:
@@ -281,7 +382,8 @@ def scaffold(goal: dict) -> dict:
     profile = store.load_profile()
     if profile is None:
         raise RuntimeError("No profile — run `paceforge sync` first.")
-    plan = generate_plan(profile, TrainingGoal.model_validate(goal))
+    plan = generate_plan(profile, TrainingGoal.model_validate(goal),
+                         hyrox_focus=_hyrox_focus_stations())
     store.save_plan(plan)
     return {
         "name": plan.name,
@@ -290,6 +392,27 @@ def scaffold(goal: dict) -> dict:
         "pace_source": plan.pace_source,
         "issues": validate_plan(plan),
     }
+
+
+def _hyrox_gender() -> str:
+    """The athlete's gender as recorded on the imported HYROX results (default M)."""
+    p = store._path("hyrox.json")
+    if p.exists():
+        import json as _json
+
+        try:
+            return _json.loads(p.read_text()).get("search_gender") or "M"
+        except Exception:
+            return "M"
+    return "M"
+
+
+def _hyrox_focus_stations() -> list | None:
+    """Weakest two non-running stations from race analysis, for session targeting."""
+    analysis = store.load_hyrox_analysis() or {}
+    stations = [p["name"] for p in analysis.get("priorities") or []
+                if not p.get("is_running") and p.get("name")]
+    return stations[:2] or None
 
 
 def analyze() -> dict:
@@ -303,6 +426,8 @@ def analyze() -> dict:
 def fitness() -> dict:
     """Fitness 2.0 assessment: running-engine/durability, load/recovery/wellbeing,
     strength/HYROX, and the readiness-gated ranked limiters + LLM-coach contract."""
+    from paceforge.engine.compliance import weekly_compliance
+    from paceforge.engine.curves import compute_pace_curves
     from paceforge.engine.durability import compute_running_metrics
     from paceforge.engine.limiters import rank_limiters
     from paceforge.engine.load import compute_load_recovery
@@ -314,11 +439,22 @@ def fitness() -> dict:
     activities = store.load_activities()
     details = store.load_all_details()
     running = compute_running_metrics(activities, details, profile)
-    load = compute_load_recovery(store.load_history(), activities, profile)
+    running["pace_curves"] = compute_pace_curves(activities, details)
+    load = compute_load_recovery(store.load_history(), activities, profile,
+                                 rpe_map=store.rpe_by_activity())
+    hyrox_data = store.load_hyrox_results()
+    gender = _hyrox_gender()
     strength = compute_strength_hyrox(
-        store.load_hyrox_results(), store.load_benchmarks(), profile, activities, details)
-    limiters = rank_limiters(running, load, strength)
-    return {"running": running, "load": load, "strength": strength, **limiters}
+        hyrox_data, store.load_benchmarks(), profile, activities, details, gender=gender)
+    # Effective VO2max (per-run, conditions-adjusted) beats the raw Garmin value
+    # as the coach's fitness signal; fall back to the profile figure.
+    eff = running.get("effective_vo2max") or {}
+    vo2_for_coach = eff.get("current") if eff.get("available") else profile.vo2_max
+    limiters = rank_limiters(running, load, strength, profile_vo2max=vo2_for_coach)
+    plan = store.load_plan()
+    compliance = weekly_compliance(plan, activities) if plan else None
+    return {"running": running, "load": load, "strength": strength,
+            "compliance": compliance, **limiters}
 
 
 # ── HYROX race import (results.hyrox.com) ────────────────────────────
@@ -451,8 +587,53 @@ def push(week: int | None = None, dry_run: bool = False) -> dict:
         "interval_pace": plan.interval_pace,
     }
     client = garmin_connect()
-    results = client.push_plan_week(workouts, plan_paces=paces)
-    return {"week": wk.week_number, "pushed": len(results), "workouts": summary}
+    result = client.push_plan_week(workouts, plan_paces=paces)
+    store.save_plan(plan)  # persist garmin_workout_id for delete-by-id on re-push
+    return {"week": wk.week_number, "pushed": len(result["pushed"]),
+            "failed": result["failed"], "workouts": summary,
+            "uploads": result["pushed"]}
+
+
+def adapt(dry_run: bool = False) -> dict:
+    """Deterministic plan adaptation: reflow missed quality sessions and
+    readiness-gate imminent hard work. The coach remains the judgement layer;
+    this gives it (and the athlete) a safe, rule-based lever."""
+    from datetime import timedelta
+
+    from paceforge.engine.adaptation import readiness_gate, reflow_missed_sessions
+    from paceforge.engine.load import compute_load_recovery
+
+    plan = store.load_plan()
+    if plan is None:
+        raise RuntimeError("No plan at data/plan.json.")
+    profile = store.load_profile()
+    if profile is None:
+        raise RuntimeError("No profile — run `paceforge sync` first.")
+
+    activities = store.load_activities()
+    load = compute_load_recovery(store.load_history(), activities, profile,
+                                 rpe_map=store.rpe_by_activity())
+    readiness = load.get("readiness_composite") or {}
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    yesterday_rpe = max(
+        (e["rpe"] for e in store.load_rpe()["entries"]
+         if str(e.get("date")) == yesterday and e.get("rpe")),
+        default=None,
+    )
+
+    changes = reflow_missed_sessions(plan)
+    changes += readiness_gate(plan, readiness, yesterday_rpe=yesterday_rpe)
+    issues = validate_plan(plan)
+    if not dry_run and changes and not issues:
+        store.save_plan(plan)
+    return {
+        "dry_run": dry_run,
+        "changes": changes,
+        "saved": bool(changes and not issues and not dry_run),
+        "validation_issues": issues,
+        "readiness": {"score": readiness.get("score"), "band": readiness.get("band")},
+        "yesterday_rpe": yesterday_rpe,
+    }
 
 
 def status() -> dict:
@@ -473,4 +654,5 @@ def status() -> dict:
             "weeks": plan.total_weeks,
             "accepted": plan.accepted,
         },
+        "sync": store.load_sync_status(),
     }

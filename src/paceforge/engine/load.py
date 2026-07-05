@@ -44,6 +44,7 @@ class ActivityLoad:
     date: str
     trimp: float
     activity_type: str
+    method: str = "trimp"  # trimp (HR-based) | srpe (athlete-rated)
 
 
 def _trimp(duration_seconds: float, avg_hr: int, resting_hr: int, max_hr: int) -> float:
@@ -61,6 +62,20 @@ def _trimp(duration_seconds: float, avg_hr: int, resting_hr: int, max_hr: int) -
     return duration_min * hrr * 0.64 * math.exp(1.92 * hrr)
 
 
+# Foster session-RPE (rpe × minutes) lands on a different scale than Banister
+# TRIMP; this constant bridges them so both pool into one CTL/ATL series. It is
+# a heuristic: 0.26 puts a 60-min RPE-7 session (420 sRPE → ~109) at the TRIMP
+# of a comparable 60-min moderately-hard HR session (~108 at HR 150 with
+# rest 50 / max 190). The per-entry `method` tag means it can be re-scaled
+# later without losing data.
+_SRPE_TO_TRIMP = 0.26
+
+
+def _srpe_load(duration_min: float, rpe: int) -> float:
+    """Foster session-RPE converted to the TRIMP scale (see _SRPE_TO_TRIMP)."""
+    return duration_min * rpe * _SRPE_TO_TRIMP
+
+
 def _activity_date(act: Any) -> str:
     """Normalise an activity's start_time to a YYYY-MM-DD string."""
     st = getattr(act, "start_time", None)
@@ -69,35 +84,60 @@ def _activity_date(act: Any) -> str:
     return str(st)[:10]
 
 
-def compute_daily_load(activities: list, resting_hr: int, max_hr: int) -> dict[str, Any]:
-    """Per-activity TRIMP and a daily-summed load series."""
+def compute_daily_load(activities: list, resting_hr: int, max_hr: int,
+                       rpe_map: dict | None = None) -> dict[str, Any]:
+    """Per-activity load (TRIMP, with sRPE fallback) and a daily-summed series.
+
+    HR-based TRIMP underrates or drops strength/HYROX work (high muscular load,
+    low-or-missing HR); an athlete RPE entry (rpe_map, keyed by activity_id)
+    lets an HR-less session still count. Sessions with neither HR nor RPE are
+    reported in `unloaded_activities` so the UI can ask for a rating.
+    """
+    rpe_map = rpe_map or {}
     per_activity: list[ActivityLoad] = []
+    unloaded: list[dict] = []
     daily: dict[str, float] = {}
     for act in activities:
         avg_hr = getattr(act, "avg_hr", None)
         dur = getattr(act, "duration_seconds", None) or 0.0
-        if avg_hr is None or dur <= 0:
+        if dur <= 0:
             continue
-        load = _trimp(dur, avg_hr, resting_hr, max_hr)
         d = _activity_date(act)
+        aid = getattr(act, "activity_id", None)
+        if avg_hr is not None:
+            load, method = _trimp(dur, avg_hr, resting_hr, max_hr), "trimp"
+        else:
+            entry = rpe_map.get(aid) or {}
+            rpe = entry.get("rpe")
+            if not rpe:
+                unloaded.append({
+                    "activity_id": aid, "date": d,
+                    "activity_type": getattr(act, "activity_type", "unknown"),
+                    "name": getattr(act, "name", None),
+                })
+                continue
+            load, method = _srpe_load(dur / 60.0, int(rpe)), "srpe"
         per_activity.append(
             ActivityLoad(
-                activity_id=getattr(act, "activity_id", None),
+                activity_id=aid,
                 date=d,
                 trimp=round(load, 2),
                 activity_type=getattr(act, "activity_type", "unknown"),
+                method=method,
             )
         )
         daily[d] = daily.get(d, 0.0) + load
 
     if not daily:
-        return {"availability": _accumulating(0, 1), "series": [], "per_activity": []}
+        return {"availability": _accumulating(0, 1), "series": [], "per_activity": [],
+                "unloaded_activities": unloaded}
 
     series = [{"date": d, "load": round(v, 2)} for d, v in sorted(daily.items())]
     return {
         "availability": "ok",
         "series": series,
         "per_activity": [vars(a) for a in per_activity],
+        "unloaded_activities": unloaded,
     }
 
 
@@ -665,7 +705,8 @@ def compute_garmin_native(profile: Any) -> dict[str, Any]:
 # ── Entry point ──────────────────────────────────────────────────────
 
 
-def compute_load_recovery(history: list, activities: list, profile) -> dict:
+def compute_load_recovery(history: list, activities: list, profile,
+                          rpe_map: dict | None = None) -> dict:
     """Compute the full training-load / recovery / wellbeing report.
 
     Never raises on missing data. Each block carries an 'availability' tag of
@@ -674,7 +715,7 @@ def compute_load_recovery(history: list, activities: list, profile) -> dict:
     resting_hr = getattr(profile, "resting_hr", None) or 50
     max_hr = getattr(profile, "max_hr", None) or 190
 
-    daily = compute_daily_load(activities, resting_hr, max_hr)
+    daily = compute_daily_load(activities, resting_hr, max_hr, rpe_map=rpe_map)
     load_series = daily.get("series", [])
 
     ctl = compute_ctl_atl_tsb(load_series)

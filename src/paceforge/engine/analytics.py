@@ -2,6 +2,11 @@
 
 All functions are pure: they take a UserFitnessProfile and return a dataclass.
 No API calls, no side effects — just math and domain knowledge.
+
+LEGACY: this one-shot, snapshot-based generation is superseded by Fitness 2.0
+(durability.py / load.py / strength.py / limiters.py, driven off time-series).
+It still powers `paceforge analyze` / analytics.json for the Overview page; new
+metrics belong in the Fitness 2.0 modules, not here.
 """
 
 from __future__ import annotations
@@ -10,6 +15,7 @@ from dataclasses import dataclass
 
 from paceforge.engine.vdot import (
     RACE_DISTANCES,
+    normalize_lt_speed,
     paces_from_vdot,
     vdot_from_race,
 )
@@ -137,32 +143,8 @@ def _fmt_pace(sec_per_km: float) -> str:
     return f"{m}:{s:02d}"
 
 
-def _normalize_lt_speed(raw_speed: float | None) -> float | None:
-    """Normalize Garmin LT speed to m/s.
-
-    Garmin sometimes returns LT speed in unexpected units. Valid running
-    LT speed is roughly 2.5-6.5 m/s (6:40/km to 2:34/km).  If the value
-    is outside that range, try common conversions.
-    """
-    if not raw_speed or raw_speed <= 0:
-        return None
-    # Already in m/s range (2.5-6.5)
-    if 2.0 <= raw_speed <= 7.0:
-        return raw_speed
-    # Possibly cm/s (250-650)
-    if 200 <= raw_speed <= 700:
-        return raw_speed / 100
-    # Possibly mm/s (2500-6500)
-    if 2000 <= raw_speed <= 7000:
-        return raw_speed / 1000
-    # Possibly m/s * 1000 stored as integer (e.g., 3780 = 3.78 m/s)
-    if raw_speed > 7000:
-        return raw_speed / 1000
-    # Below 2.0 — could be m/s * 0.1 factor issue or just walking speed
-    # Try *10 if it puts us in valid range
-    if raw_speed < 2.0 and 2.0 <= raw_speed * 10 <= 7.0:
-        return raw_speed * 10
-    return None  # Unreliable — don't use
+# Back-compat alias — canonical implementation lives in engine.vdot.
+_normalize_lt_speed = normalize_lt_speed
 
 
 def _estimate_vdot(profile: UserFitnessProfile) -> float | None:

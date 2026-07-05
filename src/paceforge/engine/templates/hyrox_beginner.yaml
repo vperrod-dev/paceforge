@@ -1,0 +1,126 @@
+# PaceForge — Hyrox Plan Template (Beginner, 10 weeks)
+# Hyrox = 8 x 1km run + 8 functional workout stations
+# Stations: Ski Erg, Sled Push, Sled Pull, Burpee Broad Jump,
+#           Rowing, Farmers Carry, Sandbag Lunges, Wall Balls
+
+name: "Hyrox — Beginner"
+goal_type: HYROX
+total_weeks: 10
+experience_level: beginner
+days_per_week: 4
+
+phases:
+  - name: Base
+    weeks: [1, 2, 3]
+  - name: Build
+    weeks: [4, 5, 6, 7]
+  - name: Peak
+    weeks: [8, 9]
+  - name: Taper
+    weeks: [10]
+
+volume_progression:
+  - 0.55
+  - 0.60
+  - 0.68
+  - 0.55  # cutback
+  - 0.75
+  - 0.82
+  - 0.88
+  - 0.65  # cutback
+  - 1.00  # peak
+  - 0.50  # race week
+
+peak_weekly_km:
+  beginner: 30
+  intermediate: 40
+  advanced: 50
+
+week_template:
+  - day: monday
+    type: rest
+
+  - day: tuesday
+    type: hyrox_mixed
+    description: "Hyrox simulation — run + stations"
+    fraction_of_weekly: 0.25
+    steps:
+      - type: warmup
+        duration_min: 10
+      - type: repeat
+        count: 4
+        steps:
+          - type: interval
+            distance_km: 1
+            pace: threshold
+          - type: active
+            duration_min: 4
+            description: "Station work (ski erg / sled / burpees / rowing)"
+      - type: cooldown
+        duration_min: 10
+    notes: >
+      After each 1km run, perform one station exercise for the prescribed reps.
+      Rotate through: Ski Erg 1000m, Sled Push 50m, Burpee Broad Jumps 80m, Rowing 1000m.
+
+  - day: wednesday
+    type: easy_run
+    description: "Easy recovery run"
+    fraction_of_weekly: 0.20
+
+  - day: thursday
+    type: cross_training
+    description: "Strength & functional fitness"
+    notes: >
+      Focus on Hyrox stations: Sled Pull 50m x4, Farmers Carry 200m x3,
+      Sandbag Lunges 100m x3, Wall Balls 75 reps x2. Rest 90s between sets.
+
+  - day: friday
+    type: rest
+
+  - day: saturday
+    type: intervals
+    description: "Running intervals (race-pace)"
+    fraction_of_weekly: 0.25
+    steps:
+      - type: warmup
+        duration_min: 10
+      - type: repeat
+        count: 8
+        steps:
+          - type: interval
+            distance_km: 1
+            pace: threshold
+          - type: recovery
+            duration_min: 1.5
+            pace: easy
+      - type: cooldown
+        duration_min: 10
+
+  - day: sunday
+    type: long_run
+    description: "Long aerobic run"
+    fraction_of_weekly: 0.30
+    pace: easy
+
+race_week:
+  - day: monday
+    type: rest
+  - day: tuesday
+    type: easy_run
+    description: "Easy shakeout"
+    distance_km: 4
+  - day: wednesday
+    type: rest
+  - day: thursday
+    type: easy_run
+    description: "Light strides"
+    distance_km: 3
+  - day: friday
+    type: rest
+  - day: saturday
+    type: rest
+  - day: sunday
+    type: hyrox_mixed
+    description: "RACE DAY — Hyrox"
+    distance_km: 8
+    notes: "8 x 1km runs + 8 functional stations"

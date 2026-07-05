@@ -59,18 +59,20 @@ class TestStoreDetail:
 
 
 class TestSyncDetails:
-    def test_fetches_each_recent_activity_once(self):
+    def test_fetches_each_recent_activity_once(self, monkeypatch):
+        monkeypatch.setattr(actions.time, "sleep", lambda s: None)
         store.save_activities([_activity(1), _activity(2)])
-        n = actions._sync_details(FakeClient(), limit=40)
-        assert n == 2
+        n, failed = actions._sync_details(FakeClient(), limit=40)
+        assert n == 2 and failed == 0
         assert store.has_detail(1) and store.has_detail(2)
 
-    def test_skips_activities_already_stored(self):
+    def test_skips_activities_already_stored(self, monkeypatch):
+        monkeypatch.setattr(actions.time, "sleep", lambda s: None)
         store.save_activities([_activity(1), _activity(2)])
         client = FakeClient()
         actions._sync_details(client, limit=40)
         client.calls.clear()
-        again = actions._sync_details(client, limit=40)
+        again, _ = actions._sync_details(client, limit=40)
         assert again == 0
         assert client.calls == []
 

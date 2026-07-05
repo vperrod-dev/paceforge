@@ -60,6 +60,24 @@ Editing the plan = edit `data/plan.json` (move a workout's `scheduled_date`, swa
 type), `paceforge validate`, update `plan.md`, then `paceforge push` to re-upload the
 changed week (it deletes and re-creates the week's Garmin workouts to avoid dupes).
 
+For the routine cases run **`paceforge adapt --dry-run`** first: it deterministically
+(a) moves this week's missed quality session onto a later easy slot when spacing rules
+survive (drops it with a note when they don't — never cram), and (b) downgrades the
+next hard session to easy when the readiness composite is low or yesterday was rated
+RPE ≥ 9. Review the reported changes, drop `--dry-run` to apply, then push. You stay
+the judgement layer — override it when the athlete's context says otherwise.
+
+## HYROX training sessions (scaffolded, not free-text)
+A `--goal HYROX` scaffold now emits structured hybrid sessions: **compromised bricks**
+(`WorkoutFactory.hyrox_compromised_brick` — station effort + 1km repeats), **race
+simulations** (`hyrox_race_simulation`) and a weekly **station-strength day**
+(`station_day`, `cross_training`) that auto-targets the 2 weakest stations from
+`data/hyrox_analysis.json` `priorities` (`train_priority: true` = >60s over the
+athlete's own division/age benchmark, or a 2-weakest station). Keep these when
+personalising; they push to Garmin as structured workouts (cardio sport with a
+running-type fallback). Race analysis is cohort-aware — cite `benchmark_cohort`
+so the athlete knows "vs field" means *their* field.
+
 ## Fitness assessment & limiters → read `data/fitness.json`
 `scripts/build_site_data.py` runs `actions.fitness()`, which writes the full Fitness 2.0
 assessment (running engine/durability, load/recovery, strength/HYROX) plus a ranked
@@ -106,11 +124,30 @@ the time breakdown. To review a race:
 ## Weekly review → `week-review.md`
 1. `paceforge sync`, then read `data/activities.json`, `data/profile.json` and `data/fitness.json`.
 2. `paceforge analyze` for legacy metrics; the limiters/assessment come from `data/fitness.json`.
-3. For each completed workout, compare planned vs actual (distance, pace, HR, cadence).
+3. **Plan-vs-actual is precomputed — don't re-derive it.** Each workout's
+   `completion_metrics` (in `data/plan.json`) carries the TrainingPeaks-style band
+   (`green` 80–120% of planned volume · `yellow` · `orange` · `red` = missed) plus
+   planned/actual km & min; `data/fitness.json` `compliance` has the weekly rollup
+   (per-week `compliance_pct`, band counts, and `unplanned` sessions). Cite the bands;
+   add pace/HR/cadence colour from the activity details only where it changes the story.
 4. Write `week-review.md` with these sections: **Headline diagnosis** (the #1 limiter in plain
    language) · **Top limiters** (≤3, each with the metric evidence) · **This week** (1–2 named
    sessions with pace/HR targets, readiness-gated) · **This block** (theme + re-test date) ·
    **What we can't see yet** (data gaps → benchmarks to enter) · **One thing to NOT do** (a guardrail).
+5. **Also write the structured `data/weekly.json`** so the dashboard's Today view can render it:
+   `{"generated_at": "<iso date>", "headline": "<one plain-language sentence>",
+   "limiters": [<the ≤3 names>], "this_week": ["<action>", ...], "compliance_pct": <int|null>,
+   "content_md": "<the full week-review markdown>", "content": "<same markdown — legacy key>"}`.
+   `headline` and `this_week` are what the athlete sees on the home screen — make them land.
+
+## Session RPE → `data/rpe.json`
+The athlete rates sessions 1–10 in the dashboard (or `paceforge rpe <1-10> <activity_id>`).
+Entries land in `data/rpe.json` and are copied onto matched workouts as `user_rpe`.
+**HR-less strength/HYROX sessions only count toward training load through these** (Foster
+session-RPE, pooled into the same CTL/ATL series — see `load.per_activity[].method`).
+In reviews: cite RPE where it disagrees with HR-based load (hard-feeling easy runs are a
+recovery flag); `load.daily_load.unloaded_activities` lists sessions still missing a rating —
+nudge the athlete to rate them.
 
 ## Per-activity analysis → `data/analyses/{activity_id}.md`
 The web detail view renders a Markdown analysis per activity. Generate them so the

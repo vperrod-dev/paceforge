@@ -57,7 +57,9 @@ jobs:
         run: pip install -e .
 
       - name: Sync from Garmin
-        run: paceforge sync || echo "sync failed — continuing with existing data"
+        # Non-fatal (the coach can work from existing data), but surfaced as a
+        # run warning — sync-status.json records the truth either way.
+        run: paceforge sync || echo "::warning::Garmin sync failed — coach is running on existing data"
 
       - name: Run coach
         uses: anthropics/claude-code-action@v1

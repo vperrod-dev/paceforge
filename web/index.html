@@ -264,6 +264,10 @@ a{color:var(--emerald);text-decoration:none}
 .conn-status{display:inline-flex;align-items:center;gap:7px;font-size:.82rem;font-weight:600;padding:5px 11px;border-radius:var(--r-pill)}
 .conn-on{background:var(--emerald-d);color:var(--emerald)}
 .conn-off{background:var(--elevated);color:var(--text-3)}
+.sync-chip{display:inline-flex;align-items:center;gap:6px;font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:var(--r-pill);cursor:pointer;white-space:nowrap}
+.sync-chip.sync-ok{background:var(--emerald-d);color:var(--emerald)}
+.sync-chip.sync-warn{background:var(--amber-d);color:var(--amber)}
+.sync-chip.sync-err{background:var(--rose-d);color:var(--rose)}
 
 /* ── Sub tabs ── */
 .sub-tabs{display:flex;gap:7px;overflow-x:auto;padding-bottom:8px;margin-bottom:20px;scrollbar-width:thin}
@@ -434,7 +438,7 @@ a{color:var(--emerald);text-decoration:none}
 // ── State ──────────────────────────────────────────────
 const state = {
   user: { name: 'Victor', email: 'vperrod@gmail.com', role: 'user' },
-  tab: 'home',
+  tab: 'today',
 };
 const REPO = 'vperrod/paceforge';     // owner/repo for GitHub actions
 const REF  = 'master';
@@ -462,13 +466,57 @@ async function apiJson(path, opts = {}) {
     case '/plans': { const plan = await planStore.get().catch(() => null); return plan ? [plan] : []; }
     case '/activities': return loadJSON('activities.json');
     case '/auth/profile': return profileMeta();
-    case '/garmin/status': { const pr = await loadJSON('profile.json').catch(() => null); return { connected: !!(pr && pr.profile_date) }; }
+    case '/garmin/status': {
+      // Truthful connection state: derived from the last sync attempt's outcome,
+      // not from profile.json merely existing (which survives failed syncs).
+      const ss = await loadSyncStatus();
+      if (ss) {
+        const ts = ss.last_success || ss.last_attempt;
+        const fresh = ts && (Date.now() - Date.parse(ts)) < 48 * 3600 * 1000;
+        return { connected: ss.result !== 'failed' && !!fresh, sync: ss };
+      }
+      const pr = await loadJSON('profile.json').catch(() => null);
+      return { connected: !!(pr && pr.profile_date), sync: null };
+    }
     case '/weekly-overview': return loadJSON('weekly.json').catch(() => ({ content: null }));
     case '/feed': return feedFromActivities();
     default:
       if (p.startsWith('/feed/')) return [];
       return null;
   }
+}
+
+async function loadSyncStatus() {
+  return loadJSON('sync-status.json').catch(() => null);
+}
+
+// Topbar freshness chip: green synced / amber partial-or-stale / red failing.
+// The only honest signal — profile.json keeps old values across failed syncs.
+function syncChipHtml(ss) {
+  if (!ss) return '';
+  const ts = ss.last_success || ss.last_attempt;
+  const hours = ts ? (Date.now() - Date.parse(ts)) / 3.6e6 : Infinity;
+  const failed = Object.entries(ss.endpoints || {}).filter(([, v]) => !v.ok).map(([k]) => k.replace(/_/g, ' '));
+  let cls = 'ok', label = `Synced ${formatTimeAgo(ts)}`, title = 'Garmin sync healthy';
+  if (ss.result === 'partial') {
+    cls = 'warn';
+    label = `Partial sync · ${formatTimeAgo(ts)}`;
+    title = failed.length ? `Failed: ${failed.join(', ')}` : 'Some wellness data missing';
+  }
+  if (ss.result === 'ok' && hours > 48) {
+    cls = 'warn'; label = `Stale · synced ${formatTimeAgo(ts)}`; title = 'No recent sync run';
+  }
+  if (ss.result === 'failed') {
+    cls = 'err';
+    label = ss.last_success ? `Sync failing · last good ${formatTimeAgo(ss.last_success)}` : 'Sync failing';
+    title = ss.error || 'Sync is failing';
+  }
+  const age = ss.token && ss.token.age_days;
+  if (age != null && age >= 300 && cls === 'ok') {
+    cls = 'warn'; label += ` · token ${age}d old`;
+    title = 'Garmin token expires ~yearly — run `paceforge login` soon';
+  }
+  return `<span class="sync-chip sync-${cls}" id="sync-chip" title="${escHtml(title)}"><span class="dotmark"></span>${escHtml(label)}</span>`;
 }
 
 async function profileMeta() {
@@ -647,6 +695,58 @@ async function pushWeekToGarmin(weekNumber, btn) {
   });
 }
 
+// ── ACTION 2b: Log session RPE (workflow_dispatch save-rpe.yml) ──
+// HR-less strength/HYROX sessions only count toward training load via these.
+async function saveRpe(entry) {
+  if (!requireToken()) throw new Error('GitHub token required');
+  const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/save-rpe.yml/dispatches`, {
+    method: 'POST', headers: ghHeaders(),
+    body: JSON.stringify({ ref: REF, inputs: { data: JSON.stringify(entry) } }),
+  });
+  if (res.status !== 204) throw new Error(await ghError(res));
+  // Optimistic local cache so the pills stay lit until the next data deploy.
+  try {
+    const pending = JSON.parse(localStorage.getItem('pf_rpe_pending') || '{}');
+    pending[entry.activity_id ?? entry.date] = entry;
+    localStorage.setItem('pf_rpe_pending', JSON.stringify(pending));
+  } catch {}
+}
+
+async function rpeForActivity(activityId) {
+  try {
+    const pending = JSON.parse(localStorage.getItem('pf_rpe_pending') || '{}');
+    if (pending[activityId]) return pending[activityId].rpe;
+  } catch {}
+  const data = await loadJSON('rpe.json').catch(() => ({ entries: [] }));
+  const e = (data.entries || []).find(e => e.activity_id === activityId);
+  return e ? e.rpe : null;
+}
+
+function rpeSelectorHtml(activityId, current) {
+  return `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:8px">Effort (RPE)</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" data-rpe-for="${activityId}">
+      ${Array.from({ length: 10 }, (_, i) => i + 1).map(n =>
+        `<button class="btn btn-sm ${current === n ? 'btn-primary' : 'btn-outline'}" data-rpe="${n}">${n}</button>`).join('')}
+    </div>
+    <div class="hint" style="margin-top:6px">1 = very easy · 10 = max effort. Rating strength/HYROX sessions makes them count in your training load.</div>
+  </div>`;
+}
+
+function bindRpeSelector(root, meta) {
+  root.querySelectorAll('[data-rpe-for]').forEach(box => {
+    box.querySelectorAll('[data-rpe]').forEach(b => b.addEventListener('click', async () => {
+      const rpe = Number(b.dataset.rpe);
+      try {
+        await saveRpe({ activity_id: Number(box.dataset.rpeFor), date: meta.date, rpe,
+                        duration_min: meta.durationMin || null });
+        box.querySelectorAll('[data-rpe]').forEach(x => { x.classList.remove('btn-primary'); x.classList.add('btn-outline'); });
+        b.classList.remove('btn-outline'); b.classList.add('btn-primary');
+        toast('ok', 'RPE saved', `Effort ${rpe}/10 recorded — appears in the data after the next site build.`);
+      } catch (e) { toast('err', 'RPE not saved', e.message); }
+    }));
+  });
+}
+
 // ── ACTION 3: Generate / adapt plan (opens a GitHub issue → Claude coach) ──
 function openCoachModal(prefillWeek) {
   if (!requireToken()) return;
@@ -808,6 +908,7 @@ function clearCache(prefix) { for (const k of Object.keys(cache)) { if (k.starts
 // SHELL / ROUTER
 // ═══════════════════════════════════════════════════════
 const NAV = [
+  ['today', 'Today', icons.spark, 'Readiness, today’s session & what’s trending'],
   ['home', 'Overview', icons.home, 'Your training command center'],
   ['fitness', 'Fitness', icons.fitness, 'Physiology, economy & race readiness'],
   ['plan', 'Plan', icons.plan, 'HYROX block — edit, sync & push'],
@@ -893,6 +994,7 @@ async function loadTab(tab) {
   page.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
     switch (tab) {
+      case 'today': await renderToday(page); break;
       case 'home': await renderHome(page); break;
       case 'fitness': await renderFitness(page); break;
       case 'plan': await renderPlan(page); break;
@@ -911,21 +1013,188 @@ function emptyState(title, sub, icon) {
 }
 
 // ═══════════════════════════════════════════════════════
+// VIEW: TODAY (default) — readiness + today's session + trends
+// ═══════════════════════════════════════════════════════
+function _trendArrow(delta, goodWhenUp = true) {
+  if (delta == null) return { icon: '·', color: 'var(--text-3)' };
+  const up = delta > 0;
+  const good = goodWhenUp ? up : !up;
+  return {
+    icon: Math.abs(delta) < 1e-9 ? '→' : up ? '↑' : '↓',
+    color: Math.abs(delta) < 1e-9 ? 'var(--text-2)' : good ? 'var(--emerald)' : 'var(--rose)',
+  };
+}
+
+function _seriesDelta(series, key, days) {
+  if (!series || series.length < 2) return null;
+  const last = series[series.length - 1];
+  const cutoff = new Date(Date.parse(last.date) - days * 86400e3).toISOString().slice(0, 10);
+  const past = [...series].reverse().find(p => p.date <= cutoff) || series[0];
+  return last[key] != null && past[key] != null ? last[key] - past[key] : null;
+}
+
+async function renderToday(page) {
+  const [fitness, plan, events, weekly, syncStatus, activities, rpeData] = await Promise.all([
+    cached('fitness', () => loadJSON('fitness.json').catch(() => null)),
+    planStore.get().catch(() => null),
+    loadJSON('events.json').catch(() => []),
+    loadJSON('weekly.json').catch(() => ({})),
+    loadSyncStatus(),
+    cached('activities', () => apiJson('/activities').catch(() => [])),
+    loadJSON('rpe.json').catch(() => ({ entries: [] })),
+  ]);
+
+  setTopbar('Today', new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+    `${syncChipHtml(syncStatus)}
+     <button class="btn btn-ghost btn-sm" id="td-coach">${icons.spark} Ask Coach</button>`);
+
+  const f = fitness || {};
+  const rd = (f.load || {}).readiness_composite || {};
+  const band = rd.band || '';
+  const bandColor = band === 'low' ? 'var(--rose)' : band === 'moderate' ? 'var(--amber)' : 'var(--emerald)';
+
+  // ── Today's (or next) planned session ──
+  const todayISO = new Date().toISOString().slice(0, 10);
+  let sessionCard = '';
+  let todaysWo = null, todaysIdx = null;
+  if (plan && plan.accepted) {
+    outer: for (let wk = 0; wk < (plan.weeks || []).length; wk++) {
+      const wos = plan.weeks[wk].workouts || [];
+      for (let wo = 0; wo < wos.length; wo++) {
+        const w = wos[wo];
+        if (w.workout_type !== 'rest' && w.scheduled_date >= todayISO) {
+          todaysWo = w; todaysIdx = [wk, wo];
+          break outer;
+        }
+      }
+    }
+  }
+  if (todaysWo) {
+    const isToday = todaysWo.scheduled_date === todayISO;
+    const dist = todaysWo.estimated_distance_meters ? (todaysWo.estimated_distance_meters / 1000).toFixed(1) + ' km' : '';
+    const dur = todaysWo.estimated_duration_seconds ? '~' + Math.round(todaysWo.estimated_duration_seconds / 60) + ' min' : '';
+    sessionCard = `<div class="card">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>${isToday ? "Today's session" : `Next session · ${todaysWo.scheduled_date}`}</div>
+        ${todaysWo.completed ? `<span class="chip" style="background:var(--emerald-d);color:var(--emerald)">${icons.check} done</span>` : ''}</div>
+      <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">${escHtml(todaysWo.name || 'Workout')}</div>
+      <div style="font-size:.84rem;color:var(--text-2)">${escHtml((todaysWo.workout_type || '').replace(/_/g, ' '))}${dist ? ' · ' + dist : ''}${dur ? ' · ' + dur : ''}</div>
+      ${todaysWo.description ? `<div style="font-size:.85rem;color:var(--text-2);line-height:1.5;margin-top:8px">${escHtml(todaysWo.description)}</div>` : ''}
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="td-open-wo">Open workout</button>
+        <button class="btn btn-outline btn-sm" id="td-goto-plan">Full plan</button>
+      </div>
+    </div>`;
+  } else {
+    sessionCard = `<div class="card">${emptyState('Nothing scheduled', plan ? 'Enjoy the rest day — recovery is training.' : 'Ask the Coach to build a plan.', icons.plan)}</div>`;
+  }
+
+  // ── Readiness gauge ──
+  const readinessCard = `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.heart}</span>Readiness</div></div>
+    <div style="display:flex;align-items:center;gap:18px">
+      <div style="font-family:var(--font-m);font-weight:800;font-size:2.6rem;color:${bandColor}">${rd.score != null ? Math.round(rd.score) : '—'}</div>
+      <div>
+        <div style="font-weight:700;color:${bandColor};text-transform:capitalize">${band || 'unknown'}</div>
+        ${rd.dominant_driver ? `<div style="font-size:.82rem;color:var(--text-2);margin-top:3px">Driver: ${escHtml(rd.dominant_driver)}</div>` : ''}
+        <div style="font-size:.78rem;color:var(--text-3);margin-top:3px">${band === 'low' ? 'Easy day — the hard work waits.' : band === 'moderate' ? 'Train, but keep quality honest.' : 'Green light for quality.'}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Trend arrows ──
+  const pmcSeries = ((f.load || {}).ctl_atl_tsb || {}).series || [];
+  const evSeries = ((f.running || {}).effective_vo2max || {}).series || [];
+  const ctlDelta = _seriesDelta(pmcSeries, 'ctl', 7);
+  const evDelta = _seriesDelta(evSeries, 'ewma', 28);
+  const comp = f.compliance || {};
+  const compWeeks = comp.weeks || [];
+  const lastWeek = compWeeks[compWeeks.length - 1] || {};
+  const ctlA = _trendArrow(ctlDelta), evA = _trendArrow(evDelta);
+  const compPct = lastWeek.compliance_pct;
+  const compColor = compPct == null ? 'var(--text-3)' : compPct >= 80 ? 'var(--emerald)' : compPct >= 50 ? 'var(--amber)' : 'var(--rose)';
+  const trendCard = `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.fitness}</span>Trending</div></div>
+    <div class="fx-grid">
+      ${metricCard('Fitness (CTL)', `${ctlA.icon} ${ctlDelta != null ? (ctlDelta > 0 ? '+' : '') + ctlDelta.toFixed(1) : '—'}`, 'vs 7 days ago', ctlA.color)}
+      ${metricCard('Effective VO₂max', `${evA.icon} ${evDelta != null ? (evDelta > 0 ? '+' : '') + evDelta.toFixed(1) : '—'}`, 'vs 28 days ago', evA.color)}
+      ${metricCard('This week on plan', compPct != null ? compPct + '%' : '—', 'green-band sessions', compColor)}
+    </div>
+  </div>`;
+
+  // ── Race countdown ──
+  const nextEvent = (events || []).filter(e => e.date >= todayISO).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const eventCard = nextEvent ? (() => {
+    const days = Math.ceil((Date.parse(nextEvent.date) - Date.parse(todayISO)) / 86400e3);
+    return `<div class="card">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Next race</div></div>
+      <div style="display:flex;align-items:center;gap:18px">
+        <div style="font-family:var(--font-m);font-weight:800;font-size:2.2rem;color:var(--sky)">${days}<span style="font-size:.9rem;color:var(--text-3)"> days</span></div>
+        <div><div style="font-weight:700">${escHtml(nextEvent.name || nextEvent.type || 'Race')}</div>
+        <div style="font-size:.82rem;color:var(--text-2)">${nextEvent.date}${nextEvent.goal_time ? ' · goal ' + escHtml(String(nextEvent.goal_time)) : ''}</div></div>
+      </div>
+    </div>`;
+  })() : '';
+
+  // ── RPE check-in: most recent activity (48h) without a rating ──
+  let pending = {};
+  try { pending = JSON.parse(localStorage.getItem('pf_rpe_pending') || '{}'); } catch {}
+  const rated = new Set((rpeData.entries || []).map(e => e.activity_id).filter(Boolean));
+  Object.keys(pending).forEach(k => rated.add(Number(k)));
+  const cutoff48 = new Date(Date.now() - 48 * 3600e3).toISOString();
+  const unrated = (activities || []).find(a => a.start_time >= cutoff48 && !rated.has(a.activity_id));
+  const rpeCard = unrated ? `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.edit}</span>How hard was it?</div></div>
+    <div style="font-size:.88rem;margin-bottom:2px"><b>${escHtml(unrated.name || unrated.activity_type)}</b> · ${formatTimeAgo(unrated.start_time)}</div>
+    ${rpeSelectorHtml(unrated.activity_id, null)}
+  </div>` : '';
+
+  // ── Weekly review headline ──
+  const weeklyHeadline = weekly && (weekly.headline || (typeof weekly.content === 'string' && weekly.content.split('\n').find(l => l.trim() && !l.startsWith('#'))));
+  const weeklyCard = weeklyHeadline ? `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Coach's week review</div></div>
+    <div style="font-size:.9rem;line-height:1.55">${escHtml(weeklyHeadline)}</div>
+    ${weekly.this_week && weekly.this_week.length ? `<ul style="margin:10px 0 0 18px;font-size:.85rem;color:var(--text-2)">${weekly.this_week.map(t => `<li style="margin-bottom:4px">${escHtml(typeof t === 'string' ? t : t.action || '')}</li>`).join('')}</ul>` : ''}
+  </div>` : '';
+
+  page.innerHTML = `<div class="fade-in"><div class="dash-grid">
+    <div class="span-7">${sessionCard}</div>
+    <div class="span-5">${readinessCard}</div>
+    <div class="span-7">${trendCard}</div>
+    <div class="span-5">${eventCard || weeklyCard || ''}</div>
+    ${rpeCard ? `<div class="span-7">${rpeCard}</div>` : ''}
+    ${eventCard && weeklyCard ? `<div class="span-5">${weeklyCard}</div>` : ''}
+  </div></div>`;
+
+  on('td-coach', 'click', () => openCoachModal());
+  on('sync-chip', 'click', () => goTab('settings'));
+  on('td-goto-plan', 'click', () => goTab('plan'));
+  if (todaysWo) on('td-open-wo', 'click', () => showWorkoutSheet(todaysWo, todaysIdx[0], todaysIdx[1]));
+  if (unrated) {
+    bindRpeSelector(page, {
+      date: String(unrated.start_time).slice(0, 10),
+      durationMin: unrated.duration_seconds ? Math.round(unrated.duration_seconds / 60 * 10) / 10 : null,
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // VIEW: OVERVIEW (dashboard)
 // ═══════════════════════════════════════════════════════
 async function renderHome(page) {
-  const [analytics, activities, plan, profile, events] = await Promise.all([
+  const [analytics, activities, plan, profile, events, syncStatus] = await Promise.all([
     cached('analytics', () => apiJson('/profile/analytics').catch(() => null)),
     cached('activities', () => apiJson('/activities').catch(() => [])),
     cached('plans', () => apiJson('/plans').catch(() => [])).then(p => p[0] || null),
     loadJSON('profile.json').catch(() => ({})),
     loadJSON('events.json').catch(() => []),
+    loadSyncStatus(),
   ]);
 
   const a = analytics || {}, snap = a.snapshot || {}, aero = a.aerobic || {}, lr = a.load_recovery || {}, rp = a.race_predictions || {};
 
   setTopbar('Overview', greeting() + ', ' + (state.user.name || 'Runner'),
-    `<button class="btn btn-ghost btn-sm" id="ov-coach">${icons.spark} Ask Coach</button>
+    `${syncChipHtml(syncStatus)}
+     <button class="btn btn-ghost btn-sm" id="ov-coach">${icons.spark} Ask Coach</button>
      <button class="btn btn-primary btn-sm" id="ov-sync">${icons.sync} Sync Garmin</button>`);
 
   // ── Hero stats ──
@@ -955,6 +1224,7 @@ async function renderHome(page) {
   page.innerHTML = html;
   on('ov-sync', 'click', e => syncFromGarmin(e.currentTarget));
   on('ov-coach', 'click', () => openCoachModal());
+  on('sync-chip', 'click', () => goTab('settings'));
   bindActivityRows(page, activities);
   bindWeekJump(page);
 }
@@ -1290,7 +1560,36 @@ function renderDurability(f) {
       ${metricCard('Best HRR60', (hrr.best_hrr60 != null ? hrr.best_hrr60 + ' bpm' : '—'), '>30 = strong', gradeColor(hrr.grade))}
       ${metricCard('Pacing', (pac.tendency || '—'), pac.mean_ratio ? 'ratio ' + pac.mean_ratio : '', pac.tendency === 'positive' ? 'var(--rose)' : 'var(--emerald)')}
     </div>`) : '';
-  return (decCard + compCard + distCard + hrrCard) || emptyState('Durability metrics need run time-series', 'They appear after a sync.');
+  const curves = r.pace_curves || {};
+  const curveCard = curves.available ? fxCard('Pace curve — fresh vs fatigued', icons.run, `
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid var(--border)">
+        <th style="padding:5px 8px;text-align:left;font-size:.72rem;color:var(--text-3)">Duration</th>
+        <th style="padding:5px 8px;text-align:right;font-size:.72rem;color:var(--text-3)">Best (90d)</th>
+        <th style="padding:5px 8px;text-align:right;font-size:.72rem;color:var(--text-3)">Fatigued (>${curves.fatigue_onset_min}min in)</th>
+        <th style="padding:5px 8px;text-align:right;font-size:.72rem;color:var(--text-3)">Fatigue cost</th>
+      </tr></thead><tbody>
+      ${(curves.durations || []).filter(d => curves.recent_90d[d]).map(d => {
+        const cost = (curves.fatigue_cost_pct || {})[d];
+        const costCol = cost == null ? 'var(--text-3)' : cost <= 3 ? 'var(--emerald)' : cost <= 8 ? 'var(--amber)' : 'var(--rose)';
+        return `<tr>
+          <td style="padding:5px 8px;font-size:.82rem">${d < 60 ? d + 's' : (d / 60) + ' min'}</td>
+          <td style="padding:5px 8px;font-family:var(--font-m);font-size:.82rem;text-align:right">${formatPace(curves.recent_90d[d])}/km</td>
+          <td style="padding:5px 8px;font-family:var(--font-m);font-size:.82rem;text-align:right;color:var(--text-2)">${curves.fatigued_90d[d] ? formatPace(curves.fatigued_90d[d]) + '/km' : '—'}</td>
+          <td style="padding:5px 8px;font-family:var(--font-m);font-size:.82rem;text-align:right;font-weight:600;color:${costCol}">${cost != null ? '+' + cost + '%' : '—'}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table></div>
+    <div class="hint" style="margin-top:8px">Best pace held for each duration over the last 90 days (${curves.runs_used} runs). The fatigued column only counts efforts starting deep into a session — your compromised-running capacity. Small gaps = durable engine.</div>`) : '';
+  const ev = r.effective_vo2max || {};
+  const evCard = ev.available ? fxCard('Effective VO₂max (what your runs imply)', icons.spark, `
+    <div class="fx-grid">
+      ${metricCard('Current', ev.current ?? '—', 'per-run, conditions-adjusted', 'var(--sky)')}
+      ${metricCard('Trend', (ev.trend_per_week > 0.05 ? '↑ improving' : ev.trend_per_week < -0.05 ? '↓ declining' : 'flat'), `${ev.n} runs · ${ev.window_weeks}w`, ev.trend_per_week > 0.05 ? 'var(--emerald)' : ev.trend_per_week < -0.05 ? 'var(--rose)' : 'var(--text-2)')}
+    </div>
+    ${_trendChart(ev.series, 'ewma', { color: 'var(--sky)', fmt: v => v.toFixed(1) })}
+    <div class="hint" style="margin-top:6px">Estimated from pace-vs-HR on every ordinary run (heat-adjusted). The trend matters more than the number — it blends fitness with running economy.</div>`) : '';
+  return (curveCard + evCard + decCard + compCard + distCard + hrrCard) || emptyState('Durability metrics need run time-series', 'They appear after a sync.');
 }
 function hrZoneLikeBar(label, pct, color) {
   pct = pct || 0;
@@ -1704,11 +2003,17 @@ function drawWeek(plan) {
   const infoEl = document.getElementById('week-info');
   if (infoEl) {
     const done = planned.filter(({ wo }) => wo.completed).length;
+    // Week compliance: % of scored (past) sessions that landed green.
+    const scored = planned.filter(({ wo }) => wo.completion_metrics && CM_BANDS[wo.completion_metrics.status]);
+    const green = scored.filter(({ wo }) => wo.completion_metrics.status === 'green').length;
+    const compliancePct = scored.length ? Math.round(100 * green / scored.length) : null;
+    const compColor = compliancePct == null ? '' : compliancePct >= 80 ? 'var(--emerald)' : compliancePct >= 50 ? 'var(--amber)' : 'var(--rose)';
     infoEl.innerHTML = `<div class="card card-pad-sm" style="margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <div style="flex:1;min-width:160px">
         <div class="eyebrow">${escHtml(w.phase || 'Block')}${w.focus ? ' · ' + escHtml(w.focus) : ''}</div>
         <div style="font-size:.84rem;color:var(--text-2);margin-top:4px">${w.total_distance_km ? w.total_distance_km.toFixed(0) + ' km total' : ''} · ${done}/${planned.length} workouts done</div>
       </div>
+      ${compliancePct != null ? `<span class="conn-status" style="background:color-mix(in srgb,${compColor} 15%,transparent);color:${compColor}" title="sessions executed as planned (green band)"><span class="dotmark"></span>${compliancePct}% on plan</span>` : ''}
       <button class="btn btn-primary btn-sm" id="push-week">${icons.push} Push Week ${w.week_number || wi+1} to Garmin</button>
     </div>`;
     on('push-week', 'click', e => pushWeekToGarmin(w.week_number || (wi + 1), e.currentTarget));
@@ -1730,6 +2035,41 @@ function drawWeek(plan) {
   }));
 }
 
+// TrainingPeaks-style plan-vs-actual bands (engine/compliance.py writes these).
+const CM_BANDS = {
+  green:  { color: 'var(--emerald)', label: 'on plan' },
+  yellow: { color: 'var(--amber)',   label: 'off plan' },
+  orange: { color: '#f97316',        label: 'way off' },
+  red:    { color: 'var(--rose)',    label: 'missed' },
+};
+
+function complianceBadge(wo) {
+  const cm = wo.completion_metrics;
+  const band = cm && CM_BANDS[cm.status];
+  if (!band) return '';
+  const pct = cm.ratio != null ? Math.round(cm.ratio * 100) + '%' : band.label;
+  return `<span class="chip" style="background:color-mix(in srgb,${band.color} 15%,transparent);color:${band.color}" title="plan vs actual: ${band.label}">${pct}</span>`;
+}
+
+function complianceHtml(cm) {
+  if (!cm || !CM_BANDS[cm.status]) return '';
+  const band = CM_BANDS[cm.status];
+  if (cm.status === 'red') {
+    return `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Versus the plan</div>
+      <div style="color:${band.color};font-weight:600;font-size:.86rem">Missed — no matching activity</div></div>`;
+  }
+  const line = (planned, actual, unit) => planned != null || actual != null
+    ? `${actual != null ? actual : '—'} of ${planned != null ? planned : '—'} ${unit}` : null;
+  const km = line(cm.planned_km, cm.actual_km, 'km');
+  const min = line(cm.planned_min, cm.actual_min, 'min');
+  return `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Versus the plan</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.86rem">
+      <span class="chip" style="background:color-mix(in srgb,${band.color} 15%,transparent);color:${band.color}">${cm.ratio != null ? Math.round(cm.ratio * 100) + '% · ' : ''}${band.label}</span>
+      ${km ? `<span style="color:var(--text-2)">${km}</span>` : ''}
+      ${min ? `<span style="color:var(--text-2)">${min}</span>` : ''}
+    </div></div>`;
+}
+
 function workoutCardHtml(wo, wkIdx, woIdx) {
   const color = woColor(wo.workout_type);
   const dist = wo.estimated_distance_meters ? (wo.estimated_distance_meters/1000).toFixed(1) + ' km' : '';
@@ -1737,7 +2077,7 @@ function workoutCardHtml(wo, wkIdx, woIdx) {
   return `<div class="card card-pad-sm" style="display:flex;align-items:center;gap:14px">
     <div class="act-bar" style="background:${color};min-height:42px"></div>
     <div class="act-info" data-open-wo="${wkIdx}:${woIdx}" style="cursor:pointer">
-      <div class="act-name">${escHtml(wo.name || 'Workout')}</div>
+      <div class="act-name">${escHtml(wo.name || 'Workout')} ${complianceBadge(wo)}</div>
       <div class="act-meta">${wo.scheduled_date || ''}${dist ? ' · ' + dist : ''}${dur ? ' · ~' + dur : ''}</div>
       ${wo.purpose ? `<div class="act-meta" style="color:var(--text-3)">${escHtml(wo.purpose.replace(/_/g,' '))}</div>` : ''}
     </div>
@@ -1765,18 +2105,9 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
     }
     stepsHtml += '</div>';
   }
-  let metricsHtml = '';
-  if (wo.completed && wo.completion_metrics) {
-    const cm = wo.completion_metrics;
-    metricsHtml = `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Completion Data</div><div class="detail-grid">
-      ${detailItem(cm.distance_meters ? (cm.distance_meters/1000).toFixed(2) : '—', 'Distance')}
-      ${detailItem(cm.duration_seconds ? formatSeconds(cm.duration_seconds) : '—', 'Duration')}
-      ${detailItem(cm.avg_pace_sec_per_km ? formatPace(cm.avg_pace_sec_per_km) : '—', 'Pace')}
-      ${detailItem(cm.avg_hr || '—', 'Avg HR')}
-      ${detailItem(cm.max_hr || '—', 'Max HR')}
-      ${detailItem(cm.calories || '—', 'Calories')}
-    </div></div>`;
-  }
+  const metricsHtml = complianceHtml(wo.completion_metrics);
+  const matchedId = (wo.matched_activity_ids || [])[0];
+  const rpeHtml = matchedId ? rpeSelectorHtml(matchedId, wo.user_rpe || null) : '';
 
   const editable = wkIdx != null && woIdx != null;
   openModal(`
@@ -1790,6 +2121,7 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
     ${wo.description ? `<div style="font-size:.88rem;color:var(--text-2);line-height:1.55;margin-bottom:8px">${escHtml(wo.description)}</div>` : ''}
     ${stepsHtml}
     ${metricsHtml}
+    ${rpeHtml}
     ${editable ? `
       <div style="margin-top:18px;border-top:1px solid var(--border-s);padding-top:16px">
         <div class="field">
@@ -1806,6 +2138,22 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
         </div>
       </div>` : (wo.notes ? `<div style="margin-top:12px;font-size:.84rem;color:var(--text-3)">${escHtml(wo.notes)}</div>` : '')}
   `);
+
+  if (matchedId) {
+    const modal = document.querySelector('.modal') || document;
+    bindRpeSelector(modal, {
+      date: wo.scheduled_date,
+      durationMin: (wo.completion_metrics && wo.completion_metrics.actual_min) || null,
+    });
+    // Async-refresh the highlighted pill from rpe.json + the pending cache.
+    rpeForActivity(matchedId).then(r => {
+      if (!r) return;
+      modal.querySelectorAll(`[data-rpe-for="${matchedId}"] [data-rpe]`).forEach(b => {
+        b.classList.toggle('btn-primary', Number(b.dataset.rpe) === r);
+        b.classList.toggle('btn-outline', Number(b.dataset.rpe) !== r);
+      });
+    });
+  }
 
   if (editable) {
     on('wo-toggle', 'click', async () => {
@@ -1951,6 +2299,7 @@ async function renderCalendar(page) {
           type: matchedAct ? 'activity' : 'planned',
           title: (wo.completed ? '✓ ' : '○ ') + (wo.name || 'Workout'), sub,
           color: colorForWorkout(wo.workout_type), wo, activity: matchedAct,
+          cmStatus: wo.completion_metrics ? wo.completion_metrics.status : null,
         });
       }
     }
@@ -1959,7 +2308,11 @@ async function renderCalendar(page) {
   function dayCell(d, ds, todayStr) {
     const entries = calEntries[ds] || [];
     const dots = entries.slice(0, 4).map(e => `<span class="cal-dot" style="background:${e.color}"></span>`).join('');
-    return `<div class="cal-day ${ds === todayStr ? 'today' : ''}" data-date="${ds}"><div class="cal-num">${d}</div><div class="cal-dots">${dots}</div></div>`;
+    // Plan-vs-actual ring: worst band among the day's scored sessions wins.
+    const order = ['red', 'orange', 'yellow', 'green'];
+    const worst = order.find(s => entries.some(e => e.cmStatus === s));
+    const ring = worst ? `style="box-shadow:inset 0 0 0 2px ${CM_BANDS[worst].color}"` : '';
+    return `<div class="cal-day ${ds === todayStr ? 'today' : ''}" data-date="${ds}" ${ring}><div class="cal-num">${d}</div><div class="cal-dots">${dots}</div></div>`;
   }
 
   function drawMonth() {
@@ -2303,18 +2656,44 @@ async function renderActivityDetail(container, act, { onBack } = {}) {
   try { plan = await planStore.get(); } catch {}
   const match = matchedWorkout(plan, id);
   const w = detail && detail.weather;
-  const sub = `${escHtml(act.activity_type || '')}${act.start_time ? ' · ' + new Date(act.start_time).toLocaleString() : ''}${w && w.temp_c != null ? ` · ${Math.round(w.temp_c)}°C${w.desc ? ' ' + escHtml(w.desc) : ''}` : ''}`;
+  // Conditions-adjusted pace (mirror of engine/enviro.py) — what the run was
+  // "worth" in neutral weather, so hot days aren't misread as bad days.
+  let adjNote = '';
+  if (w && w.temp_c != null && act.avg_pace_sec_per_km) {
+    let eff = w.temp_c + (w.humidity > 60 ? (w.humidity - 60) / 10 : 0);
+    const bands = [[15, 0.002], [22, 0.003], [28, 0.005]];
+    let cost = 0;
+    bands.forEach(([th, per], i) => {
+      const upper = bands[i + 1] ? bands[i + 1][0] : Infinity;
+      if (eff > th) cost += (Math.min(eff, upper) - th) * per;
+    });
+    const factor = Math.min(1 + cost, 1.12);
+    if (factor > 1.005) adjNote = ` · conditions-adjusted ${formatPace(act.avg_pace_sec_per_km / factor)}/km`;
+  }
+  const sub = `${escHtml(act.activity_type || '')}${act.start_time ? ' · ' + new Date(act.start_time).toLocaleString() : ''}${w && w.temp_c != null ? ` · ${Math.round(w.temp_c)}°C${w.desc ? ' ' + escHtml(w.desc) : ''}` : ''}${adjNote}`;
   container.innerHTML = `<div class="fade-in">
     <div class="detail-head">
       ${onBack ? `<button class="btn btn-ghost btn-sm" data-back>${icons.back} Back</button>` : ''}
       <div><div class="detail-h-title">${escHtml(act.name || 'Activity')}</div><div class="detail-h-sub">${sub}</div></div>
     </div>
     ${activityDetailBody(act, detail, analysisMd, match)}
+    ${rpeSelectorHtml(id, null)}
   </div>`;
   const ab = container.querySelector('#act-analyze');
   if (ab) ab.addEventListener('click', () => analyzeActivityWithCoach(act, ab));
   const bb = container.querySelector('[data-back]');
   if (bb && onBack) bb.addEventListener('click', onBack);
+  bindRpeSelector(container, {
+    date: act.start_time ? String(act.start_time).slice(0, 10) : null,
+    durationMin: act.duration_seconds ? Math.round(act.duration_seconds / 60 * 10) / 10 : null,
+  });
+  rpeForActivity(id).then(r => {
+    if (!r) return;
+    container.querySelectorAll(`[data-rpe-for="${id}"] [data-rpe]`).forEach(b => {
+      b.classList.toggle('btn-primary', Number(b.dataset.rpe) === r);
+      b.classList.toggle('btn-outline', Number(b.dataset.rpe) !== r);
+    });
+  });
 }
 
 // Open an activity as a full page (replaces the modal). Back returns to the prior tab.
@@ -2345,18 +2724,7 @@ function workoutDetailBody(wo) {
     }
     stepsHtml += '</div>';
   }
-  let metricsHtml = '';
-  if (wo.completed && wo.completion_metrics) {
-    const cm = wo.completion_metrics;
-    metricsHtml = `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Completion Data</div><div class="detail-grid">
-      ${detailItem(cm.distance_meters ? (cm.distance_meters / 1000).toFixed(2) : '—', 'Distance')}
-      ${detailItem(cm.duration_seconds ? formatSeconds(cm.duration_seconds) : '—', 'Duration')}
-      ${detailItem(cm.avg_pace_sec_per_km ? formatPace(cm.avg_pace_sec_per_km) : '—', 'Pace')}
-      ${detailItem(cm.avg_hr || '—', 'Avg HR')}
-      ${detailItem(cm.max_hr || '—', 'Max HR')}
-      ${detailItem(cm.calories || '—', 'Calories')}
-    </div></div>`;
-  }
+  const metricsHtml = complianceHtml(wo.completion_metrics);
   return `
     ${wo.description ? `<div style="font-size:.88rem;color:var(--text-2);line-height:1.55;margin-bottom:8px">${escHtml(wo.description)}</div>` : ''}
     ${stepsHtml}
@@ -2462,7 +2830,18 @@ function pacingCard(r) {
       <div style="width:100%;max-width:22px;height:${h}px;background:${c};border-radius:3px 3px 0 0"></div>
       <div class="hint" style="font-size:.62rem">${escHtml(s.display_time)}</div></div>`;
   }).join('');
+  const pq = r.pacing_quality || {};
+  const scoreColor = pq.score >= 75 ? 'var(--emerald)' : pq.score >= 45 ? 'var(--amber)' : 'var(--rose)';
+  const quality = pq.available ? `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px">
+      <div><div class="eyebrow">Pacing score</div>
+        <div style="font-family:var(--font-m);font-size:1.7rem;font-weight:800;color:${scoreColor}">${pq.score}<span style="font-size:.85rem;color:var(--text-3)">/100</span></div></div>
+      <div class="hint" style="flex:1">Run spread ${Math.round(pq.spread_seconds)}s (elite &lt;15s) · worst run ${Math.round(pq.worst_deviation_seconds)}s off your average (elite ≈28s) · slowest: Run ${pq.slowest_run}</div>
+    </div>
+    ${(pq.flags || []).map(f => `<div style="display:flex;gap:8px;padding:3px 0"><span style="color:${scoreColor};font-weight:700">•</span><span style="font-size:.83rem;line-height:1.45">${escHtml(f)}</span></div>`).join('')}
+    <div style="height:8px"></div>` : '';
   return fxCard('Pacing', icons.activity || icons.hyrox, `
+    ${quality}
     <div class="eyebrow" style="margin-bottom:4px">Run laps — height = time, colour = field percentile</div>
     <div style="display:flex;align-items:flex-end;gap:5px;height:74px">${bars}</div>
     <div class="hint" style="margin:8px 0 2px">Cumulative time across the race</div>
@@ -2473,15 +2852,24 @@ function pacingCard(r) {
 // Roxzone (transition) spotlight — often the biggest hidden time loss.
 function roxzoneCard(r) {
   if (!r.roxzone_pct) return '';
+  const rz = r.roxzone_analysis || {};
   const heavy = r.roxzone_pct >= 8;
+  const rec = rz.recoverable_seconds || 0;
+  const detail = rz.available ? `
+    <div class="fx-grid" style="margin-top:10px">
+      ${metricCard('Per pass', fmtSecs(rz.per_pass_seconds), '~16 zone passes · elite ≈15s', rz.per_pass_seconds <= 17 ? 'var(--emerald)' : rz.per_pass_seconds <= 25 ? 'var(--amber)' : 'var(--rose)')}
+      ${metricCard('% of race', rz.pct_of_race + '%', 'field average ≈ ' + rz.benchmark_pct + '%', rz.pct_of_race <= rz.benchmark_pct ? 'var(--emerald)' : 'var(--rose)')}
+      ${metricCard('vs your field', rz.vs_field_seconds != null ? (rz.vs_field_seconds <= 0 ? '−' : '+') + fmtSecs(Math.abs(rz.vs_field_seconds)) : '—', 'cohort roxzone avg', rz.vs_field_seconds <= 0 ? 'var(--emerald)' : 'var(--rose)')}
+    </div>` : '';
   return fxCard('Roxzone — your transitions', icons.hyrox, `
     <div style="display:flex;align-items:baseline;gap:10px">
       <div style="font-family:var(--font-m);font-size:1.6rem;font-weight:700;color:${heavy ? 'var(--rose)' : 'var(--emerald)'}">${escHtml(r.roxzone_display)}</div>
       <div class="hint">${r.roxzone_pct}% of your race</div>
     </div>
-    <div class="hint" style="margin-top:6px">${heavy
-      ? 'That is a lot of standing time — drill station entries/exits and a brisk walk-to-work tempo; transitions cost more total time than any single weak station for most athletes.'
-      : 'Tidy transitions — keep moving through the roxzone and you hold this edge.'}</div>`);
+    ${detail}
+    <div class="hint" style="margin-top:8px">${rec > 30
+      ? `Roxzone is "free time" — ~${fmtSecs(rec)} recoverable to elite transitions (${fmtSecs(270)} total) with zero extra fitness: jog the zone, rehearse entries/exits, gear staged.`
+      : 'Elite-grade transitions — you give away almost nothing in the zone. Protect this habit.'}</div>`);
 }
 
 // Phase 3 — this race vs your average across your other races.
@@ -2512,6 +2900,253 @@ function fmtSecs(secs) {
   if (secs == null) return '—';
   const t = Math.round(secs), m = Math.floor(t / 60), s = t % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function fmtRaceTime(secs) {
+  if (secs == null) return '—';
+  const t = Math.round(secs), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+}
+
+// Map a finish time to an estimated field percentile by interpolating the
+// athlete's own (time, percentile) points across their races. Own-data anchored —
+// no benchmark table can know this athlete's typical fields better.
+function estimatePercentile(races, seconds) {
+  const pts = (races || [])
+    .filter(x => Number(x.rank) && Number(x.field_size) && x.total_time)
+    .map(x => ({ t: x.total_time, p: 100 * (Number(x.field_size) - Number(x.rank)) / Number(x.field_size) }))
+    .sort((a, b) => a.t - b.t);
+  if (pts.length < 2) return null;
+  if (seconds <= pts[0].t) {
+    const [a, b] = [pts[0], pts[1]];
+    const slope = (b.p - a.p) / (b.t - a.t || 1);
+    return Math.max(1, Math.min(99, Math.round(a.p + slope * (seconds - a.t))));
+  }
+  if (seconds >= pts[pts.length - 1].t) {
+    const [a, b] = [pts[pts.length - 2], pts[pts.length - 1]];
+    const slope = (b.p - a.p) / (b.t - a.t || 1);
+    return Math.max(1, Math.min(99, Math.round(b.p + slope * (seconds - pts[pts.length - 1].t))));
+  }
+  for (let i = 1; i < pts.length; i++) {
+    if (seconds <= pts[i].t) {
+      const [a, b] = [pts[i - 1], pts[i]];
+      const f = (seconds - a.t) / (b.t - a.t || 1);
+      return Math.max(1, Math.min(99, Math.round(a.p + f * (b.p - a.p))));
+    }
+  }
+  return null;
+}
+
+// ── "Where your minutes are hiding" — time-recoverable waterfall ──
+// Red bars ranked by seconds lost vs the chosen target; the headline number is
+// the total a coach would call "on the table".
+function waterfallRows(items, maxSeconds) {
+  return items.map(i => {
+    const w = Math.max(3, Math.round(100 * i.seconds / (maxSeconds || 1)));
+    return `<div style="display:flex;align-items:center;gap:10px;padding:3px 0">
+      <div style="width:126px;font-size:.8rem">${escHtml(i.display)}${i.is_run ? '' : ' <span style="color:var(--text-3);font-size:.68rem">station</span>'}</div>
+      <div style="flex:1;height:14px;background:var(--border-s);border-radius:4px;overflow:hidden">
+        <div style="width:${w}%;height:100%;background:var(--rose);opacity:.85"></div></div>
+      <div style="width:56px;text-align:right;font-family:var(--font-m);font-size:.78rem;font-weight:600;color:var(--rose)">+${fmtSecs(i.seconds)}</div>
+    </div>`;
+  }).join('');
+}
+
+function waterfallCard(r, stationBests) {
+  const tl = r.time_lost || {};
+  // "vs your PB" is derived here: each segment vs your best across all races.
+  const prItems = (r.segments || []).map(s => {
+    const best = stationBests && stationBests[s.name];
+    return best && s.seconds - best.seconds > 0.5
+      ? { name: s.name, display: s.display, seconds: Math.round((s.seconds - best.seconds) * 10) / 10, is_run: s.is_run }
+      : null;
+  }).filter(Boolean).sort((a, b) => b.seconds - a.seconds);
+  const views = {
+    top3: { label: 'vs cohort top-3', data: tl.vs_top3 || { total: 0, items: [] } },
+    field: { label: 'vs cohort average', data: tl.vs_field || { total: 0, items: [] } },
+    pr: { label: 'vs your PBs', data: { total: Math.round(prItems.reduce((a, b) => a + b.seconds, 0) * 10) / 10, items: prItems } },
+  };
+  const body = Object.entries(views).map(([key, v]) => {
+    const items = v.data.items.slice(0, 10);
+    const maxS = items.length ? items[0].seconds : 1;
+    return `<div data-wf-view="${key}" style="display:${key === 'top3' ? 'block' : 'none'}">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px">
+        <div style="font-family:var(--font-m);font-size:1.7rem;font-weight:800;color:var(--rose)">${fmtSecs(v.data.total)}</div>
+        <div class="hint">recoverable ${v.label}</div>
+      </div>
+      ${items.length ? waterfallRows(items, maxS) : '<div class="hint">Nothing on the table — you beat this benchmark everywhere.</div>'}
+    </div>`;
+  }).join('');
+  return fxCard('Where your minutes are hiding', icons.hyrox, `
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      ${Object.entries(views).map(([key, v]) =>
+        `<button class="btn btn-sm ${key === 'top3' ? 'btn-primary' : 'btn-outline'}" data-wf-btn="${key}">${v.label}</button>`).join('')}
+    </div>
+    ${body}
+    <div class="hint" style="margin-top:8px">Seconds lost per segment, biggest first — only segments where you're behind count. Fixing the top two rows is usually worth more than everything else combined.</div>`);
+}
+
+// ── What-if finish simulator (hyresult-style) ──
+function simulatorCard(r, races, stationBests) {
+  const segs = (r.split_analysis || []);
+  if (!segs.length || !r.total_time) return '';
+  const stations = segs.filter(s => !s.is_run);
+  const stationRows = stations.map(s => `
+    <div style="display:flex;align-items:center;gap:8px;padding:3px 0" data-sim-row="${escHtml(s.name)}">
+      <div style="width:126px;font-size:.8rem">${escHtml(s.display)}</div>
+      <button class="btn-icon" data-sim-minus="${escHtml(s.name)}" aria-label="faster">−</button>
+      <div style="width:52px;text-align:center;font-family:var(--font-m);font-size:.8rem" data-sim-val="${escHtml(s.name)}">${fmtSecs(s.athlete_seconds)}</div>
+      <button class="btn-icon" data-sim-plus="${escHtml(s.name)}" aria-label="slower">+</button>
+      <div class="hint" style="flex:1;text-align:right" data-sim-delta="${escHtml(s.name)}"></div>
+    </div>`).join('');
+  return fxCard('What-if simulator', icons.spark, `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-outline btn-sm" data-sim-preset="reset">Reset</button>
+      <button class="btn btn-outline btn-sm" data-sim-preset="weak2field">2 weakest → cohort avg</button>
+      <button class="btn btn-outline btn-sm" data-sim-preset="weak2top3">2 weakest → top-3</button>
+      <button class="btn btn-outline btn-sm" data-sim-preset="prs">All stations → your PBs</button>
+    </div>
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:10px">
+      <div><div class="eyebrow">Simulated finish</div>
+        <div style="font-family:var(--font-m);font-size:1.9rem;font-weight:800;color:var(--emerald)" id="sim-total">${fmtRaceTime(r.total_time)}</div></div>
+      <div><div class="eyebrow">vs actual</div>
+        <div style="font-family:var(--font-m);font-size:1.1rem;font-weight:700" id="sim-delta">±0:00</div></div>
+      <div><div class="eyebrow">est. percentile</div>
+        <div style="font-family:var(--font-m);font-size:1.1rem;font-weight:700" id="sim-pct">—</div></div>
+    </div>
+    ${stationRows}
+    <div class="hint" style="margin-top:8px">Steppers move a station ±5s (your runs and roxzone stay as raced). Percentile is interpolated from your own races' placings — an estimate, not a promise.</div>`);
+}
+
+function bindSimulator(page, r, races, stationBests) {
+  const base = {};
+  (r.split_analysis || []).filter(s => !s.is_run).forEach(s => { base[s.name] = s.athlete_seconds; });
+  const sim = { ...base };
+  const stationsMeta = {};
+  (r.split_analysis || []).filter(s => !s.is_run).forEach(s => { stationsMeta[s.name] = s; });
+
+  function refresh() {
+    let total = r.total_time;
+    Object.keys(base).forEach(k => { total += sim[k] - base[k]; });
+    const delta = total - r.total_time;
+    const el = id => page.querySelector('#' + id);
+    if (el('sim-total')) el('sim-total').textContent = fmtRaceTime(total);
+    if (el('sim-delta')) {
+      el('sim-delta').textContent = (delta <= 0 ? '−' : '+') + fmtSecs(Math.abs(delta));
+      el('sim-delta').style.color = delta < 0 ? 'var(--emerald)' : delta > 0 ? 'var(--rose)' : 'var(--text-2)';
+    }
+    const pct = estimatePercentile(races, total);
+    const basePct = estimatePercentile(races, r.total_time);
+    if (el('sim-pct')) el('sim-pct').textContent = pct != null ? `${pct}th${basePct != null && pct !== basePct ? ` (${pct > basePct ? '+' : ''}${pct - basePct})` : ''}` : '—';
+    Object.keys(base).forEach(k => {
+      const v = page.querySelector(`[data-sim-val="${k}"]`);
+      const d = page.querySelector(`[data-sim-delta="${k}"]`);
+      if (v) { v.textContent = fmtSecs(sim[k]); v.style.color = sim[k] < base[k] ? 'var(--emerald)' : ''; }
+      if (d) d.textContent = sim[k] !== base[k] ? `${sim[k] < base[k] ? '−' : '+'}${fmtSecs(Math.abs(sim[k] - base[k]))}` : '';
+    });
+  }
+
+  page.querySelectorAll('[data-sim-minus]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.simMinus; sim[k] = Math.max(30, sim[k] - 5); refresh();
+  }));
+  page.querySelectorAll('[data-sim-plus]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.simPlus; sim[k] += 5; refresh();
+  }));
+  page.querySelectorAll('[data-sim-preset]').forEach(b => b.addEventListener('click', () => {
+    const preset = b.dataset.simPreset;
+    Object.keys(base).forEach(k => { sim[k] = base[k]; });
+    if (preset === 'weak2field' || preset === 'weak2top3') {
+      const key = preset === 'weak2field' ? 'field_avg' : 'top3_avg';
+      Object.values(stationsMeta)
+        .filter(s => s[key] != null && s.athlete_seconds > s[key])
+        .sort((a, b) => (b.athlete_seconds - b[key]) - (a.athlete_seconds - a[key]))
+        .slice(0, 2)
+        .forEach(s => { sim[s.name] = s[key]; });
+    } else if (preset === 'prs') {
+      Object.keys(base).forEach(k => {
+        const best = stationBests && stationBests[k];
+        if (best && best.seconds < base[k]) sim[k] = best.seconds;
+      });
+    }
+    refresh();
+  }));
+  refresh();
+}
+
+// ── Cumulative gap-to-top-3 + per-segment standing ──
+function gapCurveCard(r) {
+  const segs = (r.segments || []).filter(s => s.cumulative_gap_top3 != null);
+  if (segs.length < 6) return '';
+  const gaps = segs.map(s => s.cumulative_gap_top3);
+  const final = gaps[gaps.length - 1];
+  // Which segments open the gap fastest (biggest per-segment increase)?
+  const jumps = segs.map((s, i) => ({ display: s.display, inc: gaps[i] - (i ? gaps[i - 1] : 0) }))
+    .sort((a, b) => b.inc - a.inc).slice(0, 2).filter(j => j.inc > 5);
+  return fxCard('Gap to the top-3 through the race', icons.hyrox, `
+    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px">
+      <div style="font-family:var(--font-m);font-size:1.5rem;font-weight:800;color:${final > 0 ? 'var(--rose)' : 'var(--emerald)'}">${final > 0 ? '+' : '−'}${fmtSecs(Math.abs(final))}</div>
+      <div class="hint">${final > 0 ? 'behind' : 'ahead of'} your cohort's top-3 pace at the finish</div>
+    </div>
+    ${miniChart(gaps, { color: final > 0 ? 'var(--rose)' : 'var(--emerald)', fmt: v => (v > 0 ? '+' : '−') + fmtSecs(Math.abs(v)) })}
+    <div class="hint" style="margin-top:6px">Cumulative seconds vs top-3 average after each segment — where the line jumps is where the race is decided.${jumps.length ? ` Biggest jumps: <b>${jumps.map(j => `${escHtml(j.display)} (+${Math.round(j.inc)}s)`).join(', ')}</b>.` : ''}</div>`);
+}
+
+function standingCard(r) {
+  const segs = (r.segments || []).filter(s => s.percentile != null);
+  if (segs.length < 6) return '';
+  return fxCard('Your standing, segment by segment', icons.activity || icons.hyrox, `
+    ${miniChart(segs.map(s => s.percentile), { color: 'var(--sky)', fmt: v => Math.round(v) + 'th' })}
+    <div class="hint" style="margin-top:6px">Field percentile at each segment in race order (higher = nearer the front). Rises on your strengths, dips where the field takes time back. Note: per-segment standing, not cumulative race position.</div>`);
+}
+
+// ── Target-time split calculator ──
+function targetCalcCard(r) {
+  if (!r.total_time || !(r.segments || []).length) return '';
+  return fxCard('Target-time splits', icons.plan, `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <label class="hint" for="tgt-time">Goal finish</label>
+      <input id="tgt-time" class="mono-input" style="width:110px" placeholder="e.g. 1:15:00" value="">
+      <button class="btn btn-primary btn-sm" id="tgt-go">Build my splits</button>
+    </div>
+    <div id="tgt-out"><div class="hint">Enter a goal — your actual splits are scaled to it, so the plan respects your personal strengths instead of a generic table.</div></div>`);
+}
+
+function bindTargetCalc(page, r) {
+  const btn = page.querySelector('#tgt-go');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const raw = (page.querySelector('#tgt-time') || {}).value || '';
+    const parts = raw.trim().split(':').map(Number);
+    let goal = null;
+    if (parts.length === 3) goal = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    else if (parts.length === 2) goal = parts[0] * 3600 + parts[1] * 60;  // h:mm
+    const out = page.querySelector('#tgt-out');
+    if (!goal || !isFinite(goal) || goal < 2400 || goal > 3 * 3600) {
+      out.innerHTML = '<div class="hint" style="color:var(--rose)">Enter a goal like 1:15:00 (between 0:40:00 and 3:00:00).</div>';
+      return;
+    }
+    const factor = goal / r.total_time;
+    const rows = (r.segments || []).map(s => {
+      const tgt = s.seconds * factor;
+      const delta = tgt - s.seconds;
+      return `<tr>
+        <td style="padding:4px 8px;font-size:.8rem">${escHtml(s.display)}</td>
+        <td style="padding:4px 8px;font-family:var(--font-m);font-size:.78rem;text-align:right;color:var(--text-3)">${escHtml(s.display_time)}</td>
+        <td style="padding:4px 8px;font-family:var(--font-m);font-size:.78rem;text-align:right;font-weight:700">${fmtSecs(tgt)}</td>
+        <td style="padding:4px 8px;font-family:var(--font-m);font-size:.78rem;text-align:right;color:${delta < 0 ? 'var(--emerald)' : 'var(--rose)'}">${delta < 0 ? '−' : '+'}${fmtSecs(Math.abs(delta))}</td>
+      </tr>`;
+    }).join('');
+    const rox = r.roxzone ? `<div class="hint" style="margin-top:6px">Roxzone budget: ${fmtSecs(r.roxzone * factor)} (was ${escHtml(r.roxzone_display)}).</div>` : '';
+    out.innerHTML = `
+      <div class="hint" style="margin-bottom:6px">${factor < 1 ? `You need to find <b>${fmtSecs(r.total_time - goal)}</b> vs this race (${Math.round((1 - factor) * 100)}% faster everywhere — or more where you're weakest).` : 'That goal is slower than this race — you already have it.'}</div>
+      <div style="overflow-x:auto;max-height:320px;overflow-y:auto"><table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border)">
+          <th style="padding:4px 8px;text-align:left;font-size:.7rem;color:var(--text-3)">Segment</th>
+          <th style="padding:4px 8px;text-align:right;font-size:.7rem;color:var(--text-3)">Raced</th>
+          <th style="padding:4px 8px;text-align:right;font-size:.7rem;color:var(--text-3)">Target</th>
+          <th style="padding:4px 8px;text-align:right;font-size:.7rem;color:var(--text-3)">Δ</th>
+        </tr></thead><tbody>${rows}</tbody></table></div>${rox}`;
+  });
 }
 
 // Per-race ranks: Overall (position in the gender field) + Age-group.
@@ -2571,10 +3206,22 @@ function hyroxProgressionSection(prog, priorities) {
       </span></div>`;
   }).join('');
   const focus = (priorities || []).slice(0, 4).map(p =>
-    `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border-s)">
-      <span style="font-size:.84rem;font-weight:500">${escHtml(p.display)}</span>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-s)">
+      <span style="font-size:.84rem;font-weight:500">${escHtml(p.display)}${p.train_priority ? ' ' + pill('train priority', 'var(--rose)') : ''}</span>
       <span class="hint">${p.gap_seconds > 0 ? '+' + Math.round(p.gap_seconds) + 's vs top-3 (' + p.gap_pct + '%)' : 'at top-3 level'}</span>
     </div>`).join('');
+
+  const pt = prog.percentile_trend || {};
+  const overallPct = (pt.overall || []).map(p => p.percentile);
+  const competitivenessCard = overallPct.length >= 2 ? `
+    <div class="span-6"><div class="card" style="height:100%">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.fitness}</span>Competitiveness</div>
+        ${pill('now ' + overallPct[overallPct.length - 1] + 'th pct', pctColor(overallPct[overallPct.length - 1]))}</div>
+      <div class="hint" style="margin-bottom:4px">Overall field percentile per race — rank-based, so it controls for how strong each field was.</div>
+      ${miniChart(overallPct, { color: 'var(--sky)', fmt: v => Math.round(v) + 'th' })}
+      <div class="hint" style="margin-top:8px">Run-fade trend per race (lower = better pacing)</div>
+      ${sparkline(prog.fade_trend)}
+    </div></div>` : '';
 
   return `<div class="dash-grid">
     <div class="span-6"><div class="card" style="height:100%">
@@ -2586,15 +3233,57 @@ function hyroxProgressionSection(prog, priorities) {
       <div class="hint" style="margin-top:8px">Finish-time trend (lower is better)</div>
       ${sparkline(prog.total_trend)}
     </div></div>
-    <div class="span-6"><div class="card" style="height:100%">
+    ${competitivenessCard}
+    <div class="span-${competitivenessCard ? '12' : '6'}"><div class="card" style="height:100%">
       <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Focus for next race</div></div>
-      <div class="hint" style="margin-bottom:6px">Biggest gaps to the top-3 field in your latest race.</div>
+      <div class="hint" style="margin-bottom:6px">Biggest gaps to the top-3 field in your latest race. <span style="color:var(--rose)">Train priority</span> = &gt;60s over your division benchmark, or a 2-weakest station.</div>
       ${focus || '<div class="hint">No priorities computed.</div>'}
     </div></div>
+    ${heatmapCard(prog)}
     ${stationRows ? `<div class="span-12"><div class="card">
       <div class="card-h"><div class="card-title">Station evolution — first race → latest</div></div>
       ${stationRows}</div></div>` : ''}
   </div>`;
+}
+
+// ── Career heatmap: races × segments, coloured by field percentile ──
+// One glance separates chronic limiters (red columns) from one-off bad days
+// (red rows) — the "whole career at a glance" view.
+function heatmapCard(prog) {
+  const pt = (prog || {}).percentile_trend || {};
+  const stations = pt.stations || {};
+  const events = (pt.overall || []).map(p => ({ index: p.race_index, event: p.event }));
+  if (!events.length || !Object.keys(stations).length) return '';
+  // Column order = race order of segments; rows = races.
+  const colNames = Object.keys(stations);
+  const order = ['Running_1', 'SkiErg_1000m', 'Running_2', 'Sled_Push_50m', 'Running_3',
+    'Sled_Pull_50m', 'Running_4', 'Burpee_Broad_Jump_80m', 'Running_5', 'Row_1000m',
+    'Running_6', 'Farmers_Carry_200m', 'Running_7', 'Sandbag_Lunges_100m', 'Running_8',
+    'Wall_Balls'].filter(n => colNames.includes(n));
+  const byRace = {};
+  order.forEach(name => (stations[name] || []).forEach(p => {
+    (byRace[p.race_index] = byRace[p.race_index] || {})[name] = p.percentile;
+  }));
+  const short = n => n.startsWith('Running_') ? 'R' + n.slice(8)
+    : { SkiErg_1000m: 'Ski', Sled_Push_50m: 'SlPu', Sled_Pull_50m: 'SlPl',
+        Burpee_Broad_Jump_80m: 'BBJ', Row_1000m: 'Row', Farmers_Carry_200m: 'FC',
+        Sandbag_Lunges_100m: 'SL', Wall_Balls: 'WB' }[n] || n.slice(0, 4);
+  const head = `<tr><th style="padding:4px 6px;text-align:left;font-size:.68rem;color:var(--text-3)">Race</th>
+    ${order.map(n => `<th style="padding:4px 3px;font-size:.64rem;color:var(--text-3)" title="${escHtml(n.replace(/_/g, ' '))}">${short(n)}</th>`).join('')}</tr>`;
+  const rows = events.map(e => {
+    const cells = order.map(n => {
+      const p = (byRace[e.index] || {})[n];
+      const bg = p == null ? 'transparent' : `color-mix(in srgb, ${pctColor(p)} ${Math.round(20 + p * 0.55)}%, transparent)`;
+      return `<td style="padding:0"><div title="${escHtml(e.event)} · ${escHtml(n.replace(/_/g, ' '))} · ${p != null ? p + 'th pct' : 'no data'}"
+        style="margin:1px;height:22px;border-radius:3px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:.62rem;font-family:var(--font-m);color:var(--text-2)">${p != null ? p : ''}</div></td>`;
+    }).join('');
+    return `<tr><td style="padding:2px 6px;font-size:.72rem;white-space:nowrap">${escHtml(e.event)}</td>${cells}</tr>`;
+  }).join('');
+  return `<div class="span-12"><div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Every race × every segment</div></div>
+    <div class="hint" style="margin-bottom:8px">Field percentile per segment across your career. A red <b>column</b> is a chronic limiter worth training; a red <b>row</b> was just a bad day.</div>
+    <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%">${head}${rows}</table></div>
+  </div></div>`;
 }
 
 // ── Single-race detail ──
@@ -2611,6 +3300,8 @@ async function openHyroxRace(id) {
   ((data && data.races) || []).filter(x => x.id !== id).forEach(o =>
     (o.segments || []).forEach(s => { (acc[s.name] = acc[s.name] || []).push(s.seconds); }));
   Object.entries(acc).forEach(([k, v]) => { pastAvg[k] = v.reduce((a, b) => a + b, 0) / v.length; });
+  const races = (data && data.races) || [];
+  const stationBests = ((data && data.progression) || {}).station_bests || {};
   setTopbar(r.city || 'Race', 'HYROX race detail', '');
   page.innerHTML = `<div class="fade-in">
     <div class="detail-head">
@@ -2618,11 +3309,26 @@ async function openHyroxRace(id) {
       <div><div class="detail-h-title">${escHtml(r.city || 'Race')}</div>
         <div class="detail-h-sub">${escHtml(r.event_date || '')}${r.division ? ' · ' + escHtml(r.division) : ''}${hyroxRankText(r)} · ${escHtml(r.total_display || '')}</div></div>
     </div>
-    ${hyroxDetailBody(r, coachMd, pastAvg)}
+    ${hyroxDetailBody(r, coachMd, pastAvg, stationBests, races)}
   </div>`;
   page.querySelector('[data-back]')?.addEventListener('click', () => goTab('hyrox'));
   on('hyrox-coach', 'click', () => askCoachAboutRace(r));
+  bindWaterfall(page);
+  bindSimulator(page, r, races, stationBests);
+  bindTargetCalc(page, r);
   document.querySelector('.page')?.scrollTo({ top: 0 });
+}
+
+function bindWaterfall(page) {
+  page.querySelectorAll('[data-wf-btn]').forEach(b => b.addEventListener('click', () => {
+    page.querySelectorAll('[data-wf-btn]').forEach(x => {
+      x.classList.toggle('btn-primary', x === b);
+      x.classList.toggle('btn-outline', x !== b);
+    });
+    page.querySelectorAll('[data-wf-view]').forEach(v => {
+      v.style.display = v.dataset.wfView === b.dataset.wfBtn ? 'block' : 'none';
+    });
+  }));
 }
 
 function hyroxRaceFeedback(r) {
@@ -2637,7 +3343,7 @@ function hyroxRaceFeedback(r) {
   return { behind, ahead, mistakes };
 }
 
-function hyroxDetailBody(r, coachMd, pastAvg = {}) {
+function hyroxDetailBody(r, coachMd, pastAvg = {}, stationBests = {}, races = []) {
   const bar = (label, pct, color) => hrZoneLikeBar(label, pct, color);
   const rankCell = (label, value, sub) => `<div style="flex:1;min-width:90px">
       <div class="eyebrow">${label}</div>
@@ -2676,6 +3382,7 @@ function hyroxDetailBody(r, coachMd, pastAvg = {}) {
     </tr>`;
   }).join('');
   const table = fxCard('Every split vs the field', icons.hyrox, `
+    ${r.benchmark_cohort ? `<div class="hint" style="margin-bottom:8px">Benchmarks: <b>vs your division — ${escHtml(r.benchmark_cohort)}</b>${r.benchmark_source && r.benchmark_source !== 'men_open_s7s8' ? ' (scaled from Men/Open season 7-8 data)' : ' (season 7-8 measured data)'}</div>` : ''}
     <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
       <thead><tr style="border-bottom:1px solid var(--border)">
         <th style="padding:6px 8px;text-align:left;font-size:.72rem;color:var(--text-3)">Split</th>
@@ -2692,9 +3399,11 @@ function hyroxDetailBody(r, coachMd, pastAvg = {}) {
         <div class="hint" style="margin-bottom:10px">No written review yet. Ask the coach for a personalised breakdown of this race.</div>
         <button class="btn btn-outline btn-sm" id="hyrox-coach">${icons.spark} Ask coach to review this race</button></div>`;
 
-  return ranks + stationPercentileCard(r.segments) + stationRadarCard(r.segments)
-    + pacingCard(r) + roxzoneCard(r) + breakdown + feedback
-    + comparePastCard(r, pastAvg) + table + coach;
+  return ranks + waterfallCard(r, stationBests) + simulatorCard(r, races, stationBests)
+    + stationPercentileCard(r.segments) + stationRadarCard(r.segments)
+    + pacingCard(r) + standingCard(r) + gapCurveCard(r) + roxzoneCard(r)
+    + breakdown + feedback
+    + comparePastCard(r, pastAvg) + targetCalcCard(r) + table + coach;
 }
 
 function askCoachAboutRace(r) {
@@ -2724,6 +3433,18 @@ async function fetchLastSyncRun() {
   } catch { return null; }
 }
 
+// Per-endpoint outcome of the last sync (from sync-status.json) — makes a
+// "partial" sync explain itself instead of silently showing stale numbers.
+function syncEndpointTable(ss) {
+  const eps = ss && ss.endpoints ? Object.entries(ss.endpoints) : [];
+  if (!eps.length) return '';
+  const bad = eps.filter(([, v]) => !v.ok);
+  if (!bad.length) return `<div class="settings-row"><span class="settings-label">Endpoints</span><span class="settings-value" style="color:var(--emerald)">all ${eps.length} OK</span></div>`;
+  return `<div class="settings-row" style="align-items:flex-start"><span class="settings-label">Failed endpoints</span><span class="settings-value" style="text-align:right">
+    ${bad.map(([k, v]) => `<div style="color:var(--rose)">${escHtml(k.replace(/_/g, ' '))}<span style="color:var(--text-3);font-weight:400"> — ${escHtml((v.error || '').slice(0, 80))}</span></div>`).join('')}
+  </span></div>`;
+}
+
 function syncRunHtml(run) {
   if (!githubToken.has()) return '<span style="color:var(--text-3)">add a token to see live runs</span>';
   if (!run) return '<span style="color:var(--text-3)">no runs yet</span>';
@@ -2742,13 +3463,23 @@ async function renderSettings(page) {
   state.user = { name: profile.name, email: profile.email, role: profile.role };
   try { localStorage.setItem('pf_user', JSON.stringify(state.user)); } catch {}
   let garminStatus = 'Not connected';
-  try { const gs = await apiJson('/garmin/status'); garminStatus = gs.connected ? 'Connected' : 'Not connected'; } catch {}
+  let syncStatus = null;
+  try {
+    const gs = await apiJson('/garmin/status');
+    garminStatus = gs.connected ? 'Connected' : 'Not connected';
+    syncStatus = gs.sync;
+  } catch {}
   const tokenSet = githubToken.has();
   const lastRun = await fetchLastSyncRun();
   const events = await loadJSON('events.json').catch(() => []);
-  const dataAsOf = profile.created_at
-    ? `${profile.created_at.slice(0, 10)} · ${formatTimeAgo(profile.created_at)}`
-    : '—';
+  // Last *successful* sync — profile.created_at survives failed syncs, so it
+  // only serves as the fallback when sync-status.json doesn't exist yet.
+  const dataAsOf = syncStatus && syncStatus.last_success
+    ? `${syncStatus.last_success.slice(0, 10)} · ${formatTimeAgo(syncStatus.last_success)}`
+    : (profile.created_at
+      ? `${profile.created_at.slice(0, 10)} · ${formatTimeAgo(profile.created_at)}`
+      : '—');
+  const tokenAge = syncStatus && syncStatus.token ? syncStatus.token.age_days : null;
 
   page.innerHTML = `<div class="fade-in"><div class="dash-grid">
     <div class="span-6">
@@ -2763,8 +3494,11 @@ async function renderSettings(page) {
           <div class="card-title"><span class="ico">${icons.sync}</span>Garmin Sync</div>
           <span class="conn-status ${garminStatus==='Connected'?'conn-on':'conn-off'}"><span class="dotmark"></span>${garminStatus}</span>
         </div>
-        <div class="settings-row"><span class="settings-label">Data current as of</span><span class="settings-value">${dataAsOf}</span></div>
+        <div class="settings-row"><span class="settings-label">Last successful sync</span><span class="settings-value">${dataAsOf}</span></div>
+        ${syncStatus && syncStatus.result !== 'ok' ? `<div class="settings-row"><span class="settings-label">Last attempt</span><span class="settings-value" style="color:var(--rose)">${escHtml(syncStatus.result)}${syncStatus.error ? ` — ${escHtml(syncStatus.error)}` : ''}</span></div>` : ''}
+        ${tokenAge != null ? `<div class="settings-row"><span class="settings-label">Garmin token age</span><span class="settings-value" ${tokenAge >= 300 ? 'style="color:var(--amber);font-weight:700"' : ''}>${tokenAge} days${tokenAge >= 300 ? ' — expires ~yearly, run `paceforge login` soon' : ''}</span></div>` : ''}
         <div class="settings-row"><span class="settings-label">Last sync run</span><span class="settings-value">${syncRunHtml(lastRun)}</span></div>
+        ${syncEndpointTable(syncStatus)}
         <button class="btn btn-ghost btn-block mt" id="set-sync-now">${icons.sync} Sync now</button>
       </div>
     </div>

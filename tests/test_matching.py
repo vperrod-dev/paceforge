@@ -80,3 +80,44 @@ def test_activity_two_days_off_does_not_match():
                          estimated_distance_meters=6000))
     match_plan_to_activities(plan, [_act(1, date(2026, 6, 3), 6000)])
     assert plan.weeks[0].workouts[0].matched_activity_ids == []
+
+
+def test_strength_matches_cross_training_slot():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="cross_training", name="Stations", scheduled_date=d,
+                         estimated_duration_seconds=3600))
+    changed = match_plan_to_activities(
+        plan, [_act(1, d, 0, atype="strength_training")])
+    wo = plan.weeks[0].workouts[0]
+    assert changed == 1 and wo.matched_activity_ids == [1] and wo.completed
+
+
+def test_hiit_matches_hyrox_mixed_by_duration():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="hyrox_mixed", name="Sim", scheduled_date=d,
+                         estimated_duration_seconds=3600))
+    short = _act(1, d, 2000, atype="hiit")   # ~11 min
+    long = _act(2, d, 11000, atype="hiit")   # ~61 min — nearest duration wins
+    match_plan_to_activities(plan, [short, long])
+    assert plan.weeks[0].workouts[0].matched_activity_ids == [2]
+
+
+def test_run_slot_claims_run_before_hyrox_slot():
+    d = date(2026, 6, 1)
+    run_slot = Workout(workout_type="easy_run", name="Easy", scheduled_date=d,
+                       estimated_distance_meters=6000)
+    hyrox_slot = Workout(workout_type="hyrox_mixed", name="Sim", scheduled_date=d,
+                         estimated_duration_seconds=2000)
+    plan = _plan(run_slot, hyrox_slot)
+    match_plan_to_activities(plan, [_act(1, d, 6000)])
+    assert run_slot.matched_activity_ids == [1]
+    assert hyrox_slot.matched_activity_ids == []
+
+
+def test_rpe_copied_onto_matched_workout():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="easy_run", name="Easy", scheduled_date=d,
+                         estimated_distance_meters=6000))
+    match_plan_to_activities(plan, [_act(1, d, 6000)],
+                             rpe_map={1: {"rpe": 7}})
+    assert plan.weeks[0].workouts[0].user_rpe == 7

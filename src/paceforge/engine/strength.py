@@ -80,21 +80,30 @@ def _bench(benchmarks: dict | None, key: str):
     return benchmarks.get(key)
 
 
-def compute_station_percentiles(hyrox_results: list) -> dict:
-    """Map each station time to an approximate percentile vs division medians.
+def compute_station_percentiles(hyrox_results: list, gender: str = "M") -> dict:
+    """Map each station time to an approximate percentile vs cohort medians.
 
     Faster-than-median -> higher percentile. Percentile is a ratio scaled around
     50: a time equal to the median lands at 50, twice as fast approaches 100.
+    Medians come from the shared cohort benchmarks (gender/division/age-aware),
+    falling back to the researched Men/Open ballparks.
     """
     result = _latest_result(hyrox_results)
     if result is None:
         return {"available": False}
 
+    from paceforge.hyrox.benchmarks import get_benchmarks
+
+    bench = get_benchmarks(gender=gender, division=result.get("division", ""),
+                           age_group=result.get("age_group"))
+    medians = {name: bench["field_avg"].get(name) or STATION_MEDIANS[name]
+               for name in STATION_SPLITS}
+
     splits = _splits_dict(result)
     stations = {}
     for name in STATION_SPLITS:
         time_sec = splits.get(name)
-        median = STATION_MEDIANS[name]
+        median = medians[name]
         if time_sec is None:
             continue
         # ratio>1 means faster than median -> above the 50th percentile.
@@ -383,10 +392,11 @@ def compute_strength_hyrox(
     profile,
     activities: list,
     details: dict,
+    gender: str = "M",
 ) -> dict:
     """Entry point: compute all strength/HYROX metrics as a JSON-serializable dict."""
     report = StrengthHyroxReport(
-        station_percentiles=compute_station_percentiles(hyrox_results),
+        station_percentiles=compute_station_percentiles(hyrox_results, gender=gender),
         compromised_run_race=compute_compromised_run_race(hyrox_results),
         transition_cost=compute_transition_cost(hyrox_results),
         anaerobic_capacity=compute_anaerobic_capacity(activities),

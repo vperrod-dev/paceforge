@@ -41,6 +41,7 @@ def _race_id(r: HyroxRaceResult) -> str:
 
 def _build_hyrox() -> dict:
     hyrox = json.loads((DATA / "hyrox.json").read_text())
+    gender = hyrox.get("search_gender") or "M"
     results = [HyroxRaceResult.model_validate(r) for r in hyrox.get("results", [])]
     races = []
     for r in results:
@@ -54,12 +55,12 @@ def _build_hyrox() -> dict:
             "field_size": r.field_size,
             "age_group": r.age_group,
             "total_display": r.total_time_display,
-            **analyze_race(r),
+            **analyze_race(r, gender=gender),
         })
     latest = max(results, key=lambda r: r.event_date or "", default=None)
     return {
         "races": races,
-        "priorities": compute_training_priorities(latest) if latest else [],
+        "priorities": compute_training_priorities(latest, gender=gender) if latest else [],
         "progression": compute_race_progression(results),
     }
 

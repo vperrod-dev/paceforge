@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: paceforge-data
@@ -32,8 +33,11 @@ jobs:
           GARMIN_TOKEN: ${{ secrets.GARMIN_TOKEN }}
         run: paceforge sync
 
+      # if: always() — the token on disk is re-dumped inside sync() before most
+      # failure modes; refreshing it even on failure breaks the self-perpetuating
+      # staleness loop (failed sync -> never-refreshed token -> failed sync).
       - name: Refresh GARMIN_TOKEN secret
-        if: success()
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.ACTIONS_PAT }}
         run: |
@@ -41,12 +45,41 @@ jobs:
             echo "ACTIONS_PAT not set — skipping token refresh (set it to enable self-refresh)."
             exit 0
           fi
-          paceforge export-token | gh secret set GARMIN_TOKEN --repo "$GITHUB_REPOSITORY"
+          paceforge export-token | gh secret set GARMIN_TOKEN --repo "$GITHUB_REPOSITORY" \
+            || echo "no token on disk to export"
 
+      # if: always() — a failed/partial run still writes data/sync-status.json, and
+      # committing it is what lets the site show "sync failing since <date>".
       - name: Commit data if changed
+        if: always()
         run: |
           git config user.name "paceforge-bot"
           git config user.email "bot@users.noreply.github.com"
           git add data/
           git diff --cached --quiet || git commit -m "data: daily Garmin sync"
           git push
+
+      - name: Open sync-failure issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --label sync-failure --state open --json number --jq length)
+          if [ "$open" = "0" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" \
+              --title "Garmin sync is failing" \
+              --label sync-failure \
+              --body "The scheduled Garmin sync failed. See the run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+Check data/sync-status.json for the error and failed endpoints. If the token expired (~yearly), run \`paceforge login\` locally and update the GARMIN_TOKEN secret."
+          else
+            echo "sync-failure issue already open — not duplicating."
+          fi
+
+      - name: Close sync-failure issue on recovery
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue list --repo "$GITHUB_REPOSITORY" --label sync-failure --state open --json number --jq '.[].number' \
+            | xargs -r -I{} gh issue close {} --repo "$GITHUB_REPOSITORY" --comment "Sync recovered in run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
