@@ -48,6 +48,15 @@ class TestTrimDetail:
             {"distance": 1000, "duration": 300, "averageHR": 150}]}})
         assert out["splits"][0]["avg_hr"] == 150
 
+    def test_keeps_typed_split_type_for_segmentation(self):
+        out = actions._trim_detail({"activity_id": 7, "typed_splits": {"splits": [
+            {"type": "RWD_STAND", "distance": 0, "duration": 120}]}})
+        assert out["typed_splits"][0]["type"] == "RWD_STAND"
+
+    def test_omits_typed_splits_when_absent(self):
+        out = actions._trim_detail({"activity_id": 7, "splits": {"lapDTOs": []}})
+        assert "typed_splits" not in out
+
 
 class TestStoreDetail:
     def test_save_then_load_roundtrips(self):

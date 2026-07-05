@@ -712,6 +712,14 @@ class GarminClient:
             logger.debug("time-series metrics unavailable for %s", activity_id)
             result["metrics"] = None
 
+        # Typed splits — run/walk/stand (or interval) typing that lets us
+        # auto-segment a recorded HYROX sim into run/station/roxzone (no manual tag).
+        try:
+            result["typed_splits"] = self.client.get_activity_typed_splits(activity_id)
+        except Exception:
+            logger.debug("typed splits unavailable for %s", activity_id)
+            result["typed_splits"] = None
+
         return result
 
     def get_all_workouts(self) -> list[dict]:

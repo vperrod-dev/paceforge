@@ -270,7 +270,7 @@ def _extract_series(metrics: dict, max_points: int = 120) -> list | None:
 
 
 # Bump when _trim_detail's shape changes so sync re-fetches older stored details.
-_DETAIL_VERSION = 3  # v3 adds cadence + stride-length to the time-series
+_DETAIL_VERSION = 4  # v4 adds typed_splits (run/station/roxzone auto-segmentation)
 
 
 def _trim_detail(detail: dict) -> dict:
@@ -302,6 +302,26 @@ def _trim_detail(detail: dict) -> dict:
                             or lap.get("averageRunningCadenceInStepsPerMinute")),
         })
     out["splits"] = segs
+
+    # Typed splits: keep the run/walk/stand typing so engine/segments.py can slice
+    # a recorded HYROX sim into run/station/roxzone without any manual tagging.
+    typed = detail.get("typed_splits") or {}
+    tsplits = typed.get("splits") if isinstance(typed, dict) else (
+        typed if isinstance(typed, list) else [])
+    tsegs = []
+    for ts in tsplits or []:
+        if not isinstance(ts, dict):
+            continue
+        dist = ts.get("distance") or 0
+        dur = ts.get("duration") or ts.get("movingDuration") or 0
+        tsegs.append({
+            "type": ts.get("type") or ts.get("splitType"),
+            "distance_m": round(dist, 1) if dist else None,
+            "duration_s": round(dur, 1) if dur else None,
+            "avg_hr": ts.get("averageHR"),
+        })
+    if tsegs:
+        out["typed_splits"] = tsegs
 
     hz = detail.get("hr_zones")
     if isinstance(hz, list):
