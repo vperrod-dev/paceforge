@@ -263,6 +263,9 @@ class TestComputeLoadRecovery:
             "sleep",
             "body_battery_trend",
             "stress_trend",
+            "respiration_trend",
+            "spo2_trend",
+            "illness_watch",
             "overtraining_composite",
             "readiness_composite",
             "garmin_native",
@@ -339,3 +342,67 @@ class TestSRPEFallback:
         out = compute_daily_load([run, strength], 50, 190, rpe_map={2: {"rpe": 7}})
         trimp, srpe = (e["trimp"] for e in out["per_activity"])
         assert 0.6 < srpe / trimp < 1.6
+
+
+# ── 10. Respiration / SpO2 / illness watch ───────────────────────────
+
+
+class TestRespirationTrend:
+    def _history(self, latest: float) -> list[dict]:
+        rows = [_wellness(i, respiration_avg_sleep=14.0) for i in range(14)]
+        rows.append(_wellness(14, respiration_avg_sleep=latest))
+        return rows
+
+    def test_elevated_when_1_5_over_baseline(self):
+        from paceforge.engine.load import compute_respiration_trend
+        assert compute_respiration_trend(self._history(15.6))["elevated"] is True
+
+    def test_not_elevated_within_baseline(self):
+        from paceforge.engine.load import compute_respiration_trend
+        assert compute_respiration_trend(self._history(14.8))["elevated"] is False
+
+    def test_accumulating_on_short_history(self):
+        from paceforge.engine.load import compute_respiration_trend
+        out = compute_respiration_trend([_wellness(0, respiration_avg_sleep=14.0)])
+        assert out["availability"]["status"] == "accumulating"
+
+
+class TestSpo2Trend:
+    def test_low_below_absolute_floor(self):
+        from paceforge.engine.load import compute_spo2_trend
+        rows = [_wellness(0, spo2_avg=93.0)]
+        assert compute_spo2_trend(rows)["low"] is True
+
+    def test_low_on_two_point_drop_from_baseline(self):
+        from paceforge.engine.load import compute_spo2_trend
+        rows = [_wellness(i, spo2_avg=97.0) for i in range(10)]
+        rows.append(_wellness(10, spo2_avg=95.0))
+        assert compute_spo2_trend(rows)["low"] is True
+
+    def test_ok_at_stable_baseline(self):
+        from paceforge.engine.load import compute_spo2_trend
+        rows = [_wellness(i, spo2_avg=96.0) for i in range(10)]
+        assert compute_spo2_trend(rows)["low"] is False
+
+
+class TestIllnessWatch:
+    def test_none_without_respiratory_evidence(self):
+        from paceforge.engine.load import compute_illness_watch
+        out = compute_illness_watch(
+            {"elevated": False}, {"low": False}, {"elevated": True}, {"status": "below"}
+        )
+        assert out["level"] == "none"
+
+    def test_watch_on_single_respiratory_signal(self):
+        from paceforge.engine.load import compute_illness_watch
+        out = compute_illness_watch(
+            {"elevated": True}, {"low": False}, {"elevated": False}, {"status": "within"}
+        )
+        assert out["level"] == "watch"
+
+    def test_alert_when_corroborated(self):
+        from paceforge.engine.load import compute_illness_watch
+        out = compute_illness_watch(
+            {"elevated": True}, {"low": False}, {"elevated": True}, {"status": "within"}
+        )
+        assert out["level"] == "alert"

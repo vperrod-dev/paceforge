@@ -28,6 +28,8 @@ _MONOTONY_WINDOW_DAYS = 7
 _CTL_TAU = 42
 _ATL_TAU = 7
 _INJURY_LOOKBACK_DAYS = 30
+_RESP_BASELINE_DAYS = 14
+_SPO2_BASELINE_DAYS = 14
 
 
 def _accumulating(have: int, need: int) -> dict[str, Any]:
@@ -549,6 +551,69 @@ def compute_stress_trend(history: list) -> dict[str, Any]:
     }
 
 
+# ── Overnight respiration & SpO2 (illness early-warning) ────────────
+
+
+def compute_respiration_trend(history: list) -> dict[str, Any]:
+    """Overnight respiration vs a rolling baseline — elevation precedes illness."""
+    raw = _series(history, "respiration_avg_sleep")
+    if len(raw) < 2:
+        return {"availability": _accumulating(len(raw), _RESP_BASELINE_DAYS)}
+    vals = [v for _, v in raw]
+    baseline = _mean(vals[-(_RESP_BASELINE_DAYS + 1) : -1]) or _mean(vals[:-1])
+    latest = vals[-1]
+    dev = latest - baseline
+    return {
+        "availability": "ok",
+        "baseline": round(baseline, 1),
+        "latest": round(latest, 1),
+        "deviation": round(dev, 1),
+        "elevated": baseline > 0 and dev >= 1.5,
+    }
+
+
+def compute_spo2_trend(history: list) -> dict[str, Any]:
+    """Overnight SpO2 vs baseline — absolute floor 94% or a ≥2-point drop."""
+    raw = _series(history, "spo2_avg")
+    if not raw:
+        return {"availability": _accumulating(0, 1)}
+    vals = [v for _, v in raw]
+    latest = vals[-1]
+    baseline = _mean(vals[-(_SPO2_BASELINE_DAYS + 1) : -1]) or latest
+    return {
+        "availability": "ok",
+        "baseline": round(baseline, 1),
+        "latest": round(latest, 1),
+        "low": latest < 94 or (baseline - latest) >= 2,
+    }
+
+
+def compute_illness_watch(resp: dict, spo2: dict, rhr: dict, hrv: dict) -> dict[str, Any]:
+    """Illness early-warning distinct from overtraining.
+
+    Fires only on respiratory evidence (elevated overnight respiration or low
+    SpO2) — cardio-only patterns (RHR up, HRV down) belong to the overtraining
+    composite. Corroboration by any second signal escalates watch → alert.
+    """
+    signals: list[str] = []
+    if resp.get("elevated"):
+        signals.append("respiration_elevated")
+    if spo2.get("low"):
+        signals.append("spo2_low")
+    respiratory = bool(signals)
+    if rhr.get("elevated"):
+        signals.append("rhr_elevated")
+    if hrv.get("status") == "below":
+        signals.append("hrv_below")
+    if not respiratory:
+        level = "none"
+    elif len(signals) >= 2:
+        level = "alert"
+    else:
+        level = "watch"
+    return {"availability": "ok", "signals": signals, "level": level}
+
+
 # ── Overtraining composite (count red flags) ─────────────────────────
 
 
@@ -699,6 +764,7 @@ def compute_garmin_native(profile: Any) -> dict[str, Any]:
         "training_readiness": readiness,
         "training_readiness_label": readiness_label,
         "training_load_7day": getattr(profile, "training_load_7day", None),
+        "running_tolerance": getattr(profile, "running_tolerance", None),
     }
 
 
@@ -730,6 +796,9 @@ def compute_load_recovery(history: list, activities: list, profile,
     sleep = compute_sleep(history)
     bb = compute_body_battery_trend(history)
     stress = compute_stress_trend(history)
+    resp = compute_respiration_trend(history)
+    spo2 = compute_spo2_trend(history)
+    illness = compute_illness_watch(resp, spo2, rhr, hrv)
 
     overtraining = compute_overtraining_composite(
         history, hrv, rhr, sleep, ctl, monotony, ramp, stress
@@ -750,6 +819,9 @@ def compute_load_recovery(history: list, activities: list, profile,
         "sleep": sleep,
         "body_battery_trend": bb,
         "stress_trend": stress,
+        "respiration_trend": resp,
+        "spo2_trend": spo2,
+        "illness_watch": illness,
         "overtraining_composite": overtraining,
         "readiness_composite": readiness,
         "garmin_native": garmin,
