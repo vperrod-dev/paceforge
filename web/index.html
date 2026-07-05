@@ -1052,6 +1052,12 @@ async function renderToday(page) {
   const rd = (f.load || {}).readiness_composite || {};
   const band = rd.band || '';
   const bandColor = band === 'low' ? 'var(--rose)' : band === 'moderate' ? 'var(--amber)' : 'var(--emerald)';
+  const iw = (f.load || {}).illness_watch || {};
+  const iwColor = iw.level === 'alert' ? 'var(--rose)' : 'var(--amber)';
+  const iwRow = (iw.level === 'watch' || iw.level === 'alert') ? `
+      <div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb, ${iwColor} 12%, transparent);font-size:.8rem;color:${iwColor}">
+        <b>${iw.level === 'alert' ? 'Illness alert' : 'Illness watch'}</b> — ${escHtml((iw.signals || []).map(s => s.replace(/_/g, ' ')).join(', '))}. ${iw.level === 'alert' ? 'Skip intensity until signals clear.' : 'Overnight signals off baseline — recheck tomorrow.'}
+      </div>` : '';
 
   // ── Today's (or next) planned session ──
   const todayISO = new Date().toISOString().slice(0, 10);
@@ -1097,6 +1103,7 @@ async function renderToday(page) {
         <div style="font-weight:700;color:${bandColor};text-transform:capitalize">${band || 'unknown'}</div>
         ${rd.dominant_driver ? `<div style="font-size:.82rem;color:var(--text-2);margin-top:3px">Driver: ${escHtml(rd.dominant_driver)}</div>` : ''}
         <div style="font-size:.78rem;color:var(--text-3);margin-top:3px">${band === 'low' ? 'Easy day — the hard work waits.' : band === 'moderate' ? 'Train, but keep quality honest.' : 'Green light for quality.'}</div>
+        ${iwRow}
       </div>
     </div>
   </div>`;
@@ -1600,7 +1607,8 @@ function renderRecovery(f) {
   const l = f.load || {};
   const pmc = l.ctl_atl_tsb || {}, hrv = l.hrv || {}, sleep = l.sleep || {},
         rd = l.readiness_composite || {}, gn = l.garmin_native || {}, ot = l.overtraining_composite || {},
-        ms = l.monotony_strain || {}, spike = l.injury_spike || {};
+        ms = l.monotony_strain || {}, spike = l.injury_spike || {},
+        resp = l.respiration_trend || {}, spo2 = l.spo2_trend || {}, iw = l.illness_watch || {};
   const acc = (b) => b && b.availability && b.availability.status === 'accumulating'
     ? `<div class="hint">Accumulating — ${b.availability.have_days}/${b.availability.need_days} days.</div>` : '';
   const pmcCard = fxCard('Fitness · Fatigue · Form', icons.fitness, `
@@ -1622,12 +1630,18 @@ function renderRecovery(f) {
       ${metricCard('HRV status', (hrv.status || '—'), hrv.status === 'below' ? 'below your range' : 'vs your baseline', hrv.status === 'below' ? 'var(--rose)' : 'var(--emerald)')}
       ${metricCard('Sleep debt', (sleep.sleep_debt != null ? (sleep.sleep_debt / 3600).toFixed(1) + ' h' : '—'), '14-day')}
       ${metricCard('Deep sleep', (sleep.deep_pct != null ? Math.round(sleep.deep_pct) + '%' : '—'), '13–23% ideal')}
+    </div>
+    <div class="fx-grid" style="margin-top:10px">
+      ${metricCard('Respiration', (resp.latest != null ? resp.latest + ' brpm' : '—'), resp.baseline != null ? 'baseline ' + resp.baseline : 'overnight', resp.elevated ? 'var(--rose)' : 'var(--text-2)')}
+      ${metricCard('SpO₂', (spo2.latest != null ? spo2.latest + '%' : '—'), 'overnight', spo2.low ? 'var(--rose)' : 'var(--text-2)')}
+      ${metricCard('Illness watch', (iw.level && iw.level !== 'none' ? iw.level : 'clear'), (iw.signals || []).map(s => s.replace(/_/g, ' ')).join(', '), iw.level === 'alert' ? 'var(--rose)' : iw.level === 'watch' ? 'var(--amber)' : 'var(--emerald)')}
     </div>${acc(hrv)}`);
   const loadCard = fxCard('Load guardrails', icons.alert, `
     <div class="fx-grid">
       ${metricCard('ACWR', (l.acwr && l.acwr.ratio != null ? l.acwr.ratio : '—'), '0.8–1.3 sweet spot', (l.acwr && l.acwr.ratio >= 1.5) ? 'var(--rose)' : 'var(--text-2)')}
       ${metricCard('Monotony', (ms.monotony != null ? ms.monotony : (ms.concerning ? 'high' : '—')), '<2 preferred', ms.concerning ? 'var(--rose)' : 'var(--text-2)')}
       ${metricCard('Injury spikes', (spike.spikes ? spike.spikes.length : 0), 'runs > 30d max')}
+      ${metricCard('Garmin tolerance', (gn.running_tolerance != null ? gn.running_tolerance : '—'), 'impact-load capacity')}
     </div>`);
   return pmcCard + rdCard + hrvCard + loadCard;
 }
