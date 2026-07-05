@@ -1,13 +1,14 @@
-"""Race-time prediction, goal pacing plan, and station-attributed fade."""
+"""Race-time prediction, career pacing-strategy effectiveness, and station-attributed fade."""
 from paceforge.hyrox.analyzer import (
     compute_compromise_by_station,
-    goal_pace_plan,
+    compute_pacing_strategy_effectiveness,
     predict_next_race,
 )
 from paceforge.hyrox.models import HyroxRaceResult, HyroxSplit
 
 
-def _race(total_seconds, event_date, runs=None, stations=None, roxzone=420.0):
+def _race(total_seconds, event_date, runs=None, stations=None, roxzone=420.0,
+          rank="", field="", division="HYROX"):
     runs = runs or [330.0] * 8
     stations = stations or {
         "SkiErg_1000m": 260, "Sled_Push_50m": 175, "Sled_Pull_50m": 290,
@@ -17,8 +18,9 @@ def _race(total_seconds, event_date, runs=None, stations=None, roxzone=420.0):
     splits = [HyroxSplit(name=f"Running_{i+1}", time_seconds=t) for i, t in enumerate(runs)]
     splits += [HyroxSplit(name=k, time_seconds=v) for k, v in stations.items()]
     splits.append(HyroxSplit(name="Roxzone_Time", time_seconds=roxzone))
-    return HyroxRaceResult(total_time_seconds=total_seconds, division="HYROX",
-                           event_date=event_date, city=event_date, splits=splits)
+    return HyroxRaceResult(total_time_seconds=total_seconds, division=division,
+                           event_date=event_date, city=event_date, splits=splits,
+                           rank=rank, field_size=field)
 
 
 class TestPredictNextRace:
@@ -46,31 +48,33 @@ class TestPredictNextRace:
         assert 4000 * 0.85 <= out["predicted_seconds"] <= 10000 * 1.3
 
 
-class TestGoalPacePlan:
-    def test_invalid_target_rejected(self):
-        assert goal_pace_plan(0)["available"] is False
-        assert goal_pace_plan(-100)["available"] is False
+class TestPacingStrategyEffectiveness:
+    def test_unavailable_with_fewer_than_three_races(self):
+        races = [_race(5400, "2025-01-01", rank="100", field="1000")]
+        assert compute_pacing_strategy_effectiveness(races)["available"] is False
 
-    def test_scales_own_last_race_to_target(self):
-        runs = [330.0] * 8
-        stations = {
-            "SkiErg_1000m": 260, "Sled_Push_50m": 175, "Sled_Pull_50m": 290,
-            "Burpee_Broad_Jump_80m": 220, "Row_1000m": 250, "Farmers_Carry_200m": 145,
-            "Sandbag_Lunges_100m": 300, "Wall_Balls": 280,
-        }
-        roxzone = 420.0
-        total = sum(runs) + sum(stations.values()) + roxzone
-        race = _race(total, "2025-01-01", runs=runs, stations=stations, roxzone=roxzone)
-        out = goal_pace_plan(4500, results=[race])
-        assert out["available"] and out["source"] == "own_last_race"
-        total = sum(s["target_seconds"] for s in out["splits"])
-        assert abs(total - 4500) < 1.0
-        assert out["scale_factor"] < 1.0
+    def test_less_fade_correlates_with_better_percentile(self):
+        # Least fade paired with best percentile, most fade with worst percentile.
+        races = [
+            _race(5400, "2024-01-01", runs=[280, 285, 290, 295, 300, 305, 310, 330],
+                  rank="900", field="1000"),
+            _race(5300, "2024-06-01", runs=[290, 293, 296, 299, 302, 305, 308, 311],
+                  rank="500", field="1000"),
+            _race(5200, "2025-01-01", runs=[300] * 8, rank="100", field="1000"),
+        ]
+        out = compute_pacing_strategy_effectiveness(races)
+        assert out["available"] and out["races_used"] == 3
+        assert out["correlation"] < -0.3
 
-    def test_falls_back_to_cohort_without_race_history(self):
-        out = goal_pace_plan(5000, results=[])
-        assert out["available"] and out["source"] == "cohort_field_average"
-        assert len(out["splits"]) > 0
+    def test_missing_rank_data_excluded(self):
+        races = [
+            _race(5400, "2024-01-01", rank="", field=""),
+            _race(5300, "2024-06-01", rank="500", field="1000"),
+            _race(5200, "2025-01-01", rank="100", field="1000"),
+        ]
+        out = compute_pacing_strategy_effectiveness(races)
+        assert out["available"] is False
+        assert out["races_used"] == 2
 
 
 class TestCompromiseByStation:

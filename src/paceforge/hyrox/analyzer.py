@@ -606,59 +606,56 @@ def predict_next_race(results: list[HyroxRaceResult], gender: str = "M") -> dict
     }
 
 
-def goal_pace_plan(target_seconds: float, results: list[HyroxRaceResult] | None = None,
-                   gender: str = "M", division: str = "", age_group: str | None = None) -> dict:
-    """Split a target finish time across every segment (the inverse of the
-    what-if simulator: goal time in, target splits out).
+def compute_pacing_strategy_effectiveness(results: list[HyroxRaceResult], gender: str = "M") -> dict:
+    """Does even pacing actually pay off for THIS athlete, across their own career?
 
-    Scales the athlete's own most recent race pacing shape to the target time
-    when race history exists (preserves their real strengths/weaknesses
-    instead of an average athlete's), falling back to the cohort field
-    average when there's no race on record yet.
+    The existing `_pacing_quality` grades a single race against elite/recreational
+    benchmarks. This instead correlates the athlete's own fade % with their own
+    field percentile, race over race (Pearson's r) — a personalized answer, since
+    some athletes' results are decided by stations or roxzone, not running fade,
+    and the generic elite benchmark can't tell them that.
     """
-    if not target_seconds or target_seconds <= 0:
-        return {"available": False, "reason": "invalid_target"}
-
-    results = results or []
-    if results:
-        base_race = _sorted_by_date(results)[-1]
-        base = _splits_dict(base_race)
-        base = {k: v for k, v in base.items() if v is not None}
-        base_total = base_race.total_time_seconds or sum(base.values())
-        source = "own_last_race"
-    else:
-        from paceforge.hyrox.benchmarks import get_benchmarks
-
-        bench = get_benchmarks(gender=gender, division=division, age_group=age_group)
-        base = bench["field_avg"]
-        base_total = sum(base.values())
-        source = "cohort_field_average"
-
-    if not base_total:
-        return {"available": False, "reason": "no_baseline"}
-
-    scale = target_seconds / base_total
-    splits = []
-    for name in HYROX_SPLIT_NAMES:
-        secs = base.get(name)
-        if secs is None:
+    points: list[tuple[float, int]] = []
+    for r in results:
+        try:
+            rank, field = int(r.rank), int(r.field_size)
+        except (TypeError, ValueError):
             continue
-        target = round(secs * scale, 1)
-        splits.append({
-            "name": name,
-            "display": SPLIT_DISPLAY_NAMES.get(name, name),
-            "target_seconds": target,
-            "target_display": _fmt_time(target),
-            "is_run": name in RUNNING_SPLITS,
-        })
+        if not rank or not field:
+            continue
+        fade = analyze_race(r, gender=gender).get("fade_pct")
+        if fade is None:
+            continue
+        points.append((fade, _percentile(rank, field)))
+
+    if len(points) < 3:
+        return {"available": False, "races_used": len(points)}
+
+    xs, ys = [p[0] for p in points], [p[1] for p in points]
+    n = len(points)
+    mean_x, mean_y = sum(xs) / n, sum(ys) / n
+    var_x = sum((x - mean_x) ** 2 for x in xs)
+    var_y = sum((y - mean_y) ** 2 for y in ys)
+    if var_x == 0 or var_y == 0:
+        return {"available": False, "races_used": n}
+    covariance = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+    correlation = covariance / (var_x * var_y) ** 0.5
+
+    if correlation < -0.3:
+        read = ("Your best races are the ones where you fade the least — pacing "
+                "discipline is worth real placings for you.")
+    elif correlation > 0.3:
+        read = ("Counterintuitively, your better results come with MORE fade — you "
+                "may be pacing too conservatively early and leaving speed on the table.")
+    else:
+        read = ("No clear link yet between running fade and result — other factors "
+                "(stations, roxzone) are probably deciding more of your races.")
 
     return {
         "available": True,
-        "target_seconds": target_seconds,
-        "target_display": _fmt_time(target_seconds),
-        "source": source,
-        "scale_factor": round(scale, 4),
-        "splits": splits,
+        "races_used": n,
+        "correlation": round(correlation, 2),
+        "read": read,
     }
 
 
