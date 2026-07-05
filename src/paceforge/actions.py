@@ -451,6 +451,7 @@ def fitness() -> dict:
     from paceforge.engine.durability import compute_running_metrics
     from paceforge.engine.limiters import rank_limiters
     from paceforge.engine.load import compute_load_recovery
+    from paceforge.engine.segments import segment_hyrox_activities
     from paceforge.engine.strength import compute_strength_hyrox
 
     profile = store.load_profile()
@@ -473,8 +474,9 @@ def fitness() -> dict:
     limiters = rank_limiters(running, load, strength, profile_vo2max=vo2_for_coach)
     plan = store.load_plan()
     compliance = weekly_compliance(plan, activities) if plan else None
+    hyrox_segments = segment_hyrox_activities(activities, details)
     return {"running": running, "load": load, "strength": strength,
-            "compliance": compliance, **limiters}
+            "compliance": compliance, "hyrox_segments": hyrox_segments, **limiters}
 
 
 # ── HYROX race import (results.hyrox.com) ────────────────────────────
