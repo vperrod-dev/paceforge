@@ -49,6 +49,11 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("garmin-delete", help="delete all plan workouts from the Garmin calendar")
 
+    p_gcc = sub.add_parser("garmin-clear-calendar",
+                           help="remove ALL scheduled Garmin workouts from today onwards")
+    p_gcc.add_argument("--days", type=int, default=400, help="look-ahead window")
+    p_gcc.add_argument("--dry-run", action="store_true", help="list without deleting")
+
     p_cal = sub.add_parser("calendar-edit", help="reschedule/delete one session + sync Garmin")
     p_cal.add_argument("session_id", help="Workout.session_id from plan.json")
     p_cal.add_argument("action", choices=["reschedule", "delete"])
@@ -121,6 +126,8 @@ def main(argv: list[str] | None = None) -> int:
             _emit(actions.adapt(dry_run=args.dry_run))
         elif args.cmd == "garmin-delete":
             _emit(actions.garmin_delete())
+        elif args.cmd == "garmin-clear-calendar":
+            _emit(actions.garmin_clear_calendar(days_ahead=args.days, dry_run=args.dry_run))
         elif args.cmd == "calendar-edit":
             _emit(actions.calendar_edit(args.session_id, args.action, new_date=args.new_date))
         elif args.cmd == "hyrox-search":
