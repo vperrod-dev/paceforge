@@ -78,7 +78,8 @@ jobs:
             days=${{ inputs.days }}, level=${{ inputs.level }}, goal_time_seconds=${{ inputs.goal_time }}.
             Scaffold with EXACTLY that event (do not change it):
             `paceforge plan --goal ${{ inputs.event_type }} --date ${{ inputs.target_date }} --level ${{ inputs.level }} --days ${{ inputs.days }}`.
-            Personalise in ONE pass (no multi-round debate). RUNNING ONLY — never add
-            strength/station/brick/cross-training. Set "accepted": true in data/plan.json.
-            Run `paceforge validate` (must pass), regenerate plan.md, then commit
-            data/plan.json and plan.md and push to master. Work quickly.
+            Then run the full coaching-panel deliberation — depth over speed, take the
+            time to get real quality. RUNNING ONLY — never add strength/station/brick/
+            cross-training. Set "accepted": true in data/plan.json. Run `paceforge
+            validate` (must pass), regenerate plan.md, then commit data/plan.json and
+            plan.md and push to master.
