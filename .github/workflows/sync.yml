@@ -66,12 +66,13 @@ jobs:
         run: |
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --label sync-failure --state open --json number --jq length)
           if [ "$open" = "0" ]; then
+            body=$(printf '%s\n\n%s' \
+              "The scheduled Garmin sync failed. See the run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+              "Check data/sync-status.json for the error and failed endpoints. If the token expired (~yearly), run \`paceforge login\` locally and update the GARMIN_TOKEN secret.")
             gh issue create --repo "$GITHUB_REPOSITORY" \
               --title "Garmin sync is failing" \
               --label sync-failure \
-              --body "The scheduled Garmin sync failed. See the run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-
-Check data/sync-status.json for the error and failed endpoints. If the token expired (~yearly), run \`paceforge login\` locally and update the GARMIN_TOKEN secret."
+              --body "$body"
           else
             echo "sync-failure issue already open — not duplicating."
           fi
