@@ -1,0 +1,56 @@
+name: calendar-edit
+
+# Reschedule or delete one plan session from the portal calendar and sync it to
+# the Garmin calendar. Deterministic — no Claude. Commits the updated plan.json;
+# the Pages build regenerates the portal's view.
+on:
+  workflow_dispatch:
+    inputs:
+      session_id:
+        description: "Workout.session_id from plan.json"
+        required: true
+      action:
+        description: "reschedule or delete"
+        required: true
+        default: "reschedule"
+      new_date:
+        description: "new date YYYY-MM-DD (reschedule only)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paceforge-data
+  cancel-in-progress: false
+
+jobs:
+  edit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Edit calendar + sync Garmin
+        env:
+          PACEFORGE_GARMIN_EMAIL: ${{ secrets.PACEFORGE_GARMIN_EMAIL }}
+          GARMIN_TOKEN: ${{ secrets.GARMIN_TOKEN }}
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.new_date }}" ]; then ARGS="--new-date ${{ inputs.new_date }}"; fi
+          paceforge calendar-edit "${{ inputs.session_id }}" "${{ inputs.action }}" $ARGS
+
+      - name: Commit updated plan
+        run: |
+          git config user.name "paceforge-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/plan.json
+          git commit -m "calendar: ${{ inputs.action }} session ${{ inputs.session_id }}" || echo "nothing to commit"
+          git push

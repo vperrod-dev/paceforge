@@ -626,6 +626,12 @@ const planStore = {
       if (wo) wo.notes = note;
     });
   },
+  async deleteWorkout(weekIdx, woIdx) {
+    return this.update(plan => {
+      const week = plan.weeks?.[weekIdx];
+      if (week?.workouts) week.workouts.splice(woIdx, 1);
+    });
+  },
   async export() {
     const plan = await this.get();
     const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' });
@@ -814,6 +820,109 @@ async function submitCoachIssue() {
       throw new Error(await ghError(res));
     }
   });
+}
+
+// ── Generic workflow dispatcher (Create/Reassess/Delete/Calendar) ──
+async function dispatchWorkflow(name, inputs, okTitle, okBody, btn) {
+  if (!requireToken()) return;
+  await withBusy(btn, 'Dispatching…', async () => {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${name}/dispatches`, {
+      method: 'POST', headers: ghHeaders(),
+      body: JSON.stringify({ ref: REF, inputs: inputs || {} }),
+    });
+    if (res.status !== 204) throw new Error(await ghError(res));
+    toast('ok', okTitle, okBody);
+  });
+}
+
+// Create a running plan (plan.yml → running-plan coaching-panel skill).
+function openCreatePlanModal() {
+  if (!requireToken()) return;
+  openModal(`
+    <div class="modal-h">
+      <div>
+        <div class="modal-title">Create running plan</div>
+        <div class="modal-sub">Claude's coaching panel builds a running-only plan for your event.</div>
+      </div>
+      <button class="modal-close" data-close>${icons.x}</button>
+    </div>
+    <div class="field">
+      <label for="cp-event">Event</label>
+      <select id="cp-event">
+        <option value="5K">5K</option>
+        <option value="10K">10K</option>
+        <option value="HALF_MARATHON">Half marathon</option>
+        <option value="MARATHON">Marathon</option>
+        <option value="HYROX" selected>HYROX</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="cp-date">Race date</label>
+      <input type="date" id="cp-date">
+    </div>
+    <div class="field">
+      <label for="cp-days">Training days</label>
+      <input id="cp-days" value="tuesday,thursday,saturday,sunday">
+      <div class="hint">Comma-separated weekday names.</div>
+    </div>
+    <div class="field">
+      <label for="cp-level">Level</label>
+      <select id="cp-level">
+        <option value="beginner">Beginner</option>
+        <option value="intermediate" selected>Intermediate</option>
+        <option value="advanced">Advanced</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="cp-goal">Goal time (optional)</label>
+      <input id="cp-goal" placeholder="h:mm:ss">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-close>Cancel</button>
+      <button class="btn btn-primary" id="cp-submit">${icons.spark} Build plan</button>
+    </div>
+  `);
+  on('cp-submit', 'click', () => {
+    const date = val('cp-date');
+    if (!date) { toast('err', 'Pick a race date', 'A target date is required.'); return; }
+    const goalStr = (val('cp-goal') || '').trim();
+    let goalSecs = '';
+    if (goalStr) {
+      const p = goalStr.split(':').map(Number);
+      if (p.length === 3) goalSecs = String(p[0] * 3600 + p[1] * 60 + p[2]);
+      else if (p.length === 2) goalSecs = String(p[0] * 60 + p[1]);
+    }
+    closeModal();
+    dispatchWorkflow('plan.yml', {
+      mode: 'create', event_type: val('cp-event'), target_date: date,
+      days: val('cp-days'), level: val('cp-level'), goal_time: goalSecs,
+    }, 'Plan build started',
+       'Claude is designing your plan (a few minutes). Reload when it finishes.');
+  });
+}
+
+function reassessPlan(btn) {
+  dispatchWorkflow('plan.yml', { mode: 'reassess' }, 'Reassess started',
+    'Claude is reviewing and adapting your plan. Reload in a few minutes.', btn);
+}
+
+function deleteFromGarmin(btn) {
+  if (!confirm('Delete ALL pushed plan workouts from your Garmin calendar?')) return;
+  dispatchWorkflow('garmin-delete.yml', {}, 'Garmin cleanup started',
+    'Removing plan workouts from your Garmin calendar.', btn);
+}
+
+// Sync one rescheduled/deleted session to the Garmin calendar (calendar-edit.yml).
+function calendarSyncSession(sessionId, action, newDate) {
+  if (!sessionId) {
+    toast('err', 'Not synced to Garmin', 'This plan predates session ids — regenerate it with Create Plan to enable Garmin calendar sync.');
+    return;
+  }
+  const inputs = { session_id: sessionId, action };
+  if (newDate) inputs.new_date = newDate;
+  dispatchWorkflow('calendar-edit.yml', inputs,
+    action === 'delete' ? 'Session removed' : 'Session moved',
+    'Garmin syncs shortly; the calendar updates after the next build.');
 }
 
 async function ghError(res) {
@@ -1943,9 +2052,9 @@ async function renderPlan(page) {
   const active = await planStore.get().catch(() => null);
 
   if (!active || !active.accepted) {
-    page.innerHTML = `<div class="fade-in">${emptyState('No training plan yet', 'Use “Ask the Coach” to generate one.', icons.plan)}
-      <div style="text-align:center;margin-top:18px"><button class="btn btn-primary" id="plan-coach">${icons.spark} Ask the Coach</button></div></div>`;
-    on('plan-coach', 'click', () => openCoachModal());
+    page.innerHTML = `<div class="fade-in">${emptyState('No training plan yet', 'Create a running plan for your event — Claude\'s coaching panel builds it.', icons.plan)}
+      <div style="text-align:center;margin-top:18px"><button class="btn btn-primary" id="plan-create">${icons.spark} Create running plan</button></div></div>`;
+    on('plan-create', 'click', () => openCreatePlanModal());
     return;
   }
 
@@ -1953,9 +2062,11 @@ async function renderPlan(page) {
   if (planSelectedWeek == null) planSelectedWeek = currentWeekIndex(active);
 
   setTopbar('Plan', `${escHtml(active.name || 'Training Plan')} · ${active.total_weeks || weeks.length} weeks`,
-    `<button class="btn btn-ghost btn-sm" id="plan-edit-paces">${icons.edit} Edit Paces</button>
-     <button class="btn btn-ghost btn-sm" id="plan-coach">${icons.spark} Ask Coach</button>
+    `<button class="btn btn-primary btn-sm" id="plan-create">${icons.spark} Create Plan</button>
+     <button class="btn btn-ghost btn-sm" id="plan-reassess">${icons.spark} Reassess</button>
+     <button class="btn btn-ghost btn-sm" id="plan-edit-paces">${icons.edit} Edit Paces</button>
      <button class="btn btn-outline btn-sm" id="plan-export">${icons.download} Export</button>
+     <button class="btn btn-outline btn-sm" id="plan-garmin-delete">Delete from Garmin</button>
      <button class="btn btn-outline btn-sm" id="plan-reset">Reset</button>`);
 
   page.innerHTML = `<div class="fade-in">
@@ -1967,9 +2078,11 @@ async function renderPlan(page) {
     <div id="week-content"></div>
   </div>`;
 
+  on('plan-create', 'click', () => openCreatePlanModal());
+  on('plan-reassess', 'click', e => reassessPlan(e.currentTarget));
   on('plan-edit-paces', 'click', () => openPaceEditor());
-  on('plan-coach', 'click', () => openCoachModal('Week ' + (planSelectedWeek + 1)));
   on('plan-export', 'click', () => { planStore.export(); toast('ok', 'Exported', 'plan.json downloaded.'); });
+  on('plan-garmin-delete', 'click', e => deleteFromGarmin(e.currentTarget));
   on('plan-reset', 'click', () => confirmResetPlan());
 
   page.querySelector('.week-btn.active')?.scrollIntoView({ inline: 'center', block: 'nearest' });
@@ -2146,10 +2259,12 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
           <label for="wo-note">Note</label>
           <textarea id="wo-note" rows="3">${escHtml(wo.notes || '')}</textarea>
         </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
           <button class="btn ${wo.completed ? 'btn-ghost' : 'btn-outline'}" id="wo-toggle" style="${wo.completed ? 'color:var(--emerald)' : ''}">${wo.completed ? icons.check + ' Completed' : 'Mark complete'}</button>
+          <button class="btn btn-outline" id="wo-delete" style="color:var(--rose,#e11d48)">Delete session</button>
           <button class="btn btn-primary" id="wo-save" style="margin-left:auto">Save changes</button>
         </div>
+        <div class="hint" style="margin-top:8px">Rescheduling or deleting also updates your Garmin calendar.</div>
       </div>` : (wo.notes ? `<div style="margin-top:12px;font-size:.84rem;color:var(--text-3)">${escHtml(wo.notes)}</div>` : '')}
   `);
 
@@ -2180,12 +2295,22 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
     on('wo-save', 'click', async () => {
       const date = val('wo-date');
       const note = document.getElementById('wo-note')?.value || '';
+      const moved = date && date !== wo.scheduled_date;
       if (date) await planStore.reschedule(wkIdx, woIdx, date);
       await planStore.setNote(wkIdx, woIdx, note);
       const fresh = await planStore.get();
       closeModal();
       drawWeek(fresh);
-      toast('ok', 'Saved', 'Workout updated locally. Export or push to apply.');
+      if (moved) calendarSyncSession(wo.session_id, 'reschedule', date);
+      else toast('ok', 'Saved', 'Workout updated locally. Export or push to apply.');
+    });
+    on('wo-delete', 'click', async () => {
+      if (!confirm('Delete this session from the plan and your Garmin calendar?')) return;
+      await planStore.deleteWorkout(wkIdx, woIdx);
+      const fresh = await planStore.get();
+      closeModal();
+      drawWeek(fresh);
+      calendarSyncSession(wo.session_id, 'delete', null);
     });
   }
 }

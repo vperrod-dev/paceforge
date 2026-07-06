@@ -1,9 +1,10 @@
 """Plan generator — converts a fitness profile + goal into a concrete TrainingPlan.
 
-Supports two modes:
-1. **AI-powered** (default when OpenAI key is available): An LLM designs a personalised
-   plan blueprint, which the deterministic WorkoutFactory converts into structured workouts.
-2. **Template-based** (fallback): Uses YAML templates with algorithmic workout rotation.
+This is the deterministic **scaffold**: it derives exact paces from the athlete's
+metrics and fills a periodised, running-only template. It is the canvas, not the
+coach. The judgement layer — workout selection, variety, progression, event-specific
+structure — is Claude via the ``running-plan`` skill (runs on the user's
+subscription), and every plan is gated by ``engine.validate.validate_plan``.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from pathlib import Path
 
 import yaml
 
+from paceforge.engine.events import event_profile
 from paceforge.engine.vdot import (
     RACE_DISTANCES,
     TrainingPaces,
@@ -34,9 +36,23 @@ from paceforge.models.plan import (
     WorkoutStepType,
     WorkoutType,
 )
-from paceforge.models.profile import TrainingGoal, UserFitnessProfile
+from paceforge.models.profile import GoalType, TrainingGoal, UserFitnessProfile
 
 logger = logging.getLogger(__name__)
+
+
+def _starting_and_peak_km(
+    profile: UserFitnessProfile, goal_type: GoalType, table_peak: float
+) -> tuple[float, float]:
+    """Anchor plan volume to the athlete's actual mileage, not a fixed table.
+
+    Peak is the greater of the template default and the athlete's current weekly
+    mileage scaled by the event's peak factor; start ramps in at ~75% of peak.
+    """
+    actual = profile.weekly_mileage_km or 0.0
+    peak = round(max(table_peak, actual * event_profile(goal_type).peak_km_factor), 1)
+    start = round(peak * 0.75, 1)
+    return start, peak
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -83,12 +99,13 @@ _LR_BUILD = ["long", "long_progressive", "long_with_race_pace", "long"]
 _LR_PEAK = ["long_progressive", "long_with_race_pace", "long_with_race_pace", "long"]
 _LR_TAPER = ["long", "long"]
 
-# HYROX Q1 rotation: the quality slot becomes race-specific hybrid work —
-# compromised bricks and simulations instead of pure running speed.
-_HYROX_Q1_BASE = ["brick_light", "vo2max", "brick_light", "hills"]
-_HYROX_Q1_BUILD = ["brick", "race_sim", "brick", "vo2max"]
-_HYROX_Q1_PEAK = ["race_sim", "brick", "race_sim", "race_sim"]
-_HYROX_Q1_TAPER = ["brick_light", "easy_with_strides"]
+# Compromised-running Q1 rotation (HYROX): running-only run-under-fatigue work —
+# 1km repeats at threshold pace mimicking the race's 8x1km, plus VO2max/hills.
+# No station or strength sessions: the plan is running only.
+_COMPROMISED_Q1_BASE = ["compromised_km", "hills", "compromised_km", "fartlek"]
+_COMPROMISED_Q1_BUILD = ["compromised_km", "vo2max", "compromised_km", "hills"]
+_COMPROMISED_Q1_PEAK = ["compromised_km", "vo2max", "compromised_km", "compromised_km"]
+_COMPROMISED_Q1_TAPER = ["compromised_km", "easy_with_strides"]
 
 # Phase focus descriptions
 _FOCUS_BASE = [
@@ -161,19 +178,7 @@ def generate_plan(
 
     # 2. Fill the periodised template with derived paces.
     return _generate_template_plan(profile, goal, paces, pace_source=pace_source,
-                                   athlete_summary=athlete_summary, hyrox_focus=hyrox_focus)
-
-
-def _get_peak_km(goal_type: str, level: str) -> float:
-    """Return peak weekly km based on goal type and experience level."""
-    table = {
-        "5K":            {"beginner": 30, "intermediate": 45, "advanced": 65},
-        "10K":           {"beginner": 35, "intermediate": 55, "advanced": 75},
-        "HALF_MARATHON": {"beginner": 45, "intermediate": 65, "advanced": 85},
-        "MARATHON":      {"beginner": 55, "intermediate": 75, "advanced": 110},
-        "HYROX":         {"beginner": 30, "intermediate": 40, "advanced": 55},
-    }
-    return table.get(goal_type, table["HALF_MARATHON"]).get(level, 65)
+                                   athlete_summary=athlete_summary)
 
 
 def _generate_template_plan(
@@ -183,9 +188,8 @@ def _generate_template_plan(
     *,
     pace_source: str = "",
     athlete_summary: str = "",
-    hyrox_focus: list[str] | None = None,
 ) -> TrainingPlan:
-    """Fallback: generate plan from YAML templates with algorithmic rotation."""
+    """Fill the periodised, running-only template with derived paces."""
 
     template = _load_template(goal)
     level = (goal.experience_level or _estimate_level(profile)).value
@@ -201,7 +205,8 @@ def _generate_template_plan(
         plan_start = race_date - timedelta(weeks=total_weeks)
         plan_start = plan_start - timedelta(days=plan_start.weekday())
 
-    peak_km = template["peak_weekly_km"].get(level, template["peak_weekly_km"]["intermediate"])
+    table_peak = template["peak_weekly_km"].get(level, template["peak_weekly_km"]["intermediate"])
+    _, peak_km = _starting_and_peak_km(profile, goal.goal_type, table_peak)
     volume_prog = template["volume_progression"]
 
     phase_map: dict[int, str] = {}
@@ -209,6 +214,14 @@ def _generate_template_plan(
         for wk in p["weeks"]:
             phase_map[wk] = p["name"]
 
+    # Position of each week within its phase → a 0..1 progression fraction that
+    # drives week-over-week overload of the quality sessions.
+    week_phase = [phase_map.get(i + 1, "Build") for i in range(total_weeks)]
+    phase_positions: dict[str, list[int]] = {}
+    for i, ph in enumerate(week_phase):
+        phase_positions.setdefault(ph, []).append(i)
+
+    compromised = event_profile(goal.goal_type).compromised_bias
     factory = WorkoutFactory(paces)
 
     weeks: list[TrainingWeek] = []
@@ -229,6 +242,12 @@ def _generate_template_plan(
                 paces=paces,
                 long_run_day=goal.long_run_day,
             )
+            # Running-only: drop any hybrid/station race-week entries (e.g. the
+            # HYROX race-day sim). The race itself is the plan's target_date.
+            workouts = [
+                w for w in workouts
+                if w.workout_type not in (WorkoutType.HYROX_MIXED, WorkoutType.CROSS_TRAINING)
+            ]
             for w in workouts:
                 if w.workout_type != WorkoutType.REST and w.purpose is None:
                     w.purpose = TrainingPurpose.RECOVERY
@@ -238,14 +257,16 @@ def _generate_template_plan(
             ))
             continue
 
+        members = phase_positions[week_phase[wk_idx]]
+        phase_frac = members.index(wk_idx) / max(len(members) - 1, 1)
         workouts = _build_varied_week(
             factory=factory, phase=phase, week_km=week_km,
             week_start=week_start, wk_idx=wk_idx,
             long_run_day=goal.long_run_day,
             max_days=goal.max_days_per_week,
             training_days=goal.training_days,
-            goal_type=goal.goal_type.value,
-            hyrox_focus=hyrox_focus,
+            compromised=compromised,
+            frac=phase_frac,
         )
         focus = _get_focus(phase, wk_idx)
         actual_km = round(sum(
@@ -297,17 +318,17 @@ def _build_varied_week(
     long_run_day: str,
     max_days: int = 5,
     training_days: list[str] | None = None,
-    goal_type: str = "",
-    hyrox_focus: list[str] | None = None,
+    compromised: bool = False,
+    frac: float = 0.0,
 ) -> list[Workout]:
-    """Build a week of workouts distributed across chosen training days.
+    """Build a week of running workouts distributed across chosen training days.
 
     If *training_days* is provided the workouts are placed on those exact days;
     otherwise a backwards-compatible default is derived from *max_days*.
-    For HYROX goals the Q1 slot rotates race-specific hybrid sessions (bricks,
-    simulations) and the first easy slot becomes a structured station day.
+    *compromised* (HYROX) swaps the Q1 pool for run-under-fatigue 1km repeats;
+    *frac* (0..1, position within the phase) drives week-over-week overload of the
+    quality sessions. The plan is running only — no station/strength sessions.
     """
-    hyrox = goal_type == "HYROX"
     from paceforge.models.profile import default_training_days as _default_days
 
     days = training_days or _default_days(max_days)
@@ -327,14 +348,15 @@ def _build_varied_week(
     per_easy_km = round(week_km * remaining_frac / easy_slots, 1)
 
     # ── Pick workout types from rotation pools ───────────────────────
-    q1_pool = {
-        "Base": _Q1_BASE, "Build": _Q1_BUILD, "Peak": _Q1_PEAK, "Taper": _Q1_TAPER,
-    }.get(phase, _Q1_BUILD)
-    if hyrox:
+    if compromised:
         q1_pool = {
-            "Base": _HYROX_Q1_BASE, "Build": _HYROX_Q1_BUILD,
-            "Peak": _HYROX_Q1_PEAK, "Taper": _HYROX_Q1_TAPER,
-        }.get(phase, _HYROX_Q1_BUILD)
+            "Base": _COMPROMISED_Q1_BASE, "Build": _COMPROMISED_Q1_BUILD,
+            "Peak": _COMPROMISED_Q1_PEAK, "Taper": _COMPROMISED_Q1_TAPER,
+        }.get(phase, _COMPROMISED_Q1_BUILD)
+    else:
+        q1_pool = {
+            "Base": _Q1_BASE, "Build": _Q1_BUILD, "Peak": _Q1_PEAK, "Taper": _Q1_TAPER,
+        }.get(phase, _Q1_BUILD)
     q2_pool = {
         "Base": _Q2_BASE, "Build": _Q2_BUILD, "Peak": _Q2_PEAK, "Taper": _Q2_TAPER,
     }.get(phase, _Q2_BUILD)
@@ -397,14 +419,9 @@ def _build_varied_week(
         if role == "long_run":
             w = _make_long_run(factory, lr_type, long_km)
         elif role == "q1":
-            w = (_make_hyrox_q1(factory, q1_type, q1_km, hyrox_focus, phase)
-                 if hyrox else _make_q1(factory, q1_type, q1_km))
+            w = _make_q1(factory, q1_type, q1_km, frac)
         elif role == "q2":
-            w = _make_q2(factory, q2_type, q2_km)
-        elif hyrox and role == "easy_0":
-            # HYROX athletes strength-train — the first easy slot becomes a
-            # structured station day targeting the weakest stations.
-            w = factory.station_day(focus_stations=hyrox_focus)
+            w = _make_q2(factory, q2_type, q2_km, frac)
         else:
             if easy_type == "easy_with_strides":
                 w = factory.easy_with_strides(per_easy_km)
@@ -417,53 +434,52 @@ def _build_varied_week(
     return workouts
 
 
-def _make_q1(factory: WorkoutFactory, q1_type: str, distance_km: float) -> Workout:
-    """Generate quality session 1 based on rotation type."""
+def _bump(base: int, frac: float, span: int) -> int:
+    """Overload a rep count by up to *span* across a phase (frac 0..1)."""
+    return base + round(frac * span)
+
+
+def _make_q1(factory: WorkoutFactory, q1_type: str, distance_km: float,
+             frac: float = 0.0) -> Workout:
+    """Generate quality session 1; *frac* (0..1) overloads it across the phase."""
     if q1_type == "vo2max":
-        return factory.vo2max_intervals(reps=5, rep_min=3.5)
+        return factory.vo2max_intervals(reps=_bump(5, frac, 2), rep_min=3.5)
+    elif q1_type == "compromised_km":
+        # HYROX run-under-fatigue: 1km repeats at threshold, growing toward the
+        # race's 8x1km as the phase progresses.
+        return factory.race_pace_intervals(reps=_bump(5, frac, 3), rep_km=1.0,
+                                           pace_key="threshold")
     elif q1_type == "speed_400s":
-        return factory.speed_400s(reps=8)
+        return factory.speed_400s(reps=_bump(8, frac, 4))
     elif q1_type == "speed_200s":
-        return factory.speed_200s(reps=10)
+        return factory.speed_200s(reps=_bump(10, frac, 4))
     elif q1_type == "hills":
-        return factory.hills(reps=8)
+        return factory.hills(reps=_bump(8, frac, 4))
     elif q1_type == "fartlek":
-        return factory.fartlek(total_min=40)
+        return factory.fartlek(total_min=_bump(40, frac, 10))
     elif q1_type == "easy_with_strides":
         return factory.easy_with_strides(distance_km)
     else:
-        return factory.fartlek(total_min=40)
+        return factory.fartlek(total_min=_bump(40, frac, 10))
 
 
-def _make_hyrox_q1(factory: WorkoutFactory, q1_type: str, distance_km: float,
-                   focus: list[str] | None, phase: str) -> Workout:
-    """HYROX quality slot: compromised bricks / simulations, else running quality."""
-    if q1_type == "brick":
-        return factory.hyrox_compromised_brick(reps=6, stations=focus)
-    if q1_type == "brick_light":
-        return factory.hyrox_compromised_brick(reps=4, stations=focus,
-                                               station_min=2.5, pace_key="marathon")
-    if q1_type == "race_sim":
-        return factory.hyrox_race_simulation(segments=6 if phase == "Peak" else 4,
-                                             stations=focus)
-    return _make_q1(factory, q1_type, distance_km)
-
-
-def _make_q2(factory: WorkoutFactory, q2_type: str, distance_km: float) -> Workout:
-    """Generate quality session 2 based on rotation type."""
+def _make_q2(factory: WorkoutFactory, q2_type: str, distance_km: float,
+             frac: float = 0.0) -> Workout:
+    """Generate quality session 2; *frac* (0..1) overloads it across the phase."""
     if q2_type == "tempo":
-        tempo_km = max(distance_km - 3, 3)
+        tempo_km = max(distance_km - 3, 3) + frac * 2
         return factory.tempo(tempo_km)
     elif q2_type == "threshold_cruise":
-        return factory.threshold_cruise_intervals(reps=4, rep_min=6)
+        return factory.threshold_cruise_intervals(reps=_bump(4, frac, 2), rep_min=6)
     elif q2_type == "progressive":
         return factory.progressive_run(distance_km)
     elif q2_type == "race_pace":
-        return factory.race_pace_intervals(reps=4, rep_km=1.0, pace_key="marathon")
+        return factory.race_pace_intervals(reps=_bump(4, frac, 2), rep_km=1.0,
+                                           pace_key="marathon")
     elif q2_type == "easy_with_strides":
         return factory.easy_with_strides(distance_km)
     else:
-        return factory.tempo(max(distance_km - 3, 3))
+        return factory.tempo(max(distance_km - 3, 3) + frac * 2)
 
 
 def _make_long_run(factory: WorkoutFactory, lr_type: str, distance_km: float) -> Workout:
