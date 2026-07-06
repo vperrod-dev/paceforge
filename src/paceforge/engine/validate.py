@@ -7,7 +7,7 @@ human-readable issues — empty means the plan is sound.
 
 from __future__ import annotations
 
-from paceforge.models.plan import TrainingPlan, WorkoutType
+from paceforge.models.plan import TrainingPlan, WorkoutStepType, WorkoutType
 
 # Intense quality sessions — two of THESE on consecutive days is a red flag.
 # Long runs are excluded on purpose: a quality day before the weekend long run is a
@@ -27,6 +27,16 @@ INTENSE_TYPES: frozenset[WorkoutType] = frozenset({
 
 MAX_WEEKLY_RAMP = 0.15  # >15% week-over-week build is injury territory
 
+# Interval-rep length ceilings (Daniels): VO2max reps ≤5 min, speed/rep reps ≤2 min.
+MAX_INTERVAL_SEC = 5 * 60
+MAX_REP_SEC = 2 * 60
+_INTERVAL_TYPES: frozenset[WorkoutType] = frozenset({WorkoutType.VO2MAX, WorkoutType.INTERVALS})
+_REP_TYPES: frozenset[WorkoutType] = frozenset({WorkoutType.SPEED})
+
+# Long run should not dwarf the week. Scaffold sits at 35%; flag only egregious
+# outliers (>37%) — the coaching panel enforces the tighter 25–30% by judgement.
+MAX_LONG_RUN_FRAC = 0.37
+
 
 def validate_plan(plan: TrainingPlan) -> list[str]:
     """Return a list of issues with the plan. Empty list == valid."""
@@ -35,7 +45,81 @@ def validate_plan(plan: TrainingPlan) -> list[str]:
     issues += _check_no_back_to_back_hard(plan)
     issues += _check_volume_progression(plan)
     issues += _check_step_paces(plan)
+    issues += _check_interval_lengths(plan)
+    issues += _check_long_run_cap(plan)
+    issues += _check_taper(plan)
     return issues
+
+
+def _iter_interval_steps(workout):  # noqa: ANN001
+    """Yield the work-interval steps only, flattening one level of repeat groups.
+
+    Warmup/cooldown/recovery/rest steps are excluded — a 10-min warmup is not an
+    over-long rep.
+    """
+    for step in workout.steps:
+        candidates = step.steps if step.steps else [step]
+        for s in candidates:
+            if s.step_type == WorkoutStepType.INTERVAL:
+                yield s
+
+
+def _check_interval_lengths(plan: TrainingPlan) -> list[str]:
+    """VO2max/interval reps ≤5 min; speed/rep reps ≤2 min (only when timed)."""
+    issues = []
+    for week in plan.weeks:
+        for wo in week.workouts:
+            if wo.workout_type in _INTERVAL_TYPES:
+                cap, label = MAX_INTERVAL_SEC, "interval rep"
+            elif wo.workout_type in _REP_TYPES:
+                cap, label = MAX_REP_SEC, "rep interval"
+            else:
+                continue
+            for step in _iter_interval_steps(wo):
+                dur = step.duration_seconds
+                if dur is not None and dur > cap:
+                    issues.append(
+                        f"Week {week.week_number} '{wo.name}': {label} "
+                        f"{dur:.0f}s exceeds {cap}s cap"
+                    )
+                    break
+    return issues
+
+
+def _check_long_run_cap(plan: TrainingPlan) -> list[str]:
+    """No single run may exceed MAX_LONG_RUN_FRAC of its week's volume.
+
+    The final (race) week is exempt — it legitimately contains the race itself.
+    """
+    issues = []
+    for week in plan.weeks[:-1]:
+        total = week.total_distance_km
+        if not total:
+            continue
+        for wo in week.workouts:
+            km = (wo.estimated_distance_meters or 0) / 1000
+            if km > total * MAX_LONG_RUN_FRAC:
+                issues.append(
+                    f"Week {week.week_number} '{wo.name}': long run {km:.0f}km is "
+                    f"{km / total * 100:.0f}% of the week (>{MAX_LONG_RUN_FRAC * 100:.0f}%)"
+                )
+                break
+    return issues
+
+
+def _check_taper(plan: TrainingPlan) -> list[str]:
+    """The final week must be a taper — below the plan's peak weekly volume."""
+    volumes = [(w.week_number, w.total_distance_km) for w in plan.weeks if w.total_distance_km]
+    if len(volumes) < 2:
+        return []
+    peak = max(v for _, v in volumes)
+    final_num, final_km = volumes[-1]
+    if final_km >= peak:
+        return [
+            f"Week {final_num}: final week {final_km:.0f}km is not a taper "
+            f"(≥ peak {peak:.0f}km)"
+        ]
+    return []
 
 
 def _check_pace_ordering(plan: TrainingPlan) -> list[str]:
