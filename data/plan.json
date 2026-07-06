@@ -7,5 +7,17 @@
   "total_weeks": 0,
   "weeks": [],
   "created_at": "2026-07-06",
-  "accepted": false
+  "easy_pace": null,
+  "marathon_pace": null,
+  "threshold_pace": null,
+  "interval_pace": null,
+  "repetition_pace": null,
+  "vdot": null,
+  "pace_source": "",
+  "rationale": "",
+  "tips": [],
+  "athlete_summary": "",
+  "accepted": false,
+  "last_ai_review": null,
+  "adaptation_notes": null
 }
