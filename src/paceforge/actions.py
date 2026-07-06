@@ -594,6 +594,28 @@ def push(week: int | None = None, dry_run: bool = False) -> dict:
             "uploads": result["pushed"]}
 
 
+def garmin_delete(client: GarminClient | None = None) -> dict:
+    """Delete every pushed workout of the current plan from the Garmin calendar.
+
+    Clears each ``garmin_workout_id`` and persists the plan. Used by the
+    "Delete from Garmin" button and the rebuild's clean-slate step.
+    """
+    plan = store.load_plan()
+    if plan is None:
+        raise RuntimeError("No plan at data/plan.json.")
+    client = client or garmin_connect()
+    deleted = 0
+    for week in plan.weeks:
+        for w in week.workouts:
+            if w.garmin_workout_id:
+                client.delete_workout(w.garmin_workout_id)
+                w.garmin_workout_id = None
+                deleted += 1
+    if deleted:
+        store.save_plan(plan)
+    return {"deleted": deleted}
+
+
 def adapt(dry_run: bool = False) -> dict:
     """Deterministic plan adaptation: reflow missed quality sessions and
     readiness-gate imminent hard work. The coach remains the judgement layer;
