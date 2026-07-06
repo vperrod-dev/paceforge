@@ -1811,7 +1811,7 @@
       "avg_respiration_rate": null
     }
   ],
-  "profile_date": "2026-07-04",
+  "profile_date": "2026-07-06",
   "body_battery_current": 2,
   "body_battery_high": null,
   "body_battery_low": null,
@@ -1826,5 +1826,9 @@
   "stress_low": null,
   "training_load_7day": 566.0,
   "load_focus": "Anaerobic Focus",
-  "fitness_age": null
+  "fitness_age": null,
+  "hill_score": null,
+  "respiration_avg_sleep": null,
+  "spo2_avg": null,
+  "running_tolerance": null
 }
