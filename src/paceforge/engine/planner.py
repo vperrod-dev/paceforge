@@ -1,9 +1,10 @@
 """Plan generator — converts a fitness profile + goal into a concrete TrainingPlan.
 
-Supports two modes:
-1. **AI-powered** (default when OpenAI key is available): An LLM designs a personalised
-   plan blueprint, which the deterministic WorkoutFactory converts into structured workouts.
-2. **Template-based** (fallback): Uses YAML templates with algorithmic workout rotation.
+This is the deterministic **scaffold**: it derives exact paces from the athlete's
+metrics and fills a periodised, running-only template. It is the canvas, not the
+coach. The judgement layer — workout selection, variety, progression, event-specific
+structure — is Claude via the ``running-plan`` skill (runs on the user's
+subscription), and every plan is gated by ``engine.validate.validate_plan``.
 """
 
 from __future__ import annotations
@@ -177,18 +178,6 @@ def generate_plan(
     # 2. Fill the periodised template with derived paces.
     return _generate_template_plan(profile, goal, paces, pace_source=pace_source,
                                    athlete_summary=athlete_summary, hyrox_focus=hyrox_focus)
-
-
-def _get_peak_km(goal_type: str, level: str) -> float:
-    """Return peak weekly km based on goal type and experience level."""
-    table = {
-        "5K":            {"beginner": 30, "intermediate": 45, "advanced": 65},
-        "10K":           {"beginner": 35, "intermediate": 55, "advanced": 75},
-        "HALF_MARATHON": {"beginner": 45, "intermediate": 65, "advanced": 85},
-        "MARATHON":      {"beginner": 55, "intermediate": 75, "advanced": 110},
-        "HYROX":         {"beginner": 30, "intermediate": 40, "advanced": 55},
-    }
-    return table.get(goal_type, table["HALF_MARATHON"]).get(level, 65)
 
 
 def _generate_template_plan(
