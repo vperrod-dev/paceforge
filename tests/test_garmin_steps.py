@@ -97,3 +97,15 @@ class TestSportInference:
         assert _sport_for(brick)["sportTypeKey"] == "fitness_equipment"
         assert _sport_for(stations)["sportTypeKey"] == "fitness_equipment"
         assert _sport_for(run)["sportTypeKey"] == "running"
+
+
+def test_stepless_workout_gets_a_fallback_paced_step():
+    from paceforge.garmin.client import _fallback_steps
+    from paceforge.models.plan import Workout, WorkoutType
+
+    wo = Workout(workout_type=WorkoutType.EASY_RUN, name="Easy shakeout",
+                 estimated_distance_meters=5000)
+    steps = _fallback_steps(wo, {"easy_pace": 300.0})
+    assert len(steps) == 1
+    assert steps[0].distance_meters == 5000
+    assert steps[0].target_low and steps[0].target_high  # paced, so Garmin guides it
