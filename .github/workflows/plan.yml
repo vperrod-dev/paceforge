@@ -35,6 +35,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write  # claude-code-action mints its token via OIDC
 
 concurrency:
   group: paceforge-data
@@ -67,10 +68,37 @@ jobs:
           fi
           paceforge validate || echo "::warning::plan has validation notes (committed anyway)"
 
-      - name: Commit plan
+      - name: Commit scaffold (safety net — always a plan)
         run: |
           git config user.name "paceforge-bot"
           git config user.email "bot@users.noreply.github.com"
           git add data/plan.json
           git commit -m "plan: ${{ inputs.event_type }} for ${{ inputs.target_date }} (${{ inputs.level }})" || echo "no change"
           git push
+
+      # AI coach drives variety + experience on top of the scaffold. High turn
+      # budget (the old failure was ~28 turns → is_error, committed nothing) and
+      # continue-on-error so a failure never leaves the athlete plan-less: the
+      # scaffold above is already committed.
+      - name: Enrich with AI coach
+        if: ${{ inputs.mode == 'create' }}
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--max-turns 200 --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep"'
+          prompt: |
+            data/plan.json already holds a valid, committed, running-only
+            ${{ inputs.event_type }} plan (scaffolded + accepted). As the athlete's
+            running coach, IMPROVE it for variety and experience. Do NOT rebuild it and
+            do NOT change the event, target date, training days, or the paces.
+            - Vary sessions so no two weeks feel identical: rotate interval distances
+              (200–2000m), tempo lengths (20–35min), and long-run styles (easy /
+              progressive / fast-finish / marathon-pace segments).
+            - Write a specific coaching note (purpose + how it should feel) on every workout.
+            - Adapt to signals in data/profile.json (low training_readiness or
+              hrv_status "Low" → swap a quality day for easy that week).
+            Keep every workout a running type (never hyrox_mixed / cross_training) and
+            keep "accepted": true. Then run `paceforge validate` (must pass), and commit
+            data/plan.json (and plan.md if you regenerate it) and push to master. If you
+            run low on turns, commit what you have rather than stopping.
