@@ -36,6 +36,24 @@ def _make_goal(
     )
 
 
+def test_quality_session_progresses_within_phase():
+    from paceforge.engine.planner import _make_q1
+    from paceforge.engine.vdot import paces_from_vdot
+    from paceforge.engine.workouts import WorkoutFactory
+
+    factory = WorkoutFactory(paces_from_vdot(50))
+    early = _make_q1(factory, "vo2max", 8.0, frac=0.0)
+    late = _make_q1(factory, "vo2max", 8.0, frac=1.0)
+    assert late.estimated_duration_seconds > early.estimated_duration_seconds
+
+
+def test_hyrox_plan_is_running_only():
+    plan = generate_plan(_make_profile(), _make_goal(GoalType.HYROX, weeks_out=12))
+    types = {w.workout_type for wk in plan.weeks for w in wk.workouts}
+    assert WorkoutType.HYROX_MIXED not in types
+    assert WorkoutType.CROSS_TRAINING not in types
+
+
 def test_volume_anchored_to_athlete_not_fixed_table():
     prof = _make_profile()
     prof.weekly_mileage_km = 60

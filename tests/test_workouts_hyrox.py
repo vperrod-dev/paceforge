@@ -41,7 +41,7 @@ def test_station_day_targets_focus_stations():
     assert w.estimated_duration_seconds and w.estimated_duration_seconds > 1500
 
 
-def test_hyrox_plan_contains_hybrid_sessions_and_validates():
+def test_hyrox_plan_is_running_only_and_validates():
     profile = UserFitnessProfile(vo2_max=52.0, resting_hr=50, max_hr=190)
     goal = TrainingGoal(
         goal_type="HYROX",
@@ -50,14 +50,12 @@ def test_hyrox_plan_contains_hybrid_sessions_and_validates():
         training_days=["tuesday", "thursday", "saturday", "sunday"],
         long_run_day="sunday",
     )
-    plan = generate_plan(profile, goal, hyrox_focus=["Sled_Pull_50m", "Sandbag_Lunges_100m"])
+    plan = generate_plan(profile, goal)
     types = {str(wo.workout_type) for wk in plan.weeks for wo in wk.workouts}
-    assert "hyrox_mixed" in types, "HYROX plan must schedule brick/simulation sessions"
-    assert "cross_training" in types, "HYROX plan must schedule a station day"
-    # Weak-station focus flows into the station day
-    station_days = [wo for wk in plan.weeks for wo in wk.workouts
-                    if str(wo.workout_type) == "cross_training"]
-    assert any("Sled Pull" in wo.name for wo in station_days)
+    assert "hyrox_mixed" not in types, "running-only plan must not schedule brick/sim"
+    assert "cross_training" not in types, "running-only plan must not schedule a station day"
+    # Compromised 1km repeats (race-pace intervals) replace the hybrid work.
+    assert "race_pace" in types, "HYROX plan should bias to compromised 1km repeats"
     assert validate_plan(plan) == []
 
 
