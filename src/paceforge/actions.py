@@ -616,6 +616,50 @@ def garmin_delete(client: GarminClient | None = None) -> dict:
     return {"deleted": deleted}
 
 
+def garmin_clear_calendar(
+    days_ahead: int = 400, dry_run: bool = False, client: GarminClient | None = None,
+) -> dict:
+    """Remove scheduled workouts from the Garmin calendar from today onwards.
+
+    Deletes every scheduled workout dated >= today (deduped by workout id); past
+    entries are left untouched. With dry_run, returns the list that *would* be
+    deleted without touching Garmin. Also clears matching future
+    ``garmin_workout_id``s in plan.json so a fresh push starts clean.
+    """
+    client = client or garmin_connect()
+    today = date.today().isoformat()
+    scheduled = client.get_scheduled_workouts(days_ahead=days_ahead)
+
+    seen: set[int] = set()
+    targets: list[dict] = []
+    for s in scheduled:
+        wid = s.get("workout_id")
+        when = str(s.get("scheduled_date", ""))[:10]
+        if not wid or when < today or int(wid) in seen:
+            continue
+        seen.add(int(wid))
+        targets.append({"id": int(wid), "date": when, "name": s.get("name", "Workout")})
+
+    if dry_run:
+        return {"dry_run": True, "from": today, "count": len(targets), "workouts": targets}
+
+    for t in targets:
+        client.delete_workout(t["id"])
+
+    plan = store.load_plan()
+    if plan:
+        changed = False
+        for week in plan.weeks:
+            for w in week.workouts:
+                if w.garmin_workout_id and w.scheduled_date and w.scheduled_date.isoformat() >= today:
+                    w.garmin_workout_id = None
+                    changed = True
+        if changed:
+            store.save_plan(plan)
+
+    return {"deleted": len(targets), "from": today}
+
+
 def calendar_edit(
     session_id: str, action: str, new_date: str | None = None,
     client: GarminClient | None = None,
