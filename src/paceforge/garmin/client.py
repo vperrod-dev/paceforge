@@ -1066,7 +1066,7 @@ def _meters_per_sec_to_sec_per_km(speed: float | None) -> float | None:
 def _to_garmin_step(step, order: int = 1):  # noqa: ANN001
     """Convert a PaceForge WorkoutStep to a garminconnect workout step dict.
 
-    Handles pace targets (sec/km → m/s speed zone) and distance-based
+    Handles pace targets (sec/km → m/s pace zone) and distance-based
     end conditions so the Garmin watch guides each segment.
     """
     # ── Repeat groups must be checked first ──────────────────────────
@@ -1082,18 +1082,27 @@ def _to_garmin_step(step, order: int = 1):  # noqa: ANN001
         and step.target_low > 0
         and step.target_high > 0
     ):
-        # Convert sec/km → m/s.  target_low (slower pace) → lower speed,
-        # target_high (faster pace) → higher speed.
-        speed_low = round(1000.0 / step.target_low, 4)   # slower pace = lower m/s
-        speed_high = round(1000.0 / step.target_high, 4)  # faster pace = higher m/s
+        # A single-pace step (target_low == target_high) serializes to a
+        # zero-width target that Garmin treats as no-op — this silently killed
+        # pacing on every easy/warmup/cooldown step. Widen it to a usable band.
+        pace_low, pace_high = step.target_low, step.target_high
+        if pace_low == pace_high:
+            pace_low, pace_high = pace_low + 3.0, pace_high - 3.0
+        # Convert sec/km → m/s. Faster pace (smaller sec/km) = higher m/s.
+        speed_a = round(1000.0 / pace_low, 4)
+        speed_b = round(1000.0 / pace_high, 4)
+        # Garmin's running pace target is pace.zone = id 6, which the watch
+        # shows as a min/km range. The pinned fork mislabels id 6 as OPEN and
+        # has no pace.zone constant, so emit it literally. speed.zone (5)
+        # renders as km/h and does NOT pace a runner.
         target = {
-            "workoutTargetTypeId": TargetType.SPEED,
-            "workoutTargetTypeKey": "speed.zone",
-            "displayOrder": 5,
+            "workoutTargetTypeId": 6,
+            "workoutTargetTypeKey": "pace.zone",
+            "displayOrder": 6,
         }
         # Garmin expects targetValueOne <= targetValueTwo
-        target_val_one = min(speed_low, speed_high)
-        target_val_two = max(speed_low, speed_high)
+        target_val_one = min(speed_a, speed_b)
+        target_val_two = max(speed_a, speed_b)
     else:
         target_val_one = None
         target_val_two = None

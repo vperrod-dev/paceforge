@@ -21,12 +21,25 @@ class TestGarminStepConversion:
             target_high=250.0,  # 4:10/km
         )
         result = _to_garmin_step(step)
-        assert result.targetType["workoutTargetTypeId"] == 5  # SPEED
+        assert result.targetType["workoutTargetTypeId"] == 6  # pace.zone
+        assert result.targetType["workoutTargetTypeKey"] == "pace.zone"
         # 1000/250 = 4.0 m/s (faster pace = higher speed)
         # 1000/240 ≈ 4.1667 m/s
         assert hasattr(result, "targetValueOne")
         assert hasattr(result, "targetValueTwo")
         assert result.targetValueOne < result.targetValueTwo
+
+    def test_single_pace_widened_to_nonzero_range(self):
+        step = WorkoutStep(
+            step_type=WorkoutStepType.ACTIVE,
+            duration_seconds=1800,
+            target_type=IntensityTarget.PACE,
+            target_low=290.0,   # easy step written with one pace on both bounds
+            target_high=290.0,
+        )
+        result = _to_garmin_step(step)
+        assert result.targetType["workoutTargetTypeId"] == 6  # pace.zone
+        assert result.targetValueOne < result.targetValueTwo  # not a zero-width no-op
 
     def test_distance_based_step(self):
         step = WorkoutStep(
