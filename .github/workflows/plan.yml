@@ -73,10 +73,12 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: '--allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,TodoWrite"'
           prompt: |
-            Use the running-plan skill in .claude/skills/running-plan/.
-            Mode and parameters are in environment variables: PLAN_MODE
-            (create|reassess), PLAN_EVENT, PLAN_DATE, PLAN_DAYS, PLAN_LEVEL,
-            PLAN_GOAL_TIME. Read them and run the skill's loop.
-            The plan is RUNNING ONLY — never add strength/station/brick/cross-training.
-            Finish by running `paceforge validate` (must pass), regenerating plan.md,
-            then commit data/ and plan.md and push to master.
+            Use the running-plan skill in .claude/skills/running-plan/. Mode: ${{ inputs.mode }}.
+            Event=${{ inputs.event_type }}, date=${{ inputs.target_date }},
+            days=${{ inputs.days }}, level=${{ inputs.level }}, goal_time_seconds=${{ inputs.goal_time }}.
+            Scaffold with EXACTLY that event (do not change it):
+            `paceforge plan --goal ${{ inputs.event_type }} --date ${{ inputs.target_date }} --level ${{ inputs.level }} --days ${{ inputs.days }}`.
+            Personalise in ONE pass (no multi-round debate). RUNNING ONLY — never add
+            strength/station/brick/cross-training. Set "accepted": true in data/plan.json.
+            Run `paceforge validate` (must pass), regenerate plan.md, then commit
+            data/plan.json and plan.md and push to master. Work quickly.

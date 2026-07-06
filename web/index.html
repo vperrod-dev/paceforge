@@ -2080,6 +2080,9 @@ async function renderPlan(page) {
         <div style="font-weight:600">Last plan build failed</div>
         <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">See the error on GitHub →</a></div>`;
     }
+    if (!githubToken.has()) banner = `<div class="card card-pad" style="margin-top:18px;text-align:center">
+      <div style="font-weight:600">Connect GitHub to create a plan</div>
+      <div class="hint" style="margin-top:6px">Create Plan runs a GitHub Action — add a Personal Access Token in Settings → GitHub, then click Create running plan.</div></div>` + banner;
     page.innerHTML = `<div class="fade-in">${emptyState('No training plan yet', 'Create a running plan for your event — Claude\'s coaching panel builds it.', icons.plan)}
       <div style="text-align:center;margin-top:18px"><button class="btn btn-primary" id="plan-create">${icons.spark} Create running plan</button></div>
       ${banner}</div>`;
