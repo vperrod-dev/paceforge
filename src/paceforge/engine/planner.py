@@ -196,14 +196,17 @@ def _generate_template_plan(
 
     total_weeks = template["total_weeks"]
     race_date = goal.target_date
+    # The race-week template schedules "RACE DAY" on a fixed weekday (e.g. Sunday)
+    # within the final week, so the final week must be anchored to the Monday of
+    # race_date's own week — not derived by subtracting whole weeks from race_date
+    # and then Monday-aligning, which silently drops the remainder days and can
+    # leave the plan (and its race day) up to 6 days short of the actual target_date.
+    race_week_start = race_date - timedelta(days=race_date.weekday())
     if goal.start_date:
-        plan_start = goal.start_date
-        plan_start = plan_start - timedelta(days=plan_start.weekday())
-        available_weeks = (race_date - plan_start).days // 7
+        start_monday = goal.start_date - timedelta(days=goal.start_date.weekday())
+        available_weeks = (race_week_start - start_monday).days // 7 + 1
         total_weeks = min(total_weeks, max(available_weeks, 4))
-    else:
-        plan_start = race_date - timedelta(weeks=total_weeks)
-        plan_start = plan_start - timedelta(days=plan_start.weekday())
+    plan_start = race_week_start - timedelta(weeks=total_weeks - 1)
 
     table_peak = template["peak_weekly_km"].get(level, template["peak_weekly_km"]["intermediate"])
     _, peak_km = _starting_and_peak_km(profile, goal.goal_type, table_peak)
