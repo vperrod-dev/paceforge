@@ -1,5 +1,5 @@
 {
-  "plan_id": "1b6d92fa",
+  "plan_id": "19a4cd54",
   "name": "Hyrox \u2014 Intermediate",
   "goal_type": "HYROX",
   "target_date": "2026-11-13",
@@ -12,7 +12,7 @@
       "total_distance_km": 32.7,
       "workouts": [
         {
-          "session_id": "b9082f7e",
+          "session_id": "c90afd2f",
           "workout_type": "race_pace",
           "name": "5 x 1.0km Race Pace Intervals",
           "description": "Race-specific intervals at threshold pace. Builds confidence and specificity.",
@@ -89,7 +89,7 @@
           "user_notes": null
         },
         {
-          "session_id": "f44f6630",
+          "session_id": "a65a8339",
           "workout_type": "easy_run",
           "name": "9km Easy Run",
           "description": "Relaxed aerobic run at conversational pace. Builds base fitness.",
@@ -121,7 +121,7 @@
           "user_notes": null
         },
         {
-          "session_id": "df25e692",
+          "session_id": "18fcc4e9",
           "workout_type": "tempo",
           "name": "3km Tempo Run",
           "description": "Sustained threshold-pace effort. Develops lactate clearance and mental focus.",
@@ -175,7 +175,7 @@
           "user_notes": null
         },
         {
-          "session_id": "7a58a2cd",
+          "session_id": "efb702c8",
           "workout_type": "long_run",
           "name": "9km Long Run",
           "description": "Steady long run building endurance and mental toughness at easy pace.",
@@ -215,7 +215,7 @@
       "total_distance_km": 31.8,
       "workouts": [
         {
-          "session_id": "84816b5d",
+          "session_id": "d17668b0",
           "workout_type": "hills",
           "name": "10 x 60s Hill Reps",
           "description": "Hill repetitions build strength, power, and running economy. Effort should be hard but controlled.",
@@ -292,7 +292,7 @@
           "user_notes": null
         },
         {
-          "session_id": "d54f5f98",
+          "session_id": "075fb2cd",
           "workout_type": "easy_with_strides",
           "name": "9km Easy + 6 Strides",
           "description": "Easy run finishing with short strides to develop running economy and neuromuscular coordination.",
@@ -358,7 +358,7 @@
           "user_notes": null
         },
         {
-          "session_id": "aa1cae61",
+          "session_id": "33349b11",
           "workout_type": "progressive",
           "name": "5km Progressive Run",
           "description": "Start easy, finish fast. Each third gets progressively faster developing pacing discipline.",
@@ -412,7 +412,7 @@
           "user_notes": null
         },
         {
-          "session_id": "f9501c7b",
+          "session_id": "2d1734f0",
           "workout_type": "long_run",
           "name": "10km Long Run",
           "description": "Steady long run building endurance and mental toughness at easy pace.",
@@ -452,7 +452,7 @@
       "total_distance_km": 40.4,
       "workouts": [
         {
-          "session_id": "e2fc019c",
+          "session_id": "50e49ae5",
           "workout_type": "race_pace",
           "name": "8 x 1.0km Race Pace Intervals",
           "description": "Race-specific intervals at threshold pace. Builds confidence and specificity.",
@@ -529,7 +529,7 @@
           "user_notes": null
         },
         {
-          "session_id": "8b89c5f9",
+          "session_id": "d831e405",
           "workout_type": "easy_run",
           "name": "10km Easy Run",
           "description": "Relaxed aerobic run at conversational pace. Builds base fitness.",
@@ -561,7 +561,7 @@
           "user_notes": null
         },
         {
-          "session_id": "8aee6ba5",
+          "session_id": "b09793ba",
           "workout_type": "tempo",
           "name": "5km Tempo Run",
           "description": "Sustained threshold-pace effort. Develops lactate clearance and mental focus.",
@@ -615,7 +615,7 @@
           "user_notes": null
         },
         {
-          "session_id": "f685b5bc",
+          "session_id": "2f512147",
           "workout_type": "long_run_progressive",
           "name": "10km Progressive Long Run",
           "description": "Start easy, build to marathon pace, finish at threshold. Develops pacing and fatigue resistance.",
@@ -677,7 +677,7 @@
       "total_distance_km": 31.9,
       "workouts": [
         {
-          "session_id": "ac74ba48",
+          "session_id": "cc4ba52d",
           "workout_type": "hills",
           "name": "8 x 60s Hill Reps",
           "description": "Hill repetitions build strength, power, and running economy. Effort should be hard but controlled.",
@@ -754,7 +754,7 @@
           "user_notes": null
         },
         {
-          "session_id": "38ff6ae5",
+          "session_id": "d086c059",
           "workout_type": "easy_with_strides",
           "name": "8km Easy + 6 Strides",
           "description": "Easy run finishing with short strides to develop running economy and neuromuscular coordination.",
@@ -820,7 +820,7 @@
           "user_notes": null
         },
         {
-          "session_id": "1363969e",
+          "session_id": "96a7be88",
           "workout_type": "race_pace",
           "name": "4 x 1.0km Race Pace Intervals",
           "description": "Race-specific intervals at marathon pace. Builds confidence and specificity.",
@@ -897,7 +897,7 @@
           "user_notes": null
         },
         {
-          "session_id": "2964c887",
+          "session_id": "e99c5bf8",
           "workout_type": "long_run",
           "name": "8km Long Run",
           "description": "Steady long run building endurance and mental toughness at easy pace.",
@@ -937,7 +937,7 @@
       "total_distance_km": 38.5,
       "workouts": [
         {
-          "session_id": "5b16626c",
+          "session_id": "f154e1bc",
           "workout_type": "race_pace",
           "name": "6 x 1.0km Race Pace Intervals",
           "description": "Race-specific intervals at threshold pace. Builds confidence and specificity.",
@@ -1014,7 +1014,7 @@
           "user_notes": null
         },
         {
-          "session_id": "df1d524e",
+          "session_id": "b3bfabc2",
           "workout_type": "easy_run",
           "name": "11km Easy Run",
           "description": "Relaxed aerobic run at conversational pace. Builds base fitness.",
@@ -1046,7 +1046,7 @@
           "user_notes": null
         },
         {
-          "session_id": "f2ab75b7",
+          "session_id": "9a604af9",
           "workout_type": "tempo",
           "name": "4km Tempo Run",
           "description": "Sustained threshold-pace effort. Develops lactate clearance and mental focus.",
@@ -1100,7 +1100,7 @@
           "user_notes": null
         },
         {
-          "session_id": "7bd25129",
+          "session_id": "4a5fcd4c",
           "workout_type": "long_run",
           "name": "11km Long Run",
           "description": "Steady long run building endurance and mental toughness at easy pace.",
@@ -1140,7 +1140,7 @@
       "total_distance_km": 44.9,
       "workouts": [
         {
-          "session_id": "75857e73",
+          "session_id": "26466884",
           "workout_type": "vo2max",
           "name": "6 x 3.5min VO2max Intervals",
           "description": "Hard intervals at VO2max intensity to raise aerobic ceiling. Full recovery between reps.",
@@ -1217,7 +1217,7 @@
           "user_notes": null
         },
         {
-          "session_id": "fb38bb9f",
+          "session_id": "986ce62e",
           "workout_type": "easy_with_strides",
           "name": "11km Easy + 6 Strides",
           "description": "Easy run finishing with short strides to develop running economy and neuromuscular coordination.",
@@ -1283,7 +1283,7 @@
           "user_notes": null
         },
         {
-          "session_id": "0618bae7",
+          "session_id": "8560dba1",
           "workout_type": "threshold",
           "name": "5 x 6min Cruise Intervals",
           "description": "Broken threshold work with short recoveries. Same lactate benefit as tempo with less mental fatigue.",
@@ -1360,7 +1360,7 @@
           "user_notes": null
         },
         {
-          "session_id": "1d696ac6",
+          "session_id": "8b613099",
           "workout_type": "long_run_progressive",
           "name": "12km Progressive Long Run",
           "description": "Start easy, build to marathon pace, finish at threshold. Develops pacing and fatigue resistance.",
@@ -1422,7 +1422,7 @@
       "total_distance_km": 42.6,
       "workouts": [
         {
-          "session_id": "4ef10b92",
+          "session_id": "bf4bde92",
           "workout_type": "race_pace",
           "name": "8 x 1.0km Race Pace Intervals",
           "description": "Race-specific intervals at threshold pace. Builds confidence and specificity.",
@@ -1499,7 +1499,7 @@
           "user_notes": null
         },
         {
-          "session_id": "f83a1ae4",
+          "session_id": "a766a93b",
           "workout_type": "easy_run",
           "name": "12km Easy Run",
           "description": "Relaxed aerobic run at conversational pace. Builds base fitness.",
@@ -1531,7 +1531,7 @@
           "user_notes": null
         },
         {
-          "session_id": "22c6c425",
+          "session_id": "b3040d26",
           "workout_type": "progressive",
           "name": "6km Progressive Run",
           "description": "Start easy, finish fast. Each third gets progressively faster developing pacing discipline.",
@@ -1585,7 +1585,7 @@
           "user_notes": null
         },
         {
-          "session_id": "32610e28",
+          "session_id": "64d34a51",
           "workout_type": "long_run_with_race_pace",
           "name": "13km Long Run w/ 3km Race Pace",
           "description": "Long run with a sustained race-pace block to build specificity and confidence.",
@@ -1658,7 +1658,7 @@
       "total_distance_km": 36.0,
       "workouts": [
         {
-          "session_id": "428a721a",
+          "session_id": "93808c65",
           "workout_type": "race_pace",
           "name": "5 x 1.0km Race Pace Intervals",
           "description": "Race-specific intervals at threshold pace. Builds confidence and specificity.",
@@ -1735,7 +1735,7 @@
           "user_notes": null
         },
         {
-          "session_id": "23e3ff76",
+          "session_id": "d0221c6f",
           "workout_type": "easy_with_strides",
           "name": "9km Easy + 6 Strides",
           "description": "Easy run finishing with short strides to develop running economy and neuromuscular coordination.",
@@ -1801,7 +1801,7 @@
           "user_notes": null
         },
         {
-          "session_id": "e1228d89",
+          "session_id": "e69506b2",
           "workout_type": "race_pace",
           "name": "4 x 1.0km Race Pace Intervals",
           "description": "Race-specific intervals at marathon pace. Builds confidence and specificity.",
@@ -1878,7 +1878,7 @@
           "user_notes": null
         },
         {
-          "session_id": "2ec3a378",
+          "session_id": "b5ca082e",
           "workout_type": "long_run",
           "name": "10km Long Run",
           "description": "Steady long run building endurance and mental toughness at easy pace.",
@@ -1918,7 +1918,7 @@
       "total_distance_km": 52.5,
       "workouts": [
         {
-          "session_id": "94990fec",
+          "session_id": "13763bae",
           "workout_type": "race_pace",
           "name": "8 x 1.0km Race Pace Intervals",
           "description": "Race-specific intervals at threshold pace. Builds confidence and specificity.",
@@ -1995,7 +1995,7 @@
           "user_notes": null
         },
         {
-          "session_id": "f7b41d92",
+          "session_id": "afa5c40f",
           "workout_type": "easy_run",
           "name": "13km Easy Run",
           "description": "Relaxed aerobic run at conversational pace. Builds base fitness.",
@@ -2027,7 +2027,7 @@
           "user_notes": null
         },
         {
-          "session_id": "aecb77e6",
+          "session_id": "e1cbf490",
           "workout_type": "threshold",
           "name": "6 x 6min Cruise Intervals",
           "description": "Broken threshold work with short recoveries. Same lactate benefit as tempo with less mental fatigue.",
@@ -2104,7 +2104,7 @@
           "user_notes": null
         },
         {
-          "session_id": "b6dd3a01",
+          "session_id": "074347bb",
           "workout_type": "long_run_progressive",
           "name": "14km Progressive Long Run",
           "description": "Start easy, build to marathon pace, finish at threshold. Develops pacing and fatigue resistance.",
@@ -2166,7 +2166,7 @@
       "total_distance_km": 20.0,
       "workouts": [
         {
-          "session_id": "062f2027",
+          "session_id": "e506bfd5",
           "workout_type": "easy_run",
           "name": "Easy shakeout",
           "description": "Easy shakeout",
@@ -2186,7 +2186,7 @@
           "user_notes": null
         },
         {
-          "session_id": "51eb8b56",
+          "session_id": "b1b74f10",
           "workout_type": "easy_run",
           "name": "Light strides",
           "description": "Light strides",
