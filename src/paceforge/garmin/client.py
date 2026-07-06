@@ -733,38 +733,40 @@ class GarminClient:
         """Fetch scheduled workouts from Garmin calendar for the next N days."""
         scheduled = []
 
-        # Method 1: Try the schedule endpoint with date range
+        # Method 1: calendar-service month view — the authoritative source for
+        # scheduled workouts on the Garmin calendar (month is 0-indexed).
         try:
-            start_date = date.today().isoformat()
-            end_date = (date.today() + timedelta(days=days_ahead)).isoformat()
-            data = self.client.connectapi(
-                f"/workout-service/schedule",
-                params={"startDate": start_date, "endDate": end_date},
-            )
-            if isinstance(data, list):
-                for item in data:
-                    cal_date = (
-                        item.get("date")
-                        or item.get("calendarDate")
-                        or item.get("scheduledDate")
+            end = date.today() + timedelta(days=days_ahead)
+            cursor = date.today().replace(day=1)
+            seen_months: set[tuple[int, int]] = set()
+            while cursor <= end:
+                key = (cursor.year, cursor.month)
+                if key not in seen_months:
+                    seen_months.add(key)
+                    data = self.client.connectapi(
+                        f"/calendar-service/year/{cursor.year}/month/{cursor.month - 1}"
                     )
-                    if not cal_date:
-                        continue
-                    # Extract workout info (may be nested)
-                    wo = item.get("workout") or item
-                    scheduled.append({
-                        "workout_id": wo.get("workoutId") or item.get("workoutId"),
-                        "name": wo.get("workoutName") or item.get("workoutName", "Workout"),
-                        "description": wo.get("description", ""),
-                        "scheduled_date": str(cal_date)[:10],
-                        "sport_type": (wo.get("sportType") or {}).get("sportTypeKey", ""),
-                        "estimated_duration_seconds": wo.get("estimatedDurationInSecs"),
-                        "estimated_distance_meters": wo.get("estimatedDistanceInMeters"),
-                    })
-                if scheduled:
-                    return scheduled
+                    for item in (data or {}).get("calendarItems", []):
+                        if item.get("itemType") != "workout":
+                            continue
+                        cal_date = item.get("date")
+                        wid = item.get("workoutId")
+                        if not cal_date or not wid:
+                            continue
+                        scheduled.append({
+                            "workout_id": wid,
+                            "name": item.get("title", "Workout"),
+                            "description": "",
+                            "scheduled_date": str(cal_date)[:10],
+                            "sport_type": "",
+                            "estimated_duration_seconds": item.get("duration"),
+                            "estimated_distance_meters": item.get("distance"),
+                        })
+                cursor = (cursor + timedelta(days=32)).replace(day=1)
+            if scheduled:
+                return scheduled
         except Exception:
-            logger.debug("Schedule endpoint failed, trying workout library", exc_info=True)
+            logger.debug("calendar-service failed, trying workout library", exc_info=True)
 
         # Method 2: Fall back to workout library (all workouts with a calendarDate)
         try:
