@@ -26,7 +26,7 @@ from paceforge import store
 from paceforge.engine.analytics import compute_all
 from paceforge.engine.validate import validate_plan
 from paceforge.garmin.client import GarminClient
-from paceforge.models.plan import TrainingPlan, TrainingWeek
+from paceforge.models.plan import TrainingPlan, TrainingWeek, Workout
 
 logger = logging.getLogger(__name__)
 
@@ -614,6 +614,58 @@ def garmin_delete(client: GarminClient | None = None) -> dict:
     if deleted:
         store.save_plan(plan)
     return {"deleted": deleted}
+
+
+def calendar_edit(
+    session_id: str, action: str, new_date: str | None = None,
+    client: GarminClient | None = None,
+) -> dict:
+    """Reschedule or delete one session from the portal calendar and sync Garmin.
+
+    ``action="reschedule"`` moves the workout's ``scheduled_date`` to *new_date*
+    and re-pushes it (deleting the old Garmin entry by id); ``action="delete"``
+    removes it from the plan and from the Garmin calendar. Persists the plan.
+    """
+    plan = store.load_plan()
+    if plan is None:
+        raise RuntimeError("No plan at data/plan.json.")
+
+    found: tuple[object, Workout] | None = None
+    for week in plan.weeks:
+        for w in week.workouts:
+            if w.session_id == session_id:
+                found = (week, w)
+                break
+        if found:
+            break
+    if found is None:
+        raise RuntimeError(f"No session {session_id} in the plan.")
+    week, workout = found
+
+    client = client or garmin_connect()
+    if action == "delete":
+        if workout.garmin_workout_id:
+            client.delete_workout(workout.garmin_workout_id)
+        week.workouts.remove(workout)
+    elif action == "reschedule":
+        if not new_date:
+            raise ValueError("reschedule needs new_date (YYYY-MM-DD).")
+        workout.scheduled_date = date.fromisoformat(new_date)
+        paces = {
+            "easy_pace": plan.easy_pace,
+            "marathon_pace": plan.marathon_pace,
+            "threshold_pace": plan.threshold_pace,
+            "interval_pace": plan.interval_pace,
+        }
+        # push_plan_week deletes the old Garmin entry by id, re-pushes on the new
+        # date, and stamps the new garmin_workout_id back onto the workout.
+        client.push_plan_week([workout], plan_paces=paces)
+    else:
+        raise ValueError(f"Unknown calendar action {action!r}.")
+
+    issues = validate_plan(plan)
+    store.save_plan(plan)
+    return {"action": action, "session_id": session_id, "validation_issues": issues}
 
 
 def adapt(dry_run: bool = False) -> dict:

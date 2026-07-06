@@ -47,6 +47,13 @@ def main(argv: list[str] | None = None) -> int:
     p_adapt = sub.add_parser("adapt", help="reflow missed sessions + readiness-gate hard work")
     p_adapt.add_argument("--dry-run", action="store_true")
 
+    sub.add_parser("garmin-delete", help="delete all plan workouts from the Garmin calendar")
+
+    p_cal = sub.add_parser("calendar-edit", help="reschedule/delete one session + sync Garmin")
+    p_cal.add_argument("session_id", help="Workout.session_id from plan.json")
+    p_cal.add_argument("action", choices=["reschedule", "delete"])
+    p_cal.add_argument("--new-date", default=None, help="YYYY-MM-DD (reschedule only)")
+
     for cmd, help_ in (("hyrox-search", "find your HYROX races (pick-list)"),
                        ("hyrox-import", "import chosen HYROX races with splits")):
         p = sub.add_parser(cmd, help=help_)
@@ -112,6 +119,10 @@ def main(argv: list[str] | None = None) -> int:
                                   duration_min=args.duration_min, notes=args.notes))
         elif args.cmd == "adapt":
             _emit(actions.adapt(dry_run=args.dry_run))
+        elif args.cmd == "garmin-delete":
+            _emit(actions.garmin_delete())
+        elif args.cmd == "calendar-edit":
+            _emit(actions.calendar_edit(args.session_id, args.action, new_date=args.new_date))
         elif args.cmd == "hyrox-search":
             _emit(actions.hyrox_search(args.name, gender=args.gender, firstname=args.firstname))
         elif args.cmd == "hyrox-import":

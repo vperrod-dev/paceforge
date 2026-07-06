@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
 from enum import StrEnum
 
@@ -72,6 +73,10 @@ class TrainingPurpose(StrEnum):
 
 
 class Workout(BaseModel):
+    session_id: str = Field(
+        default_factory=lambda: uuid.uuid4().hex[:8],
+        description="Stable id for calendar reschedule/delete; persisted in plan.json",
+    )
     workout_type: WorkoutType
     name: str
     description: str = ""
