@@ -15,6 +15,7 @@ from pathlib import Path
 
 import yaml
 
+from paceforge.engine.events import event_profile
 from paceforge.engine.vdot import (
     RACE_DISTANCES,
     TrainingPaces,
@@ -34,9 +35,23 @@ from paceforge.models.plan import (
     WorkoutStepType,
     WorkoutType,
 )
-from paceforge.models.profile import TrainingGoal, UserFitnessProfile
+from paceforge.models.profile import GoalType, TrainingGoal, UserFitnessProfile
 
 logger = logging.getLogger(__name__)
+
+
+def _starting_and_peak_km(
+    profile: UserFitnessProfile, goal_type: GoalType, table_peak: float
+) -> tuple[float, float]:
+    """Anchor plan volume to the athlete's actual mileage, not a fixed table.
+
+    Peak is the greater of the template default and the athlete's current weekly
+    mileage scaled by the event's peak factor; start ramps in at ~75% of peak.
+    """
+    actual = profile.weekly_mileage_km or 0.0
+    peak = round(max(table_peak, actual * event_profile(goal_type).peak_km_factor), 1)
+    start = round(peak * 0.75, 1)
+    return start, peak
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -201,7 +216,8 @@ def _generate_template_plan(
         plan_start = race_date - timedelta(weeks=total_weeks)
         plan_start = plan_start - timedelta(days=plan_start.weekday())
 
-    peak_km = template["peak_weekly_km"].get(level, template["peak_weekly_km"]["intermediate"])
+    table_peak = template["peak_weekly_km"].get(level, template["peak_weekly_km"]["intermediate"])
+    _, peak_km = _starting_and_peak_km(profile, goal.goal_type, table_peak)
     volume_prog = template["volume_progression"]
 
     phase_map: dict[int, str] = {}

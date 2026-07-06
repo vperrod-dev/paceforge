@@ -2,7 +2,7 @@
 
 from datetime import date, timedelta
 
-from paceforge.engine.planner import _DAY_OFFSETS, generate_plan
+from paceforge.engine.planner import _DAY_OFFSETS, _starting_and_peak_km, generate_plan
 from paceforge.models.plan import WorkoutType
 from paceforge.models.profile import (
     ExperienceLevel,
@@ -34,6 +34,15 @@ def _make_goal(
         training_days=training_days or ["tuesday", "wednesday", "thursday", "saturday", "sunday"],
         long_run_day=long_run_day,
     )
+
+
+def test_volume_anchored_to_athlete_not_fixed_table():
+    prof = _make_profile()
+    prof.weekly_mileage_km = 60
+    # HYROX table peak for intermediate is a fixed 40 — anchoring must beat it.
+    start, peak = _starting_and_peak_km(prof, GoalType.HYROX, table_peak=40)
+    assert peak >= 60
+    assert start >= peak * 0.7
 
 
 class TestPlanGeneration:
