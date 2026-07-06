@@ -14,7 +14,7 @@ on:
   # Redeploy after sync/coach commit fresh data. (Their GITHUB_TOKEN pushes don't
   # fire the `push` trigger above, so we react to their completion instead.)
   workflow_run:
-    workflows: [sync, coach, hyrox, save-events, save-benchmarks]
+    workflows: [sync, coach, hyrox, save-events, save-benchmarks, plan, calendar-edit, garmin-delete, garmin-clear-calendar]
     types: [completed]
   workflow_dispatch:
 

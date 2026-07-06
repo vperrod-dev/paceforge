@@ -837,6 +837,17 @@ async function dispatchWorkflow(name, inputs, okTitle, okBody, btn) {
   });
 }
 
+// Latest plan.yml run status (for the "Building your plan…" banner).
+async function planBuildStatus() {
+  if (!githubToken.has()) return null;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/plan.yml/runs?per_page=1`, { headers: ghHeaders() });
+    if (!res.ok) return null;
+    const run = (await res.json()).workflow_runs?.[0];
+    return run ? { status: run.status, conclusion: run.conclusion, created: run.created_at, url: run.html_url } : null;
+  } catch { return null; }
+}
+
 // Create a running plan (plan.yml → running-plan coaching-panel skill).
 function openCreatePlanModal() {
   if (!requireToken()) return;
@@ -2053,10 +2064,32 @@ let planSelectedWeek = null;
 async function renderPlan(page) {
   const active = await planStore.get().catch(() => null);
 
-  if (!active || !active.accepted) {
+  if (!active || !active.weeks || !active.weeks.length) {
+    const st = await planBuildStatus();
+    const building = st && (st.status === 'in_progress' || st.status === 'queued');
+    let banner = '';
+    if (building) {
+      const mins = st.created ? Math.max(0, Math.round((Date.now() - new Date(st.created)) / 60000)) : 0;
+      banner = `<div class="card card-pad" style="margin-top:18px;text-align:center">
+        <div class="spinner" style="width:22px;height:22px;margin:0 auto 10px"></div>
+        <div style="font-weight:600">Building your plan…</div>
+        <div class="hint" style="margin-top:6px">Claude's coaching panel is designing it — started ${mins} min ago, usually 3–6 min. This page checks again automatically.</div>
+        <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">Watch it live on GitHub →</a></div>`;
+    } else if (st && st.conclusion === 'failure') {
+      banner = `<div class="card card-pad" style="margin-top:18px;text-align:center;color:var(--rose,#e11d48)">
+        <div style="font-weight:600">Last plan build failed</div>
+        <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">See the error on GitHub →</a></div>`;
+    }
     page.innerHTML = `<div class="fade-in">${emptyState('No training plan yet', 'Create a running plan for your event — Claude\'s coaching panel builds it.', icons.plan)}
-      <div style="text-align:center;margin-top:18px"><button class="btn btn-primary" id="plan-create">${icons.spark} Create running plan</button></div></div>`;
+      <div style="text-align:center;margin-top:18px"><button class="btn btn-primary" id="plan-create">${icons.spark} Create running plan</button></div>
+      ${banner}</div>`;
     on('plan-create', 'click', () => openCreatePlanModal());
+    if (building) setTimeout(async () => {
+      if (state.tab !== 'plan') return;
+      await planStore.reset();          // cache-bust: pull the fresh plan.json once the run commits
+      planSelectedWeek = null;
+      loadTab('plan');
+    }, 25000);
     return;
   }
 
