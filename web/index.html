@@ -2073,7 +2073,7 @@ async function renderPlan(page) {
       banner = `<div class="card card-pad" style="margin-top:18px;text-align:center">
         <div class="spinner" style="width:22px;height:22px;margin:0 auto 10px"></div>
         <div style="font-weight:600">Building your plan…</div>
-        <div class="hint" style="margin-top:6px">Claude's coaching panel is designing it — started ${mins} min ago, usually 3–6 min. This page checks again automatically.</div>
+        <div class="hint" style="margin-top:6px">Claude's coaching panel is deliberating — started ${mins} min ago. A quality plan takes a while; this page updates itself when it's ready.</div>
         <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">Watch it live on GitHub →</a></div>`;
     } else if (st && st.conclusion === 'failure') {
       banner = `<div class="card card-pad" style="margin-top:18px;text-align:center;color:var(--rose,#e11d48)">
