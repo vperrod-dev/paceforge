@@ -837,15 +837,39 @@ async function dispatchWorkflow(name, inputs, okTitle, okBody, btn) {
   });
 }
 
-// Latest plan.yml run status (for the "Building your plan…" banner).
+// Latest plan.yml run + its live steps (for the "Building your plan…" banner).
 async function planBuildStatus() {
   if (!githubToken.has()) return null;
   try {
     const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/plan.yml/runs?per_page=1`, { headers: ghHeaders() });
     if (!res.ok) return null;
     const run = (await res.json()).workflow_runs?.[0];
-    return run ? { status: run.status, conclusion: run.conclusion, created: run.created_at, url: run.html_url } : null;
+    if (!run) return null;
+    let steps = [];
+    try {
+      const jr = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${run.id}/jobs`, { headers: ghHeaders() });
+      if (jr.ok) steps = (await jr.json()).jobs?.[0]?.steps || [];
+    } catch {}
+    return { status: run.status, conclusion: run.conclusion, created: run.created_at, url: run.html_url, steps };
   } catch { return null; }
+}
+
+// Map CI step names to human-readable plan-building stages (in order).
+const PLAN_STAGES = [
+  [/build .*plan/i, 'Designing the training structure'],
+  [/commit scaffold/i, 'Saved a first draft'],
+  [/enrich with ai/i, 'AI coach adding variety & coaching notes'],
+  [/complete job/i, 'Publishing your plan'],
+];
+function planStageList(steps) {
+  const icon = (s) => s.status !== 'completed' ? '<span class="spinner" style="width:13px;height:13px;border-width:2px;display:inline-block;vertical-align:-2px"></span>'
+    : (s.conclusion === 'success' ? '✅' : s.conclusion === 'skipped' ? '⏭️' : '⚠️');
+  const rows = [];
+  for (const [re, label] of PLAN_STAGES) {
+    const step = steps.find(s => re.test(s.name || ''));
+    if (step) rows.push(`<div style="display:flex;gap:8px;align-items:center;justify-content:flex-start;text-align:left;padding:3px 0"><span style="width:18px">${icon(step)}</span><span>${label}</span></div>`);
+  }
+  return rows.length ? `<div style="max-width:320px;margin:10px auto 0">${rows.join('')}</div>` : '';
 }
 
 // Create a running plan (plan.yml → running-plan coaching-panel skill).
@@ -2071,10 +2095,10 @@ async function renderPlan(page) {
     if (building) {
       const mins = st.created ? Math.max(0, Math.round((Date.now() - new Date(st.created)) / 60000)) : 0;
       banner = `<div class="card card-pad" style="margin-top:18px;text-align:center">
-        <div class="spinner" style="width:22px;height:22px;margin:0 auto 10px"></div>
-        <div style="font-weight:600">Building your plan…</div>
-        <div class="hint" style="margin-top:6px">Claude's coaching panel is deliberating — started ${mins} min ago. A quality plan takes a while; this page updates itself when it's ready.</div>
-        <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">Watch it live on GitHub →</a></div>`;
+        <div style="font-weight:600">Building your plan — ${mins} min in</div>
+        ${planStageList(st.steps || [])}
+        <div class="hint" style="margin-top:10px">Live progress; this page updates itself as each stage completes.</div>
+        <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">Watch the full log on GitHub →</a></div>`;
     } else if (st && st.conclusion === 'failure') {
       banner = `<div class="card card-pad" style="margin-top:18px;text-align:center;color:var(--rose,#e11d48)">
         <div style="font-weight:600">Last plan build failed</div>
@@ -2092,7 +2116,7 @@ async function renderPlan(page) {
       await planStore.reset();          // cache-bust: pull the fresh plan.json once the run commits
       planSelectedWeek = null;
       loadTab('plan');
-    }, 25000);
+    }, 9000);
     return;
   }
 
