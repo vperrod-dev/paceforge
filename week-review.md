@@ -1,95 +1,108 @@
-# Week Review — June 22–28, 2026
+# Week Review — June 29–July 5, 2026
 
-**Block:** Base → Build | **Week 4 of plan** (Cutback) | **Target event:** Nov 13, 2026
+**Block:** Build | **Week 5 of plan** | **Target event:** Nov 13, 2026
 
 ---
 
 ## Headline diagnosis
 
-Your body is stuck in no-man's-land: the cardio sessions on planned rest days are keeping
-HR in the 120–142 range (64–73% max) — exactly the moderate "grey zone" that generates
-fatigue without the aerobic adaptation that comes from truly easy running. Garmin's
-"Unproductive" verdict (training readiness 25/100, body battery 23%) is the direct
-consequence. You're working hard enough to accumulate fatigue but not easy enough to let
-your aerobic system adapt or hard enough to drive VO2max gains.
+Your body called the shots this week, not the plan. Training readiness bottomed out at
+19/100 ("Very low — prioritise recovery"), Garmin flagged training status as **Strained**
+("acute load very high relative to fitness"), resting HR sat 3.4 bpm (+7.4%) above your
+46.6 bpm baseline, and HRV read below normal range all week. Against that backdrop you
+cut Monday's run to 54% of planned volume, Wednesday's fartlek to 77%, and skipped
+Sunday's long run entirely — and that was the right call, not a compliance failure. The
+actual problem is upstream: two "off day" indoor cardio sessions (avg HR 129 and 136,
+46 min and 37 min) plus an unplanned outdoor run (7:05/km, HR 143) kept landing in the
+grey zone in a week your system needed true rest, which is exactly why fatigue never
+cleared and the quality sessions had nothing left to draw on.
 
 ---
 
 ## Top limiters
 
-**1. Grey-zone overload (30% easy / 58% moderate — target: ~80% easy)**
-Three unplanned cardio sessions this week averaged HR 133, 142, and 120 bpm. The Wednesday
-evening session (avg HR 142, max 186) landed within hours of morning VO2max intervals —
-a double-day that drove a maximal anaerobic effect when the body needed recovery. The
-distribution problem is worsening, not improving.
+**1. Grey-zone training (23.0% easy / 58.9% moderate — target ~80% easy)**
+Same limiter as last week, still driving the fatigue loop. The Jun 30 and Jul 1 indoor
+cardio sessions ran at 129–136 bpm avg — moderate, not easy — stacked on top of an
+already-Strained system. Combined with Wednesday's planned fartlek (avg HR 133, cadence
+147 spm), you're accumulating load without the true easy-day recovery that would let
+HRV and resting HR normalize.
 
-**2. Running economy: low cadence (154 spm, target 170–180)**
-Wednesday's VO2max session showed cadence 154 spm with stride length 130.9 cm and GCT
-271 ms. At these paces you're overstriding — braking with each foot strike, absorbing
-force your hip extensors should be producing. This compounds fatigue and suppresses
-efficient speed in HYROX running segments.
+**2. Weak HYROX stations (Row 1000m, Sandbag Lunges 100m, Sled Pull 50m)**
+Unchanged from race analysis — still the biggest time sinks vs the field. No dedicated
+station work landed this week (both completed sessions were pure running), so this gap
+hasn't been touched in over a week.
 
-**3. Pacing discipline: VO2max intervals not reaching target intensity**
-Planned: 4×600m at 3:43–3:49/km. Session average was 4:36/km across 5 km with max HR
-only 161 (83% HRmax). True VO2max effort requires HR in the 175–185 range. The
-intervals were likely run 30–40 s/km shy of target — generating aerobic-threshold
-stimulus rather than the VO2max stimulus the session was designed for.
-
----
-
-## This week (June 29 – July 5)
-
-**Readiness gate: moderate (58.5 / body battery 23%).** Do not add any unplanned
-sessions. The three planned days are enough.
-
-**Monday Jun 29 — Easy + Speed Development (7.5 km)**
-Keep the easy portion at 4:50/km, HR strictly under 140 bpm. Treat this as restoration
-after last week's accumulated load. For the 6×100m strides: run them on feel at ~3:30–3:40/km
-(not GPS-target) with full 60-second walks in between — the goal is neuromuscular activation,
-not cardiovascular load. If HR is over 145 at the start of the warm-up, cut the strides today.
-
-**Wednesday Jul 1 — HYROX Simulation Fartlek (8 km)**
-Warm up 10 min easy, then 6 × (2 min at 4:01–4:07/km / 1 min easy jog). HR should reach
-155–163 (LT zone) during the hard minutes but should drop below 145 within 30 s of each
-recovery. If it doesn't come down, the effort is too high — pull back. Cool down 10 min easy.
-Purpose: simulate HYROX running surges between stations and build lactate clearance.
-
-**Sunday Jul 5 — Long Run (9 km, easy only)**
-Given last week's missed long run and current readiness, hold to 9 km instead of the planned
-11 km, and drop the race-pace segments entirely this week. Run the full 9 km at 4:50/km,
-HR under 145. The aerobic stimulus from sustained easy effort is what this block needs — not
-pace quality when recovery is compromised.
+**3. Pacing discipline (habitual positive splits, ratio 1.052 — fast start, fade)**
+Friday's unplanned outdoor run (6.84 km, 424.8 s/km avg = 7:05/km, cadence 114 spm) adds
+a new data point here: a notably low cadence and slow pace vs your indoor sessions
+(147–154 spm) points to either terrain/fatigue-driven overstriding or a run that started
+too hot and had to grind out the back half.
 
 ---
 
-## This block (Base → Build, weeks 1–8)
+## This week (July 6–12)
 
-**Theme:** Build the aerobic floor that HYROX demands. The target event is 20 weeks away —
-there is time. The engine (VO2max 55.2) is excellent; the delivery system (economy, pacing,
-distribution) is the constraint. Every week where more than 80% of running is easy converts
-directly into faster HYROX running segments because aerobic efficiency improves and HR at
-race pace drops.
+**Readiness gate: moderate (composite 40.4/100), overtraining flag = caution** (red
+flags: elevated resting HR + ~17 hours of accumulated sleep debt). The plan already has
+Monday scheduled as an easy shake-out, which lines up — keep it there.
 
-**Distribution re-test:** At the end of week 6 (July 12), check the trailing 4-week split.
-Goal: easy/moderate/hard = 60%/30%/10% as an intermediate milestone before hitting 80/15/5.
+**Monday Jul 6 — Active Recovery (6 km, easy)**
+Already scheduled and appropriately easy. Keep it genuinely easy — HR capped well below
+threshold, no strides, no pace target. This week's job is letting resting HR and HRV
+recover toward baseline, not banking kilometers.
+
+**Wednesday Jul 8 — Lactate Clearance, 4×1200m**
+This is the session to readiness-gate for real. Check training readiness and HRV status
+Wednesday morning before starting. If Strained/low-readiness persists (readiness still
+<30 or HRV still reading "below"), cut this to 3×1200m at the same pace rather than
+forcing all 4 reps, or swap it for a steady aerobic tempo and bank the lactate-clearance
+stimulus for next week. Don't push a hard session through a second consecutive Strained
+reading.
+
+**Sunday Jul 12 — Negative Split Long Run (12 km)**
+Last week's long run was missed entirely — protect this one. Don't let a mid-week
+cardio habit crowd it out again. Run the first half deliberately conservative (slower
+than feels necessary) specifically to counter the positive-split pattern above, then
+build into the back half only if legs and HR both allow it.
+
+**No unplanned cardio this week.** If the urge to add an extra session on an off day
+shows up, that's the signal to rest instead — this week's job is recovery, not addition.
+
+---
+
+## This block (Build, weeks 5–7 → recovery week 8 starts July 20)
+
+**Theme:** Rebuild volume tolerance and close the distribution/station gaps while
+climbing out of an accumulated-fatigue dip. The engine (VDOT 54.7, aerobic ratio 0.65)
+is still strong — the constraint is recovery quality (grey-zone cardio, sleep debt) and
+station-specific strength, not fitness.
+
+**Re-test at week 8 (July 20, recovery week):** trailing 4-week easy/moderate/hard split
+(target progress toward 60/30/10 on the way to the eventual 80/15/5 goal) and the
+VDOT/threshold benchmarks from `paceforge analyze` (VDOT 54.7 → 55.7, threshold pace
+4:03 → 4:00/km).
 
 ---
 
 ## What we can't see yet
 
-- **HYROX station benchmarks not entered.** Row, SkiErg, and Farmers Carry are flagged as
-  the weakest stations vs the field, but without individual station times we can't measure
-  progress. Enter a benchmark row (1000m for time) and a skierg effort this week as a
-  standalone test, then log the result.
-- **Sleep data is thin.** Sleep score 40 is the floor that explains body battery 23%. One
-  easy win: consistent bed time ±30 min. If sleep improves, readiness will follow within 3–5 days.
+- **No standalone HYROX station benchmarks.** Row 1000m, Sandbag Lunges 100m, and Sled
+  Pull 50m are only known from race splits vs the field — there's no fresh timed test to
+  confirm targeted work is closing the gap. Log a timed effort on one of these this week
+  as a baseline.
+- **Sleep architecture is thin.** We can see a ~17-hour accumulated sleep debt but not
+  the deep/REM breakdown that would explain why HRV hasn't recovered. Consistent
+  bed/wake times this week would be the highest-leverage single change available — RHR
+  and HRV should respond within 3–5 days if it improves.
 
 ---
 
 ## One thing NOT to do
 
-**No moderate cardio on rest days.** If you feel the urge to train on a planned rest day,
-walk for 20–30 minutes or do light mobility instead. The Wednesday evening cardio session
-(43 min, avg HR 142, max HR 186) added near-maximal stress hours after a hard interval
-session — that single decision is the primary reason Garmin's training status is Unproductive.
-Rest days are where adaptation happens. Guard them.
+**Don't fill an off day with indoor cardio.** Two of this week's non-planned sessions
+(Jun 30, Jul 1 — both 130s bpm avg HR, 37–46 min) are the direct reason grey-zone
+training is still limiter #1 two weeks running. If Wednesday's interval session or
+Sunday's long run gets bumped by low readiness, take the true rest instead of
+substituting a "light" cardio session — that substitution is what's currently keeping
+recovery from completing.
