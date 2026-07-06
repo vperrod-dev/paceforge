@@ -9,7 +9,7 @@ name: coach
 # Runs on your Claude subscription token (CLAUDE_CODE_OAUTH_TOKEN) — no LLM API bill.
 on:
   schedule:
-    - cron: "0 7 * * 1"  # Monday 07:00 UTC — weekly review
+    - cron: "19 7 * * 1"  # Monday 07:19 UTC — weekly review (off the top of the hour; GitHub drops many :00 cron runs under load)
   workflow_dispatch:
     inputs:
       instruction:
