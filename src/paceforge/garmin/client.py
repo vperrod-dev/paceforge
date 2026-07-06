@@ -20,7 +20,9 @@ from garminconnect.workout import (
 
 from paceforge.engine.vdot import normalize_lt_speed as _normalize_lt_speed
 from paceforge.models.plan import (
+    IntensityTarget,
     Workout,
+    WorkoutStep,
     WorkoutStepType,
 )
 from paceforge.models.profile import (
@@ -851,8 +853,9 @@ class GarminClient:
         return result
 
     def _upload(self, workout: Workout, sport: dict, plan_paces: dict | None) -> dict:
+        steps = workout.steps or _fallback_steps(workout, plan_paces)
         garmin_steps = [_to_garmin_step(step, order=i + 1)
-                        for i, step in enumerate(workout.steps)]
+                        for i, step in enumerate(steps)]
         garmin_workout = RunningWorkout(
             workoutName=workout.name,
             description=_build_garmin_description(workout, plan_paces),
@@ -1063,6 +1066,26 @@ def _meters_per_sec_to_sec_per_km(speed: float | None) -> float | None:
     if not speed or speed <= 0:
         return None
     return round(1000.0 / speed, 1)
+
+
+def _fallback_steps(workout: Workout, plan_paces: dict | None) -> list[WorkoutStep]:
+    """A step-less workout still needs one structured step to load + track on Garmin.
+
+    Builds a single run step from the workout's estimated distance (or duration),
+    paced at easy so the watch can guide and record it.
+    """
+    easy = (plan_paces or {}).get("easy_pace")
+    dist = workout.estimated_distance_meters
+    dur = None if dist else (workout.estimated_duration_seconds or 1800)
+    return [WorkoutStep(
+        step_type=WorkoutStepType.ACTIVE,
+        description=workout.name or "Run",
+        distance_meters=dist,
+        duration_seconds=dur,
+        target_type=IntensityTarget.PACE if easy else IntensityTarget.OPEN,
+        target_low=(easy + 5) if easy else None,
+        target_high=(easy - 5) if easy else None,
+    )]
 
 
 def _to_garmin_step(step, order: int = 1):  # noqa: ANN001
