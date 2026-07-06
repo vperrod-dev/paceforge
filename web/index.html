@@ -594,6 +594,8 @@ const planStore = {
     return plan;
   },
   async reset() {
+    delete cache['f:plan.json'];      // bust the in-memory fetch cache — re-read the live file
+    localStorage.removeItem(PLAN_KEY); // drop the stale cached plan so _seed wins
     this._mem = await this._seed();
     this._persist();
     clearCache('plans');
