@@ -929,7 +929,7 @@ function render() {
         </div>
         <nav class="nav" id="side-nav">
           <div class="nav-label">Training</div>
-          ${NAV.slice(0,5).map(([id,label,ic]) => navItem(id,label,ic)).join('')}
+          ${NAV.slice(0,-1).map(([id,label,ic]) => navItem(id,label,ic)).join('')}
           <div class="nav-label">Account</div>
           ${navItem('settings','Settings',icons.settings)}
         </nav>
