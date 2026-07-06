@@ -1,0 +1,82 @@
+name: plan
+
+# Create or reassess the athlete's RUNNING-only plan via the running-plan
+# coaching-panel skill. Triggered on demand from the portal (Create Plan /
+# Reassess buttons) through workflow_dispatch — dispatch is restricted to users
+# with write access, so the prompt is owner-driven. Runs on the Claude
+# subscription token (CLAUDE_CODE_OAUTH_TOKEN) — no LLM API bill.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "create or reassess"
+        required: true
+        default: "create"
+      event_type:
+        description: "5K, 10K, HALF_MARATHON, MARATHON or HYROX"
+        required: false
+        default: "HYROX"
+      target_date:
+        description: "race date YYYY-MM-DD"
+        required: false
+        default: ""
+      days:
+        description: "comma-separated training days"
+        required: false
+        default: "tuesday,thursday,saturday,sunday"
+      level:
+        description: "beginner, intermediate or advanced"
+        required: false
+        default: "intermediate"
+      goal_time:
+        description: "goal finish time in seconds (optional)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  id-token: write  # claude-code-action mints its GitHub App token via OIDC
+
+concurrency:
+  group: paceforge-data
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    env:
+      PACEFORGE_GARMIN_EMAIL: ${{ secrets.PACEFORGE_GARMIN_EMAIL }}
+      GARMIN_TOKEN: ${{ secrets.GARMIN_TOKEN }}
+      # Params via env (not inlined into the prompt expression).
+      PLAN_MODE: ${{ inputs.mode }}
+      PLAN_EVENT: ${{ inputs.event_type }}
+      PLAN_DATE: ${{ inputs.target_date }}
+      PLAN_DAYS: ${{ inputs.days }}
+      PLAN_LEVEL: ${{ inputs.level }}
+      PLAN_GOAL_TIME: ${{ inputs.goal_time }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Sync from Garmin
+        run: paceforge sync || echo "::warning::Garmin sync failed — building plan on existing data"
+
+      - name: Build / reassess plan
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,TodoWrite"'
+          prompt: |
+            Use the running-plan skill in .claude/skills/running-plan/.
+            Mode and parameters are in environment variables: PLAN_MODE
+            (create|reassess), PLAN_EVENT, PLAN_DATE, PLAN_DAYS, PLAN_LEVEL,
+            PLAN_GOAL_TIME. Read them and run the skill's loop.
+            The plan is RUNNING ONLY — never add strength/station/brick/cross-training.
+            Finish by running `paceforge validate` (must pass), regenerating plan.md,
+            then commit data/ and plan.md and push to master.

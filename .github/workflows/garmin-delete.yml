@@ -1,0 +1,41 @@
+name: garmin-delete
+
+# Delete every workout of the current plan from the Garmin calendar (the portal's
+# "Delete from Garmin" button, and the rebuild clean-slate step). Deterministic —
+# no Claude. Clears each garmin_workout_id in data/plan.json and commits.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paceforge-data
+  cancel-in-progress: false
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Delete plan workouts from Garmin
+        env:
+          PACEFORGE_GARMIN_EMAIL: ${{ secrets.PACEFORGE_GARMIN_EMAIL }}
+          GARMIN_TOKEN: ${{ secrets.GARMIN_TOKEN }}
+        run: paceforge garmin-delete
+
+      - name: Commit cleared workout ids
+        run: |
+          git config user.name "paceforge-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/plan.json
+          git commit -m "chore: clear Garmin workout ids after delete" || echo "nothing to commit"
+          git push
