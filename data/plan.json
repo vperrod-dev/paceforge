@@ -80,10 +80,20 @@
           "notes": "Unstructured surges to open the block — let effort, not the watch, set the hard 2-min pushes. Recoveries should feel like a genuine reset before the next surge, not a jog-through.",
           "purpose": "aerobic_base",
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            23422094990
+          ],
           "completion_analysis": null,
-          "completion_metrics": null,
+          "completion_metrics": {
+            "status": "orange",
+            "ratio": 0.43,
+            "planned_km": 9.34,
+            "actual_km": 4.02,
+            "planned_min": 40.0,
+            "actual_min": 19.7,
+            "activity_id": 23422094990
+          },
           "garmin_workout_id": null,
           "user_rpe": null,
           "user_notes": null
@@ -134,10 +144,20 @@
           "notes": "Controlled-uncomfortable, not a race. You should be able to speak in broken sentences, not full ones — settle into that effort by the second kilometre and hold it flat.",
           "purpose": "lactate_threshold",
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            23441259894
+          ],
           "completion_analysis": null,
-          "completion_metrics": null,
+          "completion_metrics": {
+            "status": "yellow",
+            "ratio": 0.77,
+            "planned_km": 8.0,
+            "actual_km": 6.15,
+            "planned_min": 40.3,
+            "actual_min": 31.8,
+            "activity_id": 23441259894
+          },
           "garmin_workout_id": null,
           "user_rpe": null,
           "user_notes": null
@@ -166,10 +186,20 @@
           "notes": "Fully conversational the whole way — this is aerobic economy and time-on-feet, not a fitness test. If you're breathing hard you're going too fast; slow down.",
           "purpose": "endurance",
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            23468054939
+          ],
           "completion_analysis": null,
-          "completion_metrics": null,
+          "completion_metrics": {
+            "status": "yellow",
+            "ratio": 0.76,
+            "planned_km": 9.0,
+            "actual_km": 6.84,
+            "planned_min": 40.5,
+            "actual_min": 48.4,
+            "activity_id": 23468054939
+          },
           "garmin_workout_id": null,
           "user_rpe": null,
           "user_notes": null
@@ -206,10 +236,20 @@
           "notes": "Swapped from hill reps: your HRV read 'Unbalanced' this morning and readiness is soft (44) on top of a recent anaerobic-heavy stretch. Hills wait until you've absorbed that load — keep this fully easy, the goal is blood flow, not stimulus.",
           "purpose": "recovery",
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            23496982181
+          ],
           "completion_analysis": null,
-          "completion_metrics": null,
+          "completion_metrics": {
+            "status": "yellow",
+            "ratio": 0.56,
+            "planned_km": 9.0,
+            "actual_km": 5.01,
+            "planned_min": 44.7,
+            "actual_min": 24.8,
+            "activity_id": 23496982181
+          },
           "garmin_workout_id": null,
           "user_rpe": null,
           "user_notes": null
