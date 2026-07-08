@@ -29,7 +29,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -50,7 +51,8 @@
                   "target_low": 240.89999999999998,
                   "target_high": 228.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -61,9 +63,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -74,7 +78,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Unstructured surges to open the block — let effort, not the watch, set the hard 2-min pushes. Recoveries should feel like a genuine reset before the next surge, not a jog-through.",
@@ -116,7 +121,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -127,7 +133,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -138,7 +145,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Controlled-uncomfortable, not a race. You should be able to speak in broken sentences, not full ones — settle into that effort by the second kilometre and hold it flat.",
@@ -180,7 +188,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Fully conversational the whole way — this is aerobic economy and time-on-feet, not a fitness test. If you're breathing hard you're going too fast; slow down.",
@@ -230,7 +239,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Swapped from hill reps: your HRV read 'Unbalanced' this morning and readiness is soft (44) on top of a recent anaerobic-heavy stretch. Hills wait until you've absorbed that load — keep this fully easy, the goal is blood flow, not stimulus.",
@@ -272,7 +282,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -283,7 +294,8 @@
               "target_low": 256.2,
               "target_high": 262.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -294,7 +306,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Three even thirds building from easy to threshold — a smooth ladder, not a jump. Hold each third honestly and don't rush into the fast finish; let the pace climb on its own.",
@@ -326,7 +339,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Steady and easy — check in on how the legs feel after yesterday's swap. This should feel comfortably repeatable, the kind of run you could describe as 'pleasant' afterwards.",
@@ -366,7 +380,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -387,7 +402,8 @@
                   "target_low": 209.89999999999998,
                   "target_high": 215.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -398,9 +414,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             }
           ],
           "notes": "Easy running with 6 short strides at the end — relaxed and fast, not a sprint. Think 'smooth acceleration,' cue tall posture and quick turnover, then walk back fully recovered.",
@@ -432,7 +450,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -443,7 +462,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -454,7 +474,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Your longest tempo block yet — 6km at threshold. Go out slightly conservative through the first 2km; the goal is an even effort you can hold to the last stride, not a fade.",
@@ -486,7 +507,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -497,7 +519,8 @@
               "target_low": 256.2,
               "target_high": 262.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -508,7 +531,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Start easy, ease into marathon effort, finish the last tenth at threshold. Mental-toughness work — the finish should feel purposeful, not desperate. Bank the pacing discipline for race day.",
@@ -548,7 +572,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -569,7 +594,8 @@
                   "target_low": 240.89999999999998,
                   "target_high": 228.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -580,9 +606,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -593,7 +621,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Cutback week — shorter fartlek, same crisp surges. This is about absorbing the last three weeks, not adding more load. Keep the hard bits genuinely hard and brief.",
@@ -625,7 +654,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -636,7 +666,8 @@
               "target_low": 256.2,
               "target_high": 262.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -647,7 +678,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "A shorter version of the ladder — easy, marathon, threshold. Light legs, clean form. Use it to check that recent fatigue is clearing, not to chase a number.",
@@ -679,7 +711,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Deliberately shorter long run this week. Easy pace throughout — this is recovery volume banked for the build phase ahead, not a session to push.",
@@ -719,7 +752,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -740,7 +774,8 @@
                   "target_low": 222.89999999999998,
                   "target_high": 228.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -751,9 +786,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -764,7 +801,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Hard reps at I-pace with full jog recovery between — sharper than the fartlek surges. Effort should be 'hard but repeatable' on rep 1 through rep 6: even splits, not a fast start that fades.",
@@ -796,7 +834,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -807,7 +846,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -818,7 +858,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Threshold effort — settle in by kilometre two and hold it, 'comfortably hard,' the pace you could sustain for about an hour if you had to.",
@@ -850,7 +891,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Easy aerobic long run — first big-block long run of the build. Relaxed effort; save the legs for Thursday's intervals next week.",
@@ -890,7 +932,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -911,7 +954,8 @@
                   "target_low": 209.89999999999998,
                   "target_high": 215.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -922,9 +966,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -935,7 +981,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Fast 400s at R-pace with a full jog recovery — this is neuromuscular speed and form, not a lactate session. Relaxed arms, quick turnover, and stop a rep early if form breaks down.",
@@ -967,7 +1014,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -988,7 +1036,8 @@
                   "target_low": 240.89999999999998,
                   "target_high": 246.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -999,9 +1048,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1012,7 +1063,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Broken threshold — same lactate-clearance benefit as a tempo run with less mental grind thanks to the short jog recoveries. Hold each 5-min rep dead even; don't let the first one be the fastest.",
@@ -1044,7 +1096,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1055,7 +1108,8 @@
               "target_low": 256.2,
               "target_high": 262.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1066,7 +1120,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Building block — easy into marathon effort into threshold to close. Practice staying relaxed as the pace rises; tension in the shoulders is the first sign you're overreaching.",
@@ -1106,7 +1161,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -1127,7 +1183,8 @@
                   "target_low": null,
                   "target_high": null,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -1138,9 +1195,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1151,7 +1210,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Shorter, punchier hill reps than week 2's — power and running economy. Drive the arms and knees on the way up, then float back down easy; the recovery jog is part of the session.",
@@ -1183,7 +1243,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1194,7 +1255,8 @@
               "target_low": 256.2,
               "target_high": 262.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1205,7 +1267,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Easy, marathon, threshold thirds — a rehearsal for controlling effort as fatigue builds, which is exactly what race day asks of you.",
@@ -1237,7 +1300,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1248,7 +1312,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1259,7 +1324,8 @@
               "target_low": 256.2,
               "target_high": 262.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1270,7 +1336,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "First taste of goal race effort inside a long run — settle into the 3km block only once you're warm, and resist the urge to push it faster than that effort.",
@@ -1310,7 +1377,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -1331,7 +1399,8 @@
                   "target_low": 240.89999999999998,
                   "target_high": 228.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -1342,9 +1411,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1355,7 +1426,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Cutback week — same fartlek shape as week 4, a touch longer. Trust the taper-down; the fitness from the last three weeks needs this week to actually stick.",
@@ -1387,7 +1459,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -1408,7 +1481,8 @@
                   "target_low": 256.2,
                   "target_high": 262.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -1419,9 +1493,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1432,7 +1508,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "A shorter, easier version of the race-pace intervals to come — 4 x 1.2km at goal effort with a jog rest. Smooth and even, not a test.",
@@ -1464,7 +1541,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Easy, shorter long run to close the cutback. Full recovery effort — the legs should feel fresher by Sunday evening than they did Friday.",
@@ -1504,7 +1582,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -1525,7 +1604,8 @@
                   "target_low": 222.89999999999998,
                   "target_high": 228.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -1536,9 +1616,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1549,7 +1631,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "More, shorter reps than week 5's — quicker turnover at the same I-pace. These should feel sharp, almost fast-feeling by the last two reps once you're warmed into it.",
@@ -1581,7 +1664,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -1602,7 +1686,8 @@
                   "target_low": 240.89999999999998,
                   "target_high": 246.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -1613,9 +1698,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1626,7 +1713,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Longer reps than week 6's cruise intervals — 6-minute blocks that ask for patience. Same threshold effort, just a longer time to hold your composure inside each rep.",
@@ -1658,7 +1746,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1669,7 +1758,8 @@
               "target_low": 256.2,
               "target_high": 262.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1680,7 +1770,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Peak-phase progressive long run — the biggest one yet. Be patient through the easy portion; the marathon- and threshold-pace finish will feel earned, not forced, if you are.",
@@ -1720,7 +1811,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -1741,7 +1833,8 @@
                   "target_low": 209.89999999999998,
                   "target_high": 215.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -1752,9 +1845,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1765,7 +1860,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "More reps than week 6's — same sharp 400s at R-pace, deeper into the session. Quality over the first 10 matters more than gutting out the last 6; drop a rep if form goes.",
@@ -1797,7 +1893,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -1818,7 +1915,8 @@
                   "target_low": 256.2,
                   "target_high": 262.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -1829,9 +1927,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1842,7 +1942,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Longer race-pace blocks than week 8's — 1.4km at goal effort. This is the closest rehearsal yet to holding half-marathon effort for real; even splits across all five reps is the win.",
@@ -1874,7 +1975,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1885,7 +1987,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -1896,7 +1999,8 @@
               "target_low": 256.2,
               "target_high": 262.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -1907,7 +2011,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "The peak long run — a 4km race-effort block inside it, longer than week 7's. Treat that block like the middle of the actual race: locked in, not laboured.",
@@ -1947,7 +2052,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -1968,7 +2074,8 @@
                   "target_low": 209.89999999999998,
                   "target_high": 215.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -1979,9 +2086,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             }
           ],
           "notes": "Easy running with a handful of relaxed strides to keep the legs sharp as volume drops. Effort stays low — this is about feeling fast for a few seconds, not training.",
@@ -2013,7 +2122,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "active",
@@ -2024,7 +2134,8 @@
               "target_low": 240.89999999999998,
               "target_high": 246.89999999999998,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -2035,7 +2146,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Short, crisp reminder of threshold effort — shorter than week 3's or week 5's tempo. Legs should feel noticeably fresher than they did mid-block.",
@@ -2067,7 +2179,8 @@
               "target_low": 270.2,
               "target_high": 298.2,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Easy taper long run — comfortably under peak distance. The fitness is banked; this is about staying loose, not building anything new.",
@@ -2127,7 +2240,8 @@
               "target_low": null,
               "target_high": null,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             },
             {
               "step_type": "interval",
@@ -2148,7 +2262,8 @@
                   "target_low": 209.89999999999998,
                   "target_high": 215.89999999999998,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 },
                 {
                   "step_type": "recovery",
@@ -2159,9 +2274,11 @@
                   "target_low": 270.2,
                   "target_high": 298.2,
                   "repeat_count": null,
-                  "steps": null
+                  "steps": null,
+                  "pace_key": null
                 }
-              ]
+              ],
+              "pace_key": null
             },
             {
               "step_type": "cooldown",
@@ -2172,7 +2289,8 @@
               "target_low": null,
               "target_high": null,
               "repeat_count": null,
-              "steps": null
+              "steps": null,
+              "pace_key": null
             }
           ],
           "notes": "Short and easy with a few strides to wake the legs up. Resist any urge to test race pace this close to the start.",
@@ -2216,6 +2334,7 @@
   "threshold_pace": 243.89999999999998,
   "interval_pace": 225.89999999999998,
   "repetition_pace": 212.89999999999998,
+  "pace_bands": null,
   "vdot": 54.7,
   "pace_source": "Garmin VO2 Max (54.7)",
   "rationale": "",
