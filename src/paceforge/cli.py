@@ -41,6 +41,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("validate", help="validate data/plan.json")
     sub.add_parser("plan-md", help="regenerate plan.md from data/plan.json")
 
+    p_recal = sub.add_parser("recalibrate", help="shift plan paces by a VDOT delta (future weeks only)")
+    p_recal.add_argument("--delta", type=float, required=True, help="VDOT change, e.g. 0.5 or -0.5")
+    p_recal.add_argument("--force", action="store_true")
+
     p_push = sub.add_parser("push", help="push a plan week to Garmin")
     p_push.add_argument("--week", type=int, default=None)
     p_push.add_argument("--dry-run", action="store_true")
@@ -121,6 +125,8 @@ def main(argv: list[str] | None = None) -> int:
         elif args.cmd == "plan-md":
             actions.plan_md()
             print("plan.md regenerated")
+        elif args.cmd == "recalibrate":
+            _emit(actions.recalibrate(args.delta, force=args.force))
         elif args.cmd == "push":
             _emit(actions.push(week=args.week, dry_run=args.dry_run))
         elif args.cmd == "rpe":

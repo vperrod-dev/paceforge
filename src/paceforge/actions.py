@@ -208,7 +208,7 @@ def log_rpe(activity_id: int | None = None, when: str | None = None, *,
 
 def _match_plan() -> int:
     """Re-match stored activities to the plan and annotate plan-vs-actual compliance."""
-    from paceforge.engine.compliance import annotate_plan
+    from paceforge.engine.compliance import annotate_pace, annotate_plan
     from paceforge.engine.matching import match_plan_to_activities
 
     plan = store.load_plan()
@@ -217,6 +217,9 @@ def _match_plan() -> int:
     activities = store.load_activities()
     changed = match_plan_to_activities(plan, activities, rpe_map=store.rpe_by_activity())
     annotate_plan(plan, activities)
+    profile = store.load_profile()
+    annotate_pace(plan, store.load_all_details(),
+                  lt_hr=profile.lactate_threshold_hr if profile else None)
     store.save_plan(plan)
     return changed
 
@@ -426,7 +429,7 @@ def analyze() -> dict:
 def fitness() -> dict:
     """Fitness 2.0 assessment: running-engine/durability, load/recovery/wellbeing,
     strength/HYROX, and the readiness-gated ranked limiters + LLM-coach contract."""
-    from paceforge.engine.compliance import weekly_compliance
+    from paceforge.engine.compliance import pace_status, weekly_compliance
     from paceforge.engine.curves import compute_pace_curves
     from paceforge.engine.durability import compute_running_metrics
     from paceforge.engine.limiters import rank_limiters
@@ -453,8 +456,9 @@ def fitness() -> dict:
     limiters = rank_limiters(running, load, strength, profile_vo2max=vo2_for_coach)
     plan = store.load_plan()
     compliance = weekly_compliance(plan, activities) if plan else None
+    pace_insights = pace_status(plan) if plan and plan.weeks else None
     return {"running": running, "load": load, "strength": strength,
-            "compliance": compliance, **limiters}
+            "compliance": compliance, "pace_insights": pace_insights, **limiters}
 
 
 # ── HYROX race import (results.hyrox.com) ────────────────────────────
@@ -548,6 +552,76 @@ def validate() -> list[str]:
     if plan is None:
         raise RuntimeError("No plan at data/plan.json.")
     return validate_plan(plan)
+
+
+def recalibrate(delta_vdot: float, force: bool = False) -> dict:
+    """Apply an accepted pace recalibration: shift VDOT, re-derive bands, and
+    re-target FUTURE workouts only. Structure never changes (Runna's rule —
+    adaptivity must not silently mutate the plan).
+
+    Guards (C13): max ±1 VDOT, max one per 4 weeks, frozen in the final 3
+    weeks, blocked while readiness/HRV is down. ``force`` overrides the soft
+    guards, never the 3-week freeze.
+    """
+    from paceforge.engine.vdot import ZONE_KEYS, paces_from_vdot
+
+    plan = store.load_plan()
+    if plan is None or not plan.weeks or not plan.vdot:
+        raise RuntimeError("No plan with derived paces to recalibrate.")
+    if abs(delta_vdot) > 1.0:
+        raise RuntimeError("Max ±1.0 VDOT per recalibration.")
+    today = date.today()
+    if (plan.target_date - today).days < 21:
+        raise RuntimeError("Paces are frozen in the final 3 weeks — race what you trained.")
+    if plan.last_recalibration and not force:
+        days = (today - date.fromisoformat(plan.last_recalibration)).days
+        if days < 28:
+            raise RuntimeError(
+                f"Last recalibration was {days} days ago — max one per 4 weeks "
+                "(--force to override)."
+            )
+    profile = store.load_profile()
+    if profile and not force and delta_vdot > 0:
+        if (profile.training_readiness or 100) < 40 or \
+                (profile.hrv_status or "").upper() == "LOW":
+            raise RuntimeError(
+                "Readiness/HRV is down — no pace bumps while recovering (--force to override)."
+            )
+
+    new_vdot = round(plan.vdot + delta_vdot, 1)
+    paces = paces_from_vdot(new_vdot)
+    plan.vdot = new_vdot
+    plan.easy_pace, plan.marathon_pace = paces.easy_low, paces.marathon
+    plan.threshold_pace, plan.interval_pace = paces.threshold, paces.interval
+    plan.repetition_pace = paces.repetition
+    bands = {k: list(paces.band(k)) for k in ZONE_KEYS}
+    if plan.pace_bands and "race" in plan.pace_bands:
+        bands["race"] = plan.pace_bands["race"]  # goal pace derives from target time, not VDOT
+    plan.pace_bands = bands
+
+    updated = 0
+
+    def _restep(steps) -> None:  # noqa: ANN001
+        nonlocal updated
+        for s in steps or []:
+            if s.pace_key in ZONE_KEYS:
+                s.target_low, s.target_high = paces.band(s.pace_key)
+                updated += 1
+            _restep(s.steps)
+
+    for wk in plan.weeks:
+        for wo in wk.workouts:
+            if wo.scheduled_date and wo.scheduled_date >= today:
+                _restep(wo.steps)
+
+    plan.last_recalibration = today.isoformat()
+    plan.adaptation_notes = (
+        f"{today}: pace recalibration {delta_vdot:+.1f} VDOT → {new_vdot} "
+        f"({updated} future steps re-targeted)"
+    )
+    store.save_plan(plan)
+    return {"vdot": new_vdot, "steps_updated": updated,
+            "note": plan.adaptation_notes}
 
 
 _BRIEFING_LABELS = [

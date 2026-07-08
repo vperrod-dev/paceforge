@@ -66,6 +66,135 @@ def _workout_metrics(wo, acts_by_id: dict[int, RecentActivity], today: date) -> 
     }
 
 
+# ── Pace insights (Runna-style) ──────────────────────────────────────
+# Quality sessions only — did the athlete run the work inside the target
+# window? Feeds the accept/reject pace-recalibration loop.
+
+_PACE_QUALITY = {
+    "tempo", "threshold", "race_pace", "vo2max", "speed", "intervals", "progressive",
+}
+
+
+def _work_window(wo) -> tuple[float, float, float] | None:  # noqa: ANN001
+    """(low, high, work_km) across the workout's paced work steps."""
+    lows: list[float] = []
+    highs: list[float] = []
+    work_km = 0.0
+    for step in wo.steps:
+        subs = step.steps if step.steps else [step]
+        mult = step.repeat_count or 1
+        for s in subs:
+            if s.step_type.value not in ("interval", "active"):
+                continue
+            if not (s.target_low and s.target_high) or s.pace_key == "easy":
+                continue
+            lows.append(s.target_low)
+            highs.append(s.target_high)
+            if s.distance_meters:
+                work_km += s.distance_meters / 1000 * mult
+            elif s.duration_seconds:
+                work_km += s.duration_seconds / ((s.target_low + s.target_high) / 2) * mult
+    if not lows or work_km < 0.5:
+        return None
+    return min(lows), max(highs), work_km
+
+
+def pace_metrics(wo, detail: dict | None, lt_hr: float | None = None) -> dict | None:  # noqa: ANN001
+    """Actual-vs-target pace verdict for one quality workout.
+
+    Uses the fastest-N km splits (N ≈ planned work volume) as the work
+    approximation — exact step↔lap alignment deliberately skipped. Paces are
+    heat-adjusted before judging; an 'ahead' verdict is withheld when HR says
+    the athlete was simply racing the session (pace:HR guard).
+    """
+    from paceforge.engine.enviro import adjusted_pace
+
+    if str(wo.workout_type) not in _PACE_QUALITY or not detail:
+        return None
+    window = _work_window(wo)
+    if window is None:
+        return None
+    low, high, work_km = window
+    splits = [
+        s for s in (detail.get("splits") or [])
+        if s.get("pace_sec") and (s.get("distance_m") or 0) > 800
+    ]
+    n = max(1, round(work_km))
+    if len(splits) < n:
+        return None
+    work_splits = sorted(splits, key=lambda s: s["pace_sec"])[:n]
+    raw = sum(s["pace_sec"] for s in work_splits) / n
+    actual = adjusted_pace(raw, detail.get("weather")) or raw
+    mid = (low + high) / 2
+    ahead = actual < low
+    if ahead and lt_hr:
+        hrs = [s["avg_hr"] for s in work_splits if s.get("avg_hr")]
+        if hrs and sum(hrs) / len(hrs) > lt_hr + 5:
+            ahead = False  # faster than the window but red-lining — that's racing
+    return {
+        "pace_actual_sec": round(actual, 1),
+        "pace_target_low": round(low, 1),
+        "pace_target_high": round(high, 1),
+        "pace_delta_sec": round(actual - mid, 1),
+        "within_band": low <= actual <= high,
+        "ahead": ahead,
+    }
+
+
+def annotate_pace(plan: TrainingPlan, details: dict[int, dict],
+                  lt_hr: float | None = None) -> None:
+    """Merge pace metrics into completion_metrics for matched quality workouts."""
+    for wk in plan.weeks:
+        for wo in wk.workouts:
+            det = next(
+                (details[a] for a in wo.matched_activity_ids if a in details), None
+            )
+            pm = pace_metrics(wo, det, lt_hr=lt_hr)
+            if pm:
+                wo.completion_metrics = {**(wo.completion_metrics or {}), **pm}
+
+
+def pace_status(plan: TrainingPlan, today: date | None = None) -> dict:
+    """Roll the last 5 judged quality sessions into a Runna-style status.
+
+    The 5-session window must span ≥3 weeks — at 2 quality sessions a week
+    anything shorter is too twitchy to act on.
+    """
+    today = today or date.today()
+    judged = [
+        (wo.scheduled_date, wo.completion_metrics)
+        for wk in plan.weeks
+        for wo in wk.workouts
+        if wo.scheduled_date and wo.completion_metrics
+        and "pace_delta_sec" in wo.completion_metrics
+    ]
+    judged.sort(key=lambda t: t[0], reverse=True)
+    recent = judged[:5]
+    if len(recent) < 5:
+        return {"status": "monitoring", "sessions": len(recent)}
+    span_days = (recent[0][0] - recent[-1][0]).days
+    ahead = sum(1 for _, m in recent if m.get("ahead"))
+    slow = sum(
+        1 for _, m in recent if not m.get("within_band") and m.get("pace_delta_sec", 0) > 0
+    )
+    if span_days < 21:
+        status = "monitoring"
+    elif ahead >= 4:
+        status = "ahead"
+    elif slow >= 3:
+        status = "review"
+    else:
+        status = "on-point"
+    return {
+        "status": status,
+        "sessions": len(recent),
+        "span_days": span_days,
+        "ahead": ahead,
+        "slow": slow,
+        "avg_delta_sec": round(sum(m["pace_delta_sec"] for _, m in recent) / len(recent), 1),
+    }
+
+
 def annotate_plan(plan: TrainingPlan, activities: list[RecentActivity],
                   today: date | None = None) -> None:
     """Set completion_metrics on every dated workout (mutates the plan in place)."""

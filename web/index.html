@@ -2159,6 +2159,7 @@ async function renderPlan(page) {
 
   page.innerHTML = `<div class="fade-in">
     ${planHeaderHtml(active)}
+    <div id="pace-insights"></div>
     <div class="week-nav" id="week-nav">
       ${weeks.map((w, i) => `<button class="week-btn ${i===planSelectedWeek?'active':''}" data-week="${i}" title="${escHtml(w.focus || '')}">W${i+1}<small>${escHtml(w.phase || '')}</small></button>`).join('')}
     </div>
@@ -2168,6 +2169,30 @@ async function renderPlan(page) {
 
   on('plan-create', 'click', () => openCreatePlanModal());
   on('plan-reassess', 'click', e => reassessPlan(e.currentTarget));
+
+  // Pace-insights chip (fitness.json → pace_status): engine proposes, athlete accepts.
+  cached('fitness', () => loadJSON('fitness.json').catch(() => null)).then(f => {
+    const pi = f && f.pace_insights;
+    const el = document.getElementById('pace-insights');
+    if (!el || !pi) return;
+    const cfg = {
+      'on-point': { color: 'var(--emerald)', label: 'Pace on point',
+        desc: `Your last ${pi.sessions} quality sessions landed inside their windows.` },
+      'ahead': { color: 'var(--sky)', label: 'Ahead of your paces', action: 0.5, btn: 'Accept faster paces',
+        desc: `${pi.ahead}/5 recent quality sessions ran faster than the window at honest effort — accept a +0.5 VDOT recalibration (future weeks only)?` },
+      'review': { color: 'var(--amber)', label: 'Paces may be too hot', action: -0.5, btn: 'Ease paces',
+        desc: `${pi.slow}/5 recent quality sessions came in slower than the window — ease training paces by 0.5 VDOT?` },
+    }[pi.status];
+    if (!cfg) return;
+    el.innerHTML = `<div class="card card-pad-sm" style="margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span class="conn-status" style="background:color-mix(in srgb,${cfg.color} 15%,transparent);color:${cfg.color}"><span class="dotmark"></span>${cfg.label}</span>
+      <span style="font-size:.82rem;color:var(--text-2);flex:1;min-width:200px">${escHtml(cfg.desc)}</span>
+      ${cfg.action ? `<button class="btn btn-outline btn-sm" id="pace-recal">${cfg.btn}</button>` : ''}
+    </div>`;
+    if (cfg.action) on('pace-recal', 'click', e => dispatchWorkflow('recalibrate.yml',
+      { delta: String(cfg.action) }, 'Recalibration started',
+      'Future weeks re-target once the workflow commits; the plan view refreshes on the next Pages build.', e.currentTarget));
+  });
   on('plan-edit-paces', 'click', () => openPaceEditor());
   on('plan-export', 'click', () => { planStore.export(); toast('ok', 'Exported', 'plan.json downloaded.'); });
   on('plan-garmin-delete', 'click', e => deleteFromGarmin(e.currentTarget));

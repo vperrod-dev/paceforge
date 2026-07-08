@@ -171,5 +171,8 @@ class TrainingPlan(BaseModel):
     accepted: bool = False
 
     # AI adaptation tracking
+    last_recalibration: str | None = Field(
+        None, description="ISO date of the last accepted pace recalibration"
+    )
     last_ai_review: str | None = Field(None, description="ISO timestamp of last AI plan review")
     adaptation_notes: str | None = Field(None, description="AI explanation of last plan adaptation")
