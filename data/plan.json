@@ -313,10 +313,20 @@
           "notes": "Three even thirds building from easy to threshold — a smooth ladder, not a jump. Hold each third honestly and don't rush into the fast finish; let the pace climb on its own.",
           "purpose": "lactate_threshold",
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            23520223309
+          ],
           "completion_analysis": null,
-          "completion_metrics": null,
+          "completion_metrics": {
+            "status": "yellow",
+            "ratio": 0.63,
+            "planned_km": 8.5,
+            "actual_km": 5.36,
+            "planned_min": 36.5,
+            "actual_min": 25.6,
+            "activity_id": 23520223309
+          },
           "garmin_workout_id": null,
           "user_rpe": null,
           "user_notes": null
