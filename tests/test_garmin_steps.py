@@ -85,6 +85,68 @@ class TestGarminStepConversion:
         result = _to_garmin_step(step, order=3)
         assert result.stepOrder == 3
 
+    def test_active_step_maps_to_interval(self):
+        step = WorkoutStep(step_type=WorkoutStepType.ACTIVE, duration_seconds=600)
+        result = _to_garmin_step(step)
+        assert result.stepType == {"stepTypeId": 3, "stepTypeKey": "interval", "displayOrder": 3}
+
+    def test_rest_step_maps_to_rest(self):
+        step = WorkoutStep(step_type=WorkoutStepType.REST, duration_seconds=60)
+        result = _to_garmin_step(step)
+        assert result.stepType == {"stepTypeId": 5, "stepTypeKey": "rest", "displayOrder": 5}
+
+    def test_zero_width_pace_uses_plan_band_when_available(self):
+        step = WorkoutStep(
+            step_type=WorkoutStepType.ACTIVE,
+            duration_seconds=1800,
+            target_type=IntensityTarget.PACE,
+            target_low=290.0,
+            target_high=290.0,
+            pace_key="easy",
+        )
+        result = _to_garmin_step(step, pace_bands={"easy": [285.0, 320.0]})
+        assert result.targetValueOne == round(1000.0 / 320.0, 4)  # slow edge of the band
+        assert result.targetValueTwo == round(1000.0 / 285.0, 4)  # fast edge of the band
+
+    def test_zero_width_pace_falls_back_to_plus_minus_3(self):
+        step = WorkoutStep(
+            step_type=WorkoutStepType.ACTIVE,
+            duration_seconds=1800,
+            target_type=IntensityTarget.PACE,
+            target_low=290.0,
+            target_high=290.0,
+            pace_key="easy",
+        )
+        result = _to_garmin_step(step)  # no pace_bands
+        assert result.targetValueOne == round(1000.0 / 293.0, 4)
+        assert result.targetValueTwo == round(1000.0 / 287.0, 4)
+
+    def test_step_description_propagated(self):
+        step = WorkoutStep(step_type=WorkoutStepType.ACTIVE, duration_seconds=600,
+                           description="Relaxed, conversational effort")
+        result = _to_garmin_step(step)
+        assert result.description == "Relaxed, conversational effort"
+
+    def test_step_description_truncated_to_200(self):
+        step = WorkoutStep(step_type=WorkoutStepType.ACTIVE, duration_seconds=600,
+                           description="x" * 300)
+        result = _to_garmin_step(step)
+        assert len(result.description) == 200
+
+    def test_heart_rate_step_emits_custom_bpm_range(self):
+        step = WorkoutStep(
+            step_type=WorkoutStepType.ACTIVE,
+            duration_seconds=1800,
+            target_type=IntensityTarget.HEART_RATE,
+            target_low=140.0,
+            target_high=155.0,
+        )
+        result = _to_garmin_step(step)
+        assert result.targetType["workoutTargetTypeId"] == 4
+        assert result.targetType["workoutTargetTypeKey"] == "heart.rate.zone"
+        assert result.targetValueOne == 140.0
+        assert result.targetValueTwo == 155.0
+
 
 class TestSportInference:
     def test_hyrox_and_station_workouts_push_as_fitness_equipment(self):

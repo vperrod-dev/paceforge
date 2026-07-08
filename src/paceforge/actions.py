@@ -587,7 +587,7 @@ def push(week: int | None = None, dry_run: bool = False) -> dict:
         "interval_pace": plan.interval_pace,
     }
     client = garmin_connect()
-    result = client.push_plan_week(workouts, plan_paces=paces)
+    result = client.push_plan_week(workouts, plan_paces=paces, pace_bands=plan.pace_bands)
     store.save_plan(plan)  # persist garmin_workout_id for delete-by-id on re-push
     return {"week": wk.week_number, "pushed": len(result["pushed"]),
             "failed": result["failed"], "workouts": summary,
