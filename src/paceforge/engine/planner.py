@@ -17,6 +17,7 @@ from pathlib import Path
 import yaml
 
 from paceforge.engine.events import event_profile
+from paceforge.engine.variants import pick_variant
 from paceforge.engine.vdot import (
     RACE_DISTANCES,
     ZONE_KEYS,
@@ -84,18 +85,28 @@ _TEMPLATE_MAP: dict[str, str] = {
 }
 
 # ── Workout rotation pools per phase ────────────────────────────────
+# Phase ordering follows Daniels/Pfitzinger for long events: R/hills/strides
+# early (economy), I mid-build, T + race-pace dominate late build and peak,
+# R volume DECLINES toward race day.
 
-# Quality session 1: VO2max / speed / hills / fartlek
-_Q1_BASE = ["fartlek", "hills", "easy_with_strides", "fartlek"]
-_Q1_BUILD = ["vo2max", "speed_400s", "hills", "fartlek"]
-_Q1_PEAK = ["vo2max", "speed_400s", "speed_200s", "vo2max"]
+# Pools are indexed by GLOBAL week index (wk_idx % len), so adjacent weeks read
+# adjacent slots — possibly across a phase boundary. Orderings below are chosen
+# so no two adjacent slots (including wrap-around and any phase transition)
+# carry the same type: the variety gate forbids identical sessions in
+# consecutive weeks, and a deload's variant step-back can otherwise reproduce
+# last week's exact session.
+
+# Quality session 1: speed / power / VO2 slot
+_Q1_BASE = ["hills", "speed_200s", "fartlek", "easy_with_strides"]
+_Q1_BUILD = ["vo2max", "speed_400s", "vo2max", "hills"]
+_Q1_PEAK = ["vo2max", "speed_200s", "vo2max", "hills"]
 _Q1_TAPER = ["easy_with_strides", "speed_200s"]
 
-# Quality session 2: tempo / threshold cruise / progressive / race pace
-_Q2_BASE = ["tempo", "progressive", "tempo", "progressive"]
-_Q2_BUILD = ["tempo", "threshold_cruise", "progressive", "race_pace"]
-_Q2_PEAK = ["threshold_cruise", "race_pace", "tempo", "race_pace"]
-_Q2_TAPER = ["tempo", "easy_with_strides"]
+# Quality session 2: threshold / race-specificity slot
+_Q2_BASE = ["tempo", "progressive", "steady_m", "threshold_cruise"]
+_Q2_BUILD = ["progressive", "alternations", "tempo", "threshold_cruise"]
+_Q2_PEAK = ["alternations", "race_pace", "threshold_cruise", "race_pace"]
+_Q2_TAPER = ["tempo", "race_pace"]
 
 # Easy run slot: alternate easy and easy+strides
 _EASY_ROTATION = ["easy", "easy_with_strides"]
@@ -111,7 +122,7 @@ _LR_TAPER = ["long", "long"]
 # No station or strength sessions: the plan is running only.
 _COMPROMISED_Q1_BASE = ["compromised_km", "hills", "compromised_km", "fartlek"]
 _COMPROMISED_Q1_BUILD = ["compromised_km", "vo2max", "compromised_km", "hills"]
-_COMPROMISED_Q1_PEAK = ["compromised_km", "vo2max", "compromised_km", "compromised_km"]
+_COMPROMISED_Q1_PEAK = ["compromised_km", "vo2max", "compromised_km", "vo2max"]
 _COMPROMISED_Q1_TAPER = ["compromised_km", "easy_with_strides"]
 
 # Phase focus descriptions
@@ -293,7 +304,8 @@ def _generate_template_plan(
             continue
 
         members = phase_positions[week_phase[wk_idx]]
-        phase_frac = members.index(wk_idx) / max(len(members) - 1, 1)
+        week_in_phase = members.index(wk_idx)
+        deload = wk_idx > 0 and week_kms[wk_idx] < week_kms[wk_idx - 1]
         workouts = _build_varied_week(
             factory=factory, phase=phase, week_km=week_km,
             week_start=week_start, wk_idx=wk_idx,
@@ -301,7 +313,8 @@ def _generate_template_plan(
             max_days=goal.max_days_per_week,
             training_days=goal.training_days,
             compromised=compromised,
-            frac=phase_frac,
+            week_in_phase=week_in_phase,
+            deload=deload,
         )
         focus = _get_focus(phase, wk_idx)
         actual_km = round(sum(
@@ -359,15 +372,17 @@ def _build_varied_week(
     max_days: int = 5,
     training_days: list[str] | None = None,
     compromised: bool = False,
-    frac: float = 0.0,
+    week_in_phase: int = 0,
+    deload: bool = False,
 ) -> list[Workout]:
     """Build a week of running workouts distributed across chosen training days.
 
     If *training_days* is provided the workouts are placed on those exact days;
     otherwise a backwards-compatible default is derived from *max_days*.
     *compromised* (HYROX) swaps the Q1 pool for run-under-fatigue 1km repeats;
-    *frac* (0..1, position within the phase) drives week-over-week overload of the
-    quality sessions. The plan is running only — no station/strength sessions.
+    *week_in_phase* walks each slot's variant table forward (Canova-lever
+    progression) and *deload* steps it back one. The plan is running only —
+    no station/strength sessions.
     """
     from paceforge.models.profile import default_training_days as _default_days
 
@@ -465,17 +480,24 @@ def _build_varied_week(
     # actual remainder — keeps the week's true volume at week_km.
     core: dict[str, Workout] = {}
     if "q1" in role_map.values():
-        core["q1"] = _make_q1(factory, q1_type, q1_km, frac)
+        core["q1"] = _make_quality(factory, q1_type, q1_km, week_in_phase, deload, week_km)
     if "q2" in role_map.values():
         core["q2"] = (
-            factory.easy_run(q2_km) if demote_q2 else _make_q2(factory, q2_type, q2_km, frac)
+            factory.easy_run(q2_km)
+            if demote_q2
+            else _make_quality(factory, q2_type, q2_km, week_in_phase, deload, week_km)
         )
     num_easy = sum(1 for r in role_map.values() if r.startswith("easy_"))
-    if not num_easy:
-        # No easy days to absorb quality overhead — the long run is the only
-        # volume dial left. Size it to the actual remainder (within sane bounds).
-        q_km = sum((w.estimated_distance_meters or 0) / 1000 for w in core.values())
-        long_km = round(min(max(week_km - q_km, week_km * 0.33), week_km * 0.48), 1)
+    # The long run is the week's volume dial: quality sessions carry fixed
+    # overhead that can overshoot their budget, so size the long run to the
+    # actual remainder (leaving ~2km per easy day), within sane bounds.
+    q_km = sum((w.estimated_distance_meters or 0) / 1000 for w in core.values())
+    rem = week_km - q_km
+    if num_easy:
+        long_km = min(long_km, max(rem - 2.0 * num_easy, week_km * 0.30))
+    else:
+        long_km = max(rem, week_km * 0.33)
+    long_km = round(min(long_km, week_km * 0.48), 1)
     core["long_run"] = _make_long_run(factory, lr_type, long_km)
     core_km = sum((w.estimated_distance_meters or 0) / 1000 for w in core.values())
     if num_easy:
@@ -518,57 +540,29 @@ def _build_varied_week(
     return workouts
 
 
-def _bump(base: int, frac: float, span: int) -> int:
-    """Overload a rep count by up to *span* across a phase (frac 0..1)."""
-    return base + round(frac * span)
+def _make_quality(
+    factory: WorkoutFactory,
+    slot_type: str,
+    budget_km: float,
+    week_in_phase: int,
+    deload: bool,
+    week_km: float,
+) -> Workout:
+    """Build a quality session from its variant table (Canova-lever walk).
 
-
-def _fartlek_minutes(budget_km: float, frac: float) -> int:
-    """Fartlek duration capped by its distance budget (~4.5 min/km average)."""
-    return max(20, min(_bump(40, frac, 10), round(budget_km * 4.5)))
-
-
-def _make_q1(factory: WorkoutFactory, q1_type: str, distance_km: float,
-             frac: float = 0.0) -> Workout:
-    """Generate quality session 1; *frac* (0..1) overloads it across the phase."""
-    if q1_type == "vo2max":
-        return factory.vo2max_intervals(reps=_bump(5, frac, 2), rep_min=3.5)
-    elif q1_type == "compromised_km":
-        # HYROX run-under-fatigue: 1km repeats at threshold, growing toward the
-        # race's 8x1km as the phase progresses.
-        return factory.race_pace_intervals(reps=_bump(5, frac, 3), rep_km=1.0,
-                                           pace_key="threshold")
-    elif q1_type == "speed_400s":
-        return factory.speed_400s(reps=_bump(8, frac, 4))
-    elif q1_type == "speed_200s":
-        return factory.speed_200s(reps=_bump(10, frac, 4))
-    elif q1_type == "hills":
-        return factory.hills(reps=_bump(8, frac, 4))
-    elif q1_type == "fartlek":
-        return factory.fartlek(total_min=_fartlek_minutes(distance_km, frac))
-    elif q1_type == "easy_with_strides":
-        return factory.easy_with_strides(distance_km)
-    else:
-        return factory.fartlek(total_min=_fartlek_minutes(distance_km, frac))
-
-
-def _make_q2(factory: WorkoutFactory, q2_type: str, distance_km: float,
-             frac: float = 0.0) -> Workout:
-    """Generate quality session 2; *frac* (0..1) overloads it across the phase."""
-    if q2_type == "tempo":
-        tempo_km = max(distance_km - 3, 3) + frac * 2
-        return factory.tempo(tempo_km)
-    elif q2_type == "threshold_cruise":
-        return factory.threshold_cruise_intervals(reps=_bump(4, frac, 2), rep_min=6)
-    elif q2_type == "progressive":
-        return factory.progressive_run(distance_km)
-    elif q2_type == "race_pace":
-        return factory.race_pace_intervals(reps=_bump(4, frac, 2), rep_km=1.0,
-                                           pace_key="race")
-    elif q2_type == "easy_with_strides":
-        return factory.easy_with_strides(distance_km)
-    else:
-        return factory.tempo(max(distance_km - 3, 3) + frac * 2)
+    Distance-driven slots (strides, progressive) size to their budget directly;
+    everything else selects a variant by position in the phase, volume-gated.
+    """
+    if slot_type == "easy_with_strides":
+        return factory.easy_with_strides(budget_km)
+    if slot_type == "progressive":
+        return factory.progressive_run(budget_km)
+    method, kwargs, _ = pick_variant(slot_type, week_in_phase, deload, week_km)
+    kwargs = dict(kwargs)
+    if method == "fartlek":
+        # ~4.5 min/km average — keep the session inside its distance budget.
+        kwargs["total_min"] = max(20, min(kwargs["total_min"], round(budget_km * 4.5)))
+    return getattr(factory, method)(**kwargs)
 
 
 def _make_long_run(factory: WorkoutFactory, lr_type: str, distance_km: float) -> Workout:

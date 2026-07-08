@@ -89,15 +89,16 @@ jobs:
           claude_args: '--max-turns 200 --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep"'
           prompt: |
             data/plan.json already holds a valid, committed, running-only
-            ${{ inputs.event_type }} plan (scaffolded + accepted). As the athlete's
-            running coach, IMPROVE it for variety and experience. Do NOT rebuild it and
-            do NOT change the event, target date, training days, or the paces.
-            - Vary sessions so no two weeks feel identical: rotate interval distances
-              (200–2000m), tempo lengths (20–35min), and long-run styles (easy /
-              progressive / fast-finish / marathon-pace segments).
-            - Write a specific coaching note (purpose + how it should feel) on every workout.
+            ${{ inputs.event_type }} plan (scaffolded + accepted). The engine now owns
+            session variety, progression, and structure — do NOT rewrite sessions,
+            reshuffle variants, rebuild the plan, or change the event, target date,
+            training days, or paces. Your job is the athlete-specific judgement layer:
+            - Write a specific coaching note on every workout: what today's session does
+              for THIS athlete (readiness, RPE history, cadence flag, HYROX load on
+              off-days) — never restate what the session obviously is.
             - Adapt to signals in data/profile.json (low training_readiness or
               hrv_status "Low" → swap a quality day for easy that week).
+            - Fill the plan-level rationale and tips from data/profile.json evidence.
             Keep every workout a running type (never hyrox_mixed / cross_training) and
             keep "accepted": true. Then run `paceforge validate` (must pass), and commit
             data/plan.json (and plan.md if you regenerate it) and push to master. If you

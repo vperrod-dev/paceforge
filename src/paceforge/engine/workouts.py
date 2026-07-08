@@ -312,13 +312,24 @@ class WorkoutFactory:
             steps=steps,
         )
 
-    def threshold_cruise_intervals(self, reps: int = 4, rep_min: float = 6) -> Workout:
+    def threshold_cruise_intervals(
+        self,
+        reps: int = 4,
+        rep_min: float = 6,
+        rep_km: float | None = None,
+        rest_sec: float = 60,
+    ) -> Workout:
         p = self.paces
-        work_sec = reps * rep_min * 60
-        rest_sec = reps * 60  # 1 min recovery between reps
+        if rep_km:
+            rep_work_sec = rep_km * (p.threshold if p else 250)
+            rep_label = f"{rep_km:.0f}km"
+        else:
+            rep_work_sec = rep_min * 60
+            rep_label = f"{rep_min:.0f}min"
+        work_sec = reps * rep_work_sec
         warmup_sec = 10 * 60
         cooldown_sec = 10 * 60
-        dur = warmup_sec + work_sec + rest_sec + cooldown_sec
+        dur = warmup_sec + work_sec + reps * rest_sec + cooldown_sec
         est_dist = None
         if p:
             est_dist = (
@@ -326,32 +337,195 @@ class WorkoutFactory:
                 + work_sec / p.threshold * 1000
             )
         t_lo, t_hi = self._resolve_pace("threshold")
+        rep_step = self._pace_step(
+            WorkoutStepType.INTERVAL,
+            f"{rep_label} at threshold",
+            duration_seconds=None if rep_km else rep_min * 60,
+            distance_meters=rep_km * 1000 if rep_km else None,
+            pace_low=t_lo,
+            pace_high=t_hi,
+            pace_key="threshold",
+        )
         steps = [
             self._warmup(10),
             WorkoutStep(
                 step_type=WorkoutStepType.INTERVAL,
-                description=f"{reps} x {rep_min:.0f} min cruise intervals",
+                description=f"{reps} x {rep_label} cruise intervals",
+                repeat_count=reps,
+                steps=[rep_step, self._recovery_step(rest_sec)],
+            ),
+            self._cooldown(10),
+        ]
+        return Workout(
+            workout_type=WorkoutType.THRESHOLD,
+            name=f"{reps} x {rep_label} Cruise Intervals",
+            description=(
+                "Broken threshold work with short recoveries."
+                " Same lactate benefit as tempo with less mental fatigue."
+            ),
+            purpose=TrainingPurpose.LACTATE_THRESHOLD,
+            estimated_distance_meters=est_dist,
+            estimated_duration_seconds=dur,
+            steps=steps,
+        )
+
+    def alternations(self, reps: int = 4, on_km: float = 1.0, float_km: float = 1.0) -> Workout:
+        """Threshold alternations — T-pace km with marathon-pace 'floats' between,
+        no jogging. The most HM-specific session short of a race rehearsal."""
+        p = self.paces
+        t_lo, t_hi = self._resolve_pace("threshold")
+        m_lo, m_hi = self._resolve_pace("marathon")
+        work_sec = None
+        est_dist = reps * (on_km + float_km) * 1000 + 4000
+        if p:
+            work_sec = reps * (on_km * p.threshold + float_km * p.marathon)
+        dur = 10 * 60 + (work_sec or reps * (on_km + float_km) * 270) + 10 * 60
+        steps = [
+            self._warmup(10),
+            WorkoutStep(
+                step_type=WorkoutStepType.INTERVAL,
+                description=f"{reps} x ({on_km:.0f}km T / {float_km:.0f}km float)",
                 repeat_count=reps,
                 steps=[
                     self._pace_step(
                         WorkoutStepType.INTERVAL,
-                        f"{rep_min:.0f} min at threshold",
-                        duration_seconds=rep_min * 60,
+                        f"{on_km:.0f} km at threshold",
+                        distance_meters=on_km * 1000,
                         pace_low=t_lo,
                         pace_high=t_hi,
                         pace_key="threshold",
                     ),
-                    self._recovery_step(60),
+                    self._pace_step(
+                        WorkoutStepType.ACTIVE,
+                        f"{float_km:.0f} km float at marathon pace — no jogging",
+                        distance_meters=float_km * 1000,
+                        pace_low=m_lo,
+                        pace_high=m_hi,
+                        pace_key="marathon",
+                    ),
                 ],
             ),
             self._cooldown(10),
         ]
         return Workout(
             workout_type=WorkoutType.THRESHOLD,
-            name=f"{reps} x {rep_min:.0f}min Cruise Intervals",
+            name=f"{reps} x ({on_km:.0f}km T / {float_km:.0f}km Float) Alternations",
             description=(
-                "Broken threshold work with short recoveries."
-                " Same lactate benefit as tempo with less mental fatigue."
+                "Threshold kilometres with marathon-pace floats between — the recovery"
+                " is faster running, not jogging. Race-specific lactate shuttling."
+            ),
+            purpose=TrainingPurpose.LACTATE_THRESHOLD,
+            estimated_distance_meters=est_dist,
+            estimated_duration_seconds=dur,
+            steps=steps,
+        )
+
+    def steady_m_pace(self, km: float = 6) -> Workout:
+        p = self.paces
+        m_lo, m_hi = self._resolve_pace("marathon")
+        dur = 10 * 60 + (km * (p.marathon if p else 280)) + 10 * 60
+        steps = [
+            self._warmup(10),
+            self._pace_step(
+                WorkoutStepType.ACTIVE,
+                f"{km:.0f} km steady at marathon pace",
+                distance_meters=km * 1000,
+                pace_low=m_lo,
+                pace_high=m_hi,
+                pace_key="marathon",
+            ),
+            self._cooldown(10),
+        ]
+        return Workout(
+            workout_type=WorkoutType.RACE_PACE,
+            name=f"{km:.0f}km Steady @ Marathon Pace",
+            description=(
+                "Continuous marathon-pace running — big aerobic stimulus at an"
+                " honest but sustainable effort. Lock in and hold."
+            ),
+            purpose=TrainingPurpose.RACE_SPECIFICITY,
+            estimated_distance_meters=km * 1000 + 4000,
+            estimated_duration_seconds=dur,
+            steps=steps,
+        )
+
+    def ladder(
+        self,
+        rungs_min: list[float],
+        pace_key: str = "interval",
+        rest_frac: float = 0.6,
+    ) -> Workout:
+        """Up-down ladder of timed reps (e.g. 4-3-2-3-4 min) with recoveries
+        proportional to each rung. Flat steps — rungs differ, so no repeat group."""
+        lo, hi = self._resolve_pace(pace_key)
+        p = self.paces
+        steps: list[WorkoutStep] = [self._warmup(10)]
+        for i, rung in enumerate(rungs_min):
+            steps.append(
+                self._pace_step(
+                    WorkoutStepType.INTERVAL,
+                    f"{rung:g} min at {pace_key} pace",
+                    duration_seconds=rung * 60,
+                    pace_low=lo,
+                    pace_high=hi,
+                    pace_key=pace_key,
+                )
+            )
+            if i < len(rungs_min) - 1:
+                steps.append(self._recovery_step(max(60, rung * 60 * rest_frac)))
+        steps.append(self._cooldown(10))
+        work_sec = sum(rungs_min) * 60
+        rest_total = sum(max(60, r * 60 * rest_frac) for r in rungs_min[:-1])
+        dur = 20 * 60 + work_sec + rest_total
+        est_dist = None
+        if p:
+            zone_pace = getattr(p, pace_key if pace_key != "easy" else "threshold")
+            est_dist = 20 * 60 / p.easy_low * 1000 + work_sec / zone_pace * 1000
+        label = "-".join(f"{r:g}" for r in rungs_min)
+        return Workout(
+            workout_type=WorkoutType.VO2MAX if pace_key == "interval" else WorkoutType.THRESHOLD,
+            name=f"{label}min Ladder",
+            description=(
+                "Ladder intervals — rep length climbs down and back up, recoveries"
+                " scale with the rep. Variety inside one session keeps the quality honest."
+            ),
+            purpose=TrainingPurpose.VO2MAX,
+            estimated_distance_meters=est_dist,
+            estimated_duration_seconds=dur,
+            steps=steps,
+        )
+
+    def progressive_tempo(self, blocks: int = 3, block_min: float = 8) -> Workout:
+        """Continuous tempo in blocks, each ~8 s/km faster, closing at threshold."""
+        p = self.paces
+        t_lo, t_hi = self._resolve_pace("threshold")
+        steps: list[WorkoutStep] = [self._warmup(10)]
+        for i in range(blocks):
+            offset = (blocks - 1 - i) * 8.0
+            is_last = i == blocks - 1
+            steps.append(
+                self._pace_step(
+                    WorkoutStepType.ACTIVE,
+                    f"Block {i + 1}/{blocks}: {block_min:.0f} min"
+                    + (" at threshold" if is_last else f" at threshold +{offset:.0f}s/km"),
+                    duration_seconds=block_min * 60,
+                    pace_low=(t_lo + offset) if t_lo else None,
+                    pace_high=(t_hi + offset) if t_hi else None,
+                    pace_key="threshold" if is_last else None,
+                )
+            )
+        steps.append(self._cooldown(10))
+        work_sec = blocks * block_min * 60
+        dur = 20 * 60 + work_sec
+        est_dist = None
+        if p:
+            est_dist = 20 * 60 / p.easy_low * 1000 + work_sec / (p.threshold + 8) * 1000
+        return Workout(
+            workout_type=WorkoutType.THRESHOLD,
+            name=f"Progressive Tempo — {blocks} x {block_min:.0f}min",
+            description=(
+                "Continuous tempo that tightens the screw: each block a touch faster,"
+                " finishing at full threshold. Teaches pacing discipline under fatigue."
             ),
             purpose=TrainingPurpose.LACTATE_THRESHOLD,
             estimated_distance_meters=est_dist,
@@ -406,27 +580,25 @@ class WorkoutFactory:
             steps=steps,
         )
 
-    def speed_400s(self, reps: int = 8) -> Workout:
+    def speed_reps(self, reps: int, rep_m: int, rest_sec: float = 90) -> Workout:
         p = self.paces
-        rep_dist = 400
-        rest_sec = 90  # 400m recovery jog
         warmup_sec = 10 * 60
         cooldown_sec = 10 * 60
-        work_sec = reps * (rep_dist / 1000 * (p.repetition if p else 240))
+        work_sec = reps * (rep_m / 1000 * (p.repetition if p else 240))
         dur = warmup_sec + work_sec + reps * rest_sec + cooldown_sec
-        est_dist = reps * rep_dist + 4000  # ~4km warm/cool
+        est_dist = reps * rep_m + 4000  # ~4km warm/cool
         r_lo, r_hi = self._resolve_pace("repetition")
         steps = [
             self._warmup(10),
             WorkoutStep(
                 step_type=WorkoutStepType.INTERVAL,
-                description=f"{reps} x 400m at R pace",
+                description=f"{reps} x {rep_m}m at R pace",
                 repeat_count=reps,
                 steps=[
                     self._pace_step(
                         WorkoutStepType.INTERVAL,
-                        "400m at R pace",
-                        distance_meters=400,
+                        f"{rep_m}m at R pace",
+                        distance_meters=rep_m,
                         pace_low=r_lo,
                         pace_high=r_hi,
                         pace_key="repetition",
@@ -438,7 +610,7 @@ class WorkoutFactory:
         ]
         return Workout(
             workout_type=WorkoutType.SPEED,
-            name=f"{reps} x 400m Speed Reps",
+            name=f"{reps} x {rep_m}m Speed Reps",
             description="Short, fast repetitions developing speed and running economy at R pace.",
             purpose=TrainingPurpose.SPEED_NEUROMUSCULAR,
             estimated_distance_meters=est_dist,
@@ -446,45 +618,11 @@ class WorkoutFactory:
             steps=steps,
         )
 
+    def speed_400s(self, reps: int = 8) -> Workout:
+        return self.speed_reps(reps, 400, rest_sec=90)
+
     def speed_200s(self, reps: int = 10) -> Workout:
-        p = self.paces
-        rep_dist = 200
-        rest_sec = 60
-        warmup_sec = 10 * 60
-        cooldown_sec = 10 * 60
-        work_sec = reps * (rep_dist / 1000 * (p.repetition if p else 240))
-        dur = warmup_sec + work_sec + reps * rest_sec + cooldown_sec
-        est_dist = reps * rep_dist + 4000
-        r_lo, r_hi = self._resolve_pace("repetition")
-        steps = [
-            self._warmup(10),
-            WorkoutStep(
-                step_type=WorkoutStepType.INTERVAL,
-                description=f"{reps} x 200m at R pace",
-                repeat_count=reps,
-                steps=[
-                    self._pace_step(
-                        WorkoutStepType.INTERVAL,
-                        "200m at R pace",
-                        distance_meters=200,
-                        pace_low=r_lo,
-                        pace_high=r_hi,
-                        pace_key="repetition",
-                    ),
-                    self._recovery_step(rest_sec),
-                ],
-            ),
-            self._cooldown(10),
-        ]
-        return Workout(
-            workout_type=WorkoutType.SPEED,
-            name=f"{reps} x 200m Speed Reps",
-            description="Quick 200m repeats at R pace for neuromuscular speed and form.",
-            purpose=TrainingPurpose.SPEED_NEUROMUSCULAR,
-            estimated_distance_meters=est_dist,
-            estimated_duration_seconds=dur,
-            steps=steps,
-        )
+        return self.speed_reps(reps, 200, rest_sec=60)
 
     def hills(self, reps: int = 8, hill_sec: float = 60) -> Workout:
         warmup_sec = 10 * 60

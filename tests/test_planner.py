@@ -37,13 +37,13 @@ def _make_goal(
 
 
 def test_quality_session_progresses_within_phase():
-    from paceforge.engine.planner import _make_q1
+    from paceforge.engine.planner import _make_quality
     from paceforge.engine.vdot import paces_from_vdot
     from paceforge.engine.workouts import WorkoutFactory
 
     factory = WorkoutFactory(paces_from_vdot(50))
-    early = _make_q1(factory, "vo2max", 8.0, frac=0.0)
-    late = _make_q1(factory, "vo2max", 8.0, frac=1.0)
+    early = _make_quality(factory, "vo2max", 8.0, week_in_phase=0, deload=False, week_km=32)
+    late = _make_quality(factory, "vo2max", 8.0, week_in_phase=3, deload=False, week_km=32)
     assert late.estimated_duration_seconds > early.estimated_duration_seconds
 
 

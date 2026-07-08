@@ -62,6 +62,7 @@ def validate_plan(plan: TrainingPlan) -> list[str]:
     issues += _check_long_run_cap(plan)
     issues += _check_taper(plan)
     issues += _check_goal_feasibility(plan)
+    issues += _check_session_variety(plan)
     return issues
 
 
@@ -137,6 +138,29 @@ def _check_taper(plan: TrainingPlan) -> list[str]:
             f"(≥ peak {peak:.0f}km)"
         ]
     return []
+
+
+def _check_session_variety(plan: TrainingPlan) -> list[str]:
+    """No identical quality session (type + params) in consecutive weeks.
+
+    Names are param-derived ("6 x 3.5min VO2max Intervals"), so same type+name
+    == same session. Repeats ≥2 weeks apart are allowed — benchmark repeats are
+    a coaching feature, week-in-week-out monotony is the bug.
+    """
+    issues = []
+    prev_keys: set[tuple] = set()
+    for week in plan.weeks:
+        keys = {
+            (wo.workout_type, wo.name)
+            for wo in week.workouts
+            if wo.workout_type in INTENSE_TYPES
+        }
+        for _, name in keys & prev_keys:
+            issues.append(
+                f"Week {week.week_number}: '{name}' repeats the previous week's session"
+            )
+        prev_keys = keys
+    return issues
 
 
 def _check_goal_feasibility(plan: TrainingPlan) -> list[str]:
