@@ -16,8 +16,11 @@ from paceforge.models.plan import (
 class WorkoutFactory:
     """Generates varied workouts using VDOT-derived paces."""
 
-    def __init__(self, paces: TrainingPaces | None) -> None:
+    def __init__(
+        self, paces: TrainingPaces | None, goal_pace_sec_km: float | None = None
+    ) -> None:
         self.paces = paces
+        self.goal_pace_sec_km = goal_pace_sec_km
 
     # ── Helper builders ──────────────────────────────────────────────
 
@@ -101,6 +104,11 @@ class WorkoutFactory:
 
     def _resolve_pace(self, pace_key: str) -> tuple[float | None, float | None]:
         p = self.paces
+        if pace_key == "race":
+            # Goal race pace from target time; marathon band when no goal set.
+            if self.goal_pace_sec_km:
+                return (self.goal_pace_sec_km * 0.985, self.goal_pace_sec_km * 1.03)
+            pace_key = "marathon"
         if not p or pace_key not in ZONE_KEYS:
             return None, None
         return p.band(pace_key)
@@ -244,7 +252,7 @@ class WorkoutFactory:
         dur = None
         if p:
             dur = (warmup_km + cooldown_km + easy_km) * p.easy_low + race_pace_km * p.marathon
-        mp_lo, mp_hi = self._resolve_pace("marathon")
+        mp_lo, mp_hi = self._resolve_pace("race")
         steps = [
             self._warmup(15),
             self._easy_step(distance_meters=easy_km * 1000),
@@ -254,7 +262,7 @@ class WorkoutFactory:
                 distance_meters=race_pace_km * 1000,
                 pace_low=mp_lo,
                 pace_high=mp_hi,
-                pace_key="marathon",
+                pace_key="race",
             ),
             self._cooldown(10),
         ]

@@ -7,6 +7,7 @@ human-readable issues — empty means the plan is sound.
 
 from __future__ import annotations
 
+from paceforge.engine.vdot import RACE_DISTANCES, predict_time
 from paceforge.models.plan import TrainingPlan, WorkoutStepType, WorkoutType
 
 # Intense quality sessions — two of THESE on consecutive days is a red flag.
@@ -33,9 +34,21 @@ MAX_REP_SEC = 2 * 60
 _INTERVAL_TYPES: frozenset[WorkoutType] = frozenset({WorkoutType.VO2MAX, WorkoutType.INTERVALS})
 _REP_TYPES: frozenset[WorkoutType] = frozenset({WorkoutType.SPEED})
 
-# Long run should not dwarf the week. Scaffold sits at 35%; flag only egregious
-# outliers (>37%) — the coaching panel enforces the tighter 25–30% by judgement.
-MAX_LONG_RUN_FRAC = 0.37
+# Long run share of the week scales with run frequency: at 3 days/week the long
+# run legitimately carries up to half the volume (the endurance requirement
+# doesn't shrink because frequency did); at 5+ the classic ~30% guidance holds
+# and we flag only egregious outliers.
+def _long_run_cap(run_days: int) -> float:
+    if run_days <= 3:
+        return 0.50
+    if run_days == 4:
+        return 0.42
+    return 0.37
+
+
+# A goal more than this much faster than the VDOT prediction is not supported
+# by current fitness — every "race pace" session would be mislabeled harder work.
+GOAL_FEASIBILITY_MARGIN = 0.02
 
 
 def validate_plan(plan: TrainingPlan) -> list[str]:
@@ -48,6 +61,7 @@ def validate_plan(plan: TrainingPlan) -> list[str]:
     issues += _check_interval_lengths(plan)
     issues += _check_long_run_cap(plan)
     issues += _check_taper(plan)
+    issues += _check_goal_feasibility(plan)
     return issues
 
 
@@ -96,12 +110,15 @@ def _check_long_run_cap(plan: TrainingPlan) -> list[str]:
         total = week.total_distance_km
         if not total:
             continue
+        run_days = sum(1 for w in week.workouts if w.workout_type != WorkoutType.REST)
+        cap = _long_run_cap(run_days)
         for wo in week.workouts:
             km = (wo.estimated_distance_meters or 0) / 1000
-            if km > total * MAX_LONG_RUN_FRAC:
+            if km > total * cap:
                 issues.append(
                     f"Week {week.week_number} '{wo.name}': long run {km:.0f}km is "
-                    f"{km / total * 100:.0f}% of the week (>{MAX_LONG_RUN_FRAC * 100:.0f}%)"
+                    f"{km / total * 100:.0f}% of the week (>{cap * 100:.0f}% "
+                    f"at {run_days} run days)"
                 )
                 break
     return issues
@@ -118,6 +135,27 @@ def _check_taper(plan: TrainingPlan) -> list[str]:
         return [
             f"Week {final_num}: final week {final_km:.0f}km is not a taper "
             f"(≥ peak {peak:.0f}km)"
+        ]
+    return []
+
+
+def _check_goal_feasibility(plan: TrainingPlan) -> list[str]:
+    """The goal time must be within reach of current fitness (VDOT prediction).
+
+    A goal materially faster than the prediction turns every race-pace session
+    into mislabeled supra-threshold work.
+    """
+    dist = RACE_DISTANCES.get(plan.goal_type)
+    if not (plan.target_time_seconds and plan.vdot and dist):
+        return []
+    predicted = predict_time(dist, plan.vdot)
+    if plan.target_time_seconds < predicted * (1 - GOAL_FEASIBILITY_MARGIN):
+        goal_m, goal_s = divmod(int(plan.target_time_seconds), 60)
+        pred_m, pred_s = divmod(int(predicted), 60)
+        return [
+            f"Goal {goal_m}:{goal_s:02d} is >{GOAL_FEASIBILITY_MARGIN * 100:.0f}% faster than "
+            f"the VDOT {plan.vdot:.1f} prediction ({pred_m}:{pred_s:02d}) — not supported by "
+            "current fitness; adjust the target time or earn a VDOT bump first"
         ]
     return []
 

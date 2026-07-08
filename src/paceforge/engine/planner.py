@@ -51,7 +51,13 @@ def _starting_and_peak_km(
     mileage scaled by the event's peak factor; start ramps in at ~75% of peak.
     """
     actual = profile.weekly_mileage_km or 0.0
-    peak = round(max(table_peak, actual * event_profile(goal_type).peak_km_factor), 1)
+    peak = max(table_peak, actual * event_profile(goal_type).peak_km_factor)
+    if actual:
+        # A low-mileage athlete can't absorb the table peak in one plan —
+        # cap peak at ~2.2x current load (still a big build), floor at half
+        # the table so the plan stays event-credible.
+        peak = min(peak, max(actual * 2.2, table_peak * 0.5))
+    peak = round(peak, 1)
     start = round(peak * 0.75, 1)
     return start, peak
 
@@ -226,14 +232,39 @@ def _generate_template_plan(
         phase_positions.setdefault(ph, []).append(i)
 
     compromised = event_profile(goal.goal_type).compromised_bias
-    factory = WorkoutFactory(paces)
+    goal_pace = None
+    goal_dist = RACE_DISTANCES.get(goal.goal_type.value)
+    if goal.target_time_seconds and goal_dist:
+        goal_pace = goal.target_time_seconds / (goal_dist / 1000)
+    factory = WorkoutFactory(paces, goal_pace_sec_km=goal_pace)
+
+    # Anchor early volume to the athlete's actual mileage: cap week 1 near
+    # current load and let the cap grow ~12%/week (inside the validate ramp)
+    # until the template curve takes over. Deload dips survive via min().
+    week_kms = [
+        round(peak_km * (volume_prog[i] if i < len(volume_prog) else volume_prog[-1]), 1)
+        for i in range(total_weeks)
+    ]
+    actual_km = profile.weekly_mileage_km or 0.0
+    if actual_km:
+        cap = max(actual_km * 1.15, peak_km * 0.35)
+        for i in range(total_weeks):
+            week_kms[i] = round(min(week_kms[i], cap), 1)
+            cap *= 1.12
 
     weeks: list[TrainingWeek] = []
     for wk_idx in range(total_weeks):
         wk_num = wk_idx + 1
         week_start = plan_start + timedelta(weeks=wk_idx)
-        multiplier = volume_prog[wk_idx] if wk_idx < len(volume_prog) else volume_prog[-1]
-        week_km = round(peak_km * multiplier, 1)
+        week_km = week_kms[wk_idx]
+        # Ramp gate by construction: cap growth at 15% over the previous week's
+        # ACTUAL volume (workout sums drift from the planned curve). Rebounds
+        # from a cutback are exempt, mirroring validate's rule.
+        if len(weeks) >= 1:
+            prev = weeks[-1].total_distance_km or week_km
+            before = weeks[-2].total_distance_km if len(weeks) >= 2 else None
+            if not (before and prev < before):
+                week_km = round(min(week_km, prev * 1.15), 1)
         phase = phase_map.get(wk_num, "Build")
 
         is_race_week = wk_num == total_weeks and "race_week" in template
@@ -283,6 +314,10 @@ def _generate_template_plan(
             workouts=workouts, focus=focus,
         ))
 
+    pace_bands = {k: list(paces.band(k)) for k in ZONE_KEYS} if paces else None
+    if pace_bands is not None and goal_pace:
+        pace_bands["race"] = [goal_pace * 0.985, goal_pace * 1.03]
+
     return TrainingPlan(
         plan_id=str(uuid.uuid4())[:8],
         name=template["name"],
@@ -296,7 +331,7 @@ def _generate_template_plan(
         threshold_pace=paces.threshold if paces else None,
         interval_pace=paces.interval if paces else None,
         repetition_pace=paces.repetition if paces else None,
-        pace_bands={k: list(paces.band(k)) for k in ZONE_KEYS} if paces else None,
+        pace_bands=pace_bands,
         vdot=paces.vdot if paces else None,
         pace_source=pace_source,
         athlete_summary=athlete_summary,
@@ -339,10 +374,16 @@ def _build_varied_week(
     days = training_days or _default_days(max_days)
     num_run_days = len(days)
 
-    # ── Distance allocation ──────────────────────────────────────────
-    long_frac = 0.35
-    q1_frac = 0.15
-    q2_frac = 0.17
+    # ── Distance allocation — frequency-aware ────────────────────────
+    # At 3 run days the long run legitimately carries more of the week (the
+    # endurance requirement doesn't shrink because frequency did); at 5+ the
+    # classic ~30% split applies.
+    if num_run_days <= 3:
+        long_frac, q1_frac, q2_frac = 0.45, 0.25, 0.30
+    elif num_run_days == 4:
+        long_frac, q1_frac, q2_frac = 0.38, 0.18, 0.20
+    else:
+        long_frac, q1_frac, q2_frac = 0.32, 0.15, 0.17
 
     long_km = round(week_km * long_frac, 1)
     q1_km = round(week_km * q1_frac, 1)
@@ -373,6 +414,17 @@ def _build_varied_week(
     q2_type = q2_pool[wk_idx % len(q2_pool)]
     lr_type = lr_pool[wk_idx % len(lr_pool)]
     easy_type = _EASY_ROTATION[wk_idx % len(_EASY_ROTATION)]
+
+    # Skeleton density: at ≤3 run days a hard long-run subtype consumes a
+    # quality slot — the week is (Q1 + easy + hard long), never Q1+Q2+hard long,
+    # or the athlete gets zero easy running.
+    demote_q2 = num_run_days <= 3 and lr_type != "long"
+
+    # Low-volume weeks (ACWR anchor biting): hard Q1 doesn't fit the budget —
+    # keep the stimulus mild until volume supports real quality work.
+    # ponytail: blunt threshold; PR3's variant volume-gating generalizes this.
+    if week_km < 25 and q1_type not in ("easy_with_strides",):
+        q1_type = "easy_with_strides"
 
     # ── Assign roles to training days ────────────────────────────────
     sorted_days = sorted(days, key=lambda d: _DAY_OFFSETS[d])
@@ -408,6 +460,36 @@ def _build_varied_week(
             easy_idx += 1
 
     # ── Generate all 7 days ──────────────────────────────────────────
+    # Quality sessions carry fixed overhead (warmup/cooldown) that can overshoot
+    # their nominal budget, so build them first and give the easy days the
+    # actual remainder — keeps the week's true volume at week_km.
+    core: dict[str, Workout] = {}
+    if "q1" in role_map.values():
+        core["q1"] = _make_q1(factory, q1_type, q1_km, frac)
+    if "q2" in role_map.values():
+        core["q2"] = (
+            factory.easy_run(q2_km) if demote_q2 else _make_q2(factory, q2_type, q2_km, frac)
+        )
+    num_easy = sum(1 for r in role_map.values() if r.startswith("easy_"))
+    if not num_easy:
+        # No easy days to absorb quality overhead — the long run is the only
+        # volume dial left. Size it to the actual remainder (within sane bounds).
+        q_km = sum((w.estimated_distance_meters or 0) / 1000 for w in core.values())
+        long_km = round(min(max(week_km - q_km, week_km * 0.33), week_km * 0.48), 1)
+    core["long_run"] = _make_long_run(factory, lr_type, long_km)
+    core_km = sum((w.estimated_distance_meters or 0) / 1000 for w in core.values())
+    if num_easy:
+        remainder = week_km - core_km
+        # A sub-2km jog isn't worth lacing up for — drop easy days rather than
+        # padding them, so the week's total respects the volume curve.
+        while num_easy and remainder / num_easy < 2.0:
+            drop = next(
+                d for d in reversed(sorted_days) if role_map.get(d, "").startswith("easy_")
+            )
+            del role_map[drop]
+            num_easy -= 1
+        per_easy_km = round(remainder / num_easy, 1) if num_easy else 0.0
+
     all_day_names = list(_DAY_OFFSETS.keys())
     training_set = set(days)
     workouts: list[Workout] = []
@@ -419,19 +501,16 @@ def _build_varied_week(
         if day_name not in training_set:
             continue  # non-training days are implicit rest — no placeholder entry
 
-        role = role_map.get(day_name, "easy_0")
+        role = role_map.get(day_name)
+        if role is None:
+            continue  # easy day dropped to respect the week's volume budget
 
-        if role == "long_run":
-            w = _make_long_run(factory, lr_type, long_km)
-        elif role == "q1":
-            w = _make_q1(factory, q1_type, q1_km, frac)
-        elif role == "q2":
-            w = _make_q2(factory, q2_type, q2_km, frac)
+        if role in core:
+            w = core[role]
+        elif easy_type == "easy_with_strides":
+            w = factory.easy_with_strides(per_easy_km)
         else:
-            if easy_type == "easy_with_strides":
-                w = factory.easy_with_strides(per_easy_km)
-            else:
-                w = factory.easy_run(per_easy_km)
+            w = factory.easy_run(per_easy_km)
 
         w.scheduled_date = workout_date
         workouts.append(w)
@@ -442,6 +521,11 @@ def _build_varied_week(
 def _bump(base: int, frac: float, span: int) -> int:
     """Overload a rep count by up to *span* across a phase (frac 0..1)."""
     return base + round(frac * span)
+
+
+def _fartlek_minutes(budget_km: float, frac: float) -> int:
+    """Fartlek duration capped by its distance budget (~4.5 min/km average)."""
+    return max(20, min(_bump(40, frac, 10), round(budget_km * 4.5)))
 
 
 def _make_q1(factory: WorkoutFactory, q1_type: str, distance_km: float,
@@ -461,11 +545,11 @@ def _make_q1(factory: WorkoutFactory, q1_type: str, distance_km: float,
     elif q1_type == "hills":
         return factory.hills(reps=_bump(8, frac, 4))
     elif q1_type == "fartlek":
-        return factory.fartlek(total_min=_bump(40, frac, 10))
+        return factory.fartlek(total_min=_fartlek_minutes(distance_km, frac))
     elif q1_type == "easy_with_strides":
         return factory.easy_with_strides(distance_km)
     else:
-        return factory.fartlek(total_min=_bump(40, frac, 10))
+        return factory.fartlek(total_min=_fartlek_minutes(distance_km, frac))
 
 
 def _make_q2(factory: WorkoutFactory, q2_type: str, distance_km: float,
@@ -480,7 +564,7 @@ def _make_q2(factory: WorkoutFactory, q2_type: str, distance_km: float,
         return factory.progressive_run(distance_km)
     elif q2_type == "race_pace":
         return factory.race_pace_intervals(reps=_bump(4, frac, 2), rep_km=1.0,
-                                           pace_key="marathon")
+                                           pace_key="race")
     elif q2_type == "easy_with_strides":
         return factory.easy_with_strides(distance_km)
     else:

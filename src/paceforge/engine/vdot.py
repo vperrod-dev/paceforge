@@ -191,6 +191,22 @@ def vdot_from_race(distance_meters: float, time_seconds: float) -> float:
     return vo2 / pct
 
 
+def predict_time(distance_meters: float, vdot: float) -> float:
+    """Predicted race time in seconds for a distance at a given VDOT.
+
+    Numeric inverse of ``vdot_from_race`` (bisection — the formula has no
+    closed-form inverse).
+    """
+    lo, hi = 60.0, 6 * 3600.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        if vdot_from_race(distance_meters, mid) > vdot:
+            lo = mid  # mid is faster than the VDOT supports — need more time
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
 def paces_from_vdot(vdot: float) -> TrainingPaces:
     """Get training paces for a given VDOT value."""
     return _interpolate(vdot)
