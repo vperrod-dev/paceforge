@@ -12,14 +12,25 @@ It runs four ways, all free beyond a Claude subscription:
 
 ## How it works
 
-- **Deterministic maths in code**: VDOT→pace zones, workout construction, the template
-  planner, and plan validation live in the `paceforge` package.
-- **Judgement is Claude's**: plan design, adaptation to your current state, activity
-  analysis, and weekly reviews — guided by the coach skill (`.claude/skills/coach/`).
+- **Deterministic maths in code**: VDOT→pace *bands*, workout construction, and a
+  coach-grade plan generator live in the `paceforge` package. The engine owns
+  structure and variety: volume anchored to your actual mileage (ACWR-safe ramps),
+  session variants that progress week over week (Canova levers, volume-gated),
+  rule-driven long-run rotation (unstructured alternates with progression / blocks /
+  race-pace; dress rehearsal ~3 weeks out), milestone time trials on deload weeks,
+  and a full **coaching briefing** on every session (purpose, structure with pace
+  windows, feel, failure-mode advice, form cues, fueling).
+- **Judgement is Claude's**: athlete-specific notes on top of the briefings
+  (readiness trend, RPE history, schedule realism), adaptation, activity analysis,
+  and weekly reviews — guided by the coach and running-plan skills.
 - **State is files**: everything lives in git-tracked `data/*.json`. Git is the history.
 
-Claude **proposes** a plan; the engine **validates** it (paces ordered, no back-to-back
-intense days, sane volume ramps) before anything reaches your watch.
+The engine **validates** every plan (paces ordered, goal feasibility vs VDOT, no
+back-to-back intense days, sane ramps, frequency-scaled long-run caps, no identical
+quality sessions in consecutive weeks) before anything reaches your watch. After
+quality sessions, **pace insights** judge your splits against the target windows
+(heat-adjusted, HR-guarded) and propose an accept/reject pace recalibration —
+future weeks only, rate-limited, frozen near race day.
 
 ## Web dashboard
 
@@ -34,7 +45,12 @@ deployed by `pages.yml` and re-deployed automatically after each sync:
   red failing — click through for the reason).
 - **Overview** — the everything dashboard: recent activities, this week's plan, key stats.
 - **Plan** — week-by-week navigation with plan-vs-actual badges on every session and a
-  weekly "% on plan" chip; edit paces, reschedule, add notes, push a week to Garmin.
+  weekly "% on plan" chip; every session opens with its full coaching briefing (why /
+  structure / feel / if-it-goes-wrong / cues / fueling) and each week shows its role in
+  the plan arc; a **pace-insights chip** proposes accept-one-click pace recalibrations
+  when your quality sessions consistently beat (or miss) their windows; edit paces,
+  reschedule, add notes, push a week to Garmin — or let the **Monday auto-sync** push
+  the next two weeks to your watch automatically.
 - **Calendar** — compact month grid (weeks start Monday), with dots colour-coded by
   session type (easy, long, tempo, fast, cross-training) and each day ringed by its
   worst plan-vs-actual band (green on-plan / yellow / orange / red missed); click a day
@@ -68,9 +84,9 @@ deployed by `pages.yml` and re-deployed automatically after each sync:
   race-fatigue is subtracted out). All benchmarks are **cohort-adjusted** — compared to
   your own gender/division/age-group field (labelled on the split table), and stations
   more than 60s off the benchmark (or your two weakest) are flagged as training
-  priorities. A `--goal HYROX` plan schedules real hybrid training around them:
-  **compromised bricks** (station effort + 1 km repeats), **race simulations**, and
-  **station-strength days** auto-targeting your weakest stations.
+  priorities. A `--goal HYROX` plan is **running-only** by design (S&C stays outside
+  the plan): it biases the quality slots toward **compromised running** — 1 km
+  threshold repeats growing toward the race's 8×1 km — plus VO2max and hill work.
 - **Events** — add upcoming races/runs (Settings → Upcoming events); they show as a
   countdown on Today and on the Calendar, and the coach rebalances your plan around
   them (taper into races, build between them) gated by your health metrics.
@@ -158,11 +174,14 @@ See `.env.example` for all variables.
 paceforge sync                              # Garmin metrics + activities → data/*.json
 paceforge analyze                           # aerobic/economy/load/predictions analysis
 paceforge plan --goal MARATHON --date 2026-10-04 --level intermediate
+paceforge plan-md                           # regenerate plan.md from data/plan.json
 paceforge validate                          # check data/plan.json against the rules
 paceforge adapt --dry-run                   # reflow missed sessions + readiness-gate hard work
+paceforge recalibrate --delta 0.5           # accepted pace bump: re-target future weeks only
 paceforge rpe 7 <activity_id>               # rate a session 1-10 (makes HR-less sessions count)
 paceforge push --dry-run                    # preview the week's workouts
 paceforge push                              # upload to Garmin
+paceforge autosync                          # what Mondays run: push next 2 weeks, clean stale
 paceforge hyrox-import-profile <slug>       # import all races from a hyresult.com profile
 paceforge hyrox-search "Surname" --gender M # (legacy) results.hyrox.com name search
 ```

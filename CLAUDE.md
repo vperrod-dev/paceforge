@@ -16,10 +16,13 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
 .venv/bin/paceforge sync                # Garmin metrics+activities → data/*.json
 .venv/bin/paceforge analyze             # full analytics over the stored profile
 .venv/bin/paceforge plan --goal MARATHON --date 2026-10-04 --level intermediate
+.venv/bin/paceforge plan-md             # regenerate plan.md deterministically (never hand-write it)
 .venv/bin/paceforge validate            # check data/plan.json against the rules
 .venv/bin/paceforge adapt [--dry-run]   # reflow missed sessions + readiness-gate hard work
+.venv/bin/paceforge recalibrate --delta 0.5 [--force]  # accepted pace shift, future weeks only
 .venv/bin/paceforge rpe 7 <activity_id> # log session RPE (HR-less strength/HYROX load)
 .venv/bin/paceforge push [--week N] [--dry-run]   # upload a plan week to Garmin
+.venv/bin/paceforge autosync            # Monday cron: push next 2 weeks, delete stale copies
 .venv/bin/paceforge-mcp                 # stdio MCP server (Claude desktop app)
 ```
 
@@ -34,20 +37,43 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
 - **`actions.py`** — all behaviour (sync, scaffold, analyze, validate, push,
   status, Garmin auth). The CLI and MCP server are thin wrappers over it.
 - **`cli.py`** / **`mcp_server.py`** — two entrypoints, same logic.
-- **`engine/`** — VDOT maths (`vdot.py`), workout factory (`workouts.py`, incl.
-  HYROX brick/simulation/station-day builders), template planner (`planner.py`,
-  LLM-free), `adaptation.py` (reflow + readiness gate), `validate.py` (plan rule
-  checks), and the Fitness 2.0 modules: `durability.py`, `curves.py`, `enviro.py`,
-  `load.py` (incl. sRPE), `compliance.py`, `matching.py`, `strength.py`,
-  `limiters.py`. `analytics.py` is the LEGACY snapshot analysis.
-- **`garmin/client.py`** — reads metrics, uploads structured workouts.
+- **`engine/`** — VDOT maths + percentage pace *bands* (`vdot.py`), workout
+  factory (`workouts.py` — easy/long/tempo/cruise/VO2/speed/hills/fartlek plus
+  ladders, progressive tempo, alternations, steady-M, blocks long run, time
+  trial), plan generator (`planner.py`, LLM-free: volume anchored to actual
+  mileage, skeleton-density + goal-feasibility rules, rule-driven long-run
+  rotation, deload time trials), session-variant tables (`variants.py`,
+  Canova-lever ordered, volume-gated), coaching briefings (`briefings.py` —
+  purpose/structure/feel/if_wrong/cue/venue/fuel/warmup per session + week
+  intros), `adaptation.py` (reflow + readiness gate), `validate.py` (pace
+  ordering, goal feasibility, back-to-back, ramps, frequency-scaled long-run
+  cap, consecutive-week session variety), and the Fitness 2.0 modules:
+  `durability.py`, `curves.py`, `enviro.py`, `load.py` (incl. sRPE),
+  `compliance.py` (plan-vs-actual bands + **pace insights**: heat-adjusted
+  actual-vs-window verdicts + rolling pace status), `matching.py`,
+  `strength.py`, `limiters.py`. `analytics.py` is the LEGACY snapshot analysis.
+- **`garmin/client.py`** — reads metrics, uploads structured workouts (pace.zone
+  windows from plan bands, per-step notes ≤200 chars, HR bpm targets, REST
+  steps; description ≤500 chars leads with the briefing purpose).
 - **`hyrox/`** — race-result analyzer vs field benchmarks.
 
 ## The AI / validation split
-Deterministic facts stay in code; judgement is Claude's. Claude **proposes** a
-plan (guided by the coach skill), `engine/validate.py` **checks** it. Never ask
-the model to compute paces a formula does exactly — scaffold with
-`paceforge plan`, then personalise and re-validate.
+Deterministic facts stay in code; judgement is Claude's. The **engine owns**
+plan structure, session variety/progression, and the per-session briefings —
+Claude (running-plan/coach skills) adds the **athlete-specific layer**: workout
+`notes` that read readiness/RPE/history, plan `rationale`/`tips`, adaptations.
+Never rewrite engine variety or restate a briefing; never ask the model to
+compute paces a formula does exactly. Scaffold with `paceforge plan`,
+personalise notes, re-validate, regenerate the human view with
+`paceforge plan-md`. Pace changes go through `paceforge recalibrate`
+(athlete-accepted, guarded), never hand-edits.
+
+## Scheduled workflows (beyond sync)
+`autosync.yml` (Mon 06:00 UTC) pushes the next 2 accepted-plan weeks to Garmin
+and cleans stale copies; `recalibrate.yml` applies portal-accepted pace shifts;
+`plan.yml` scaffolds deterministically, then Claude enriches notes. push.yml
+and autosync.yml **commit plan.json back** (garmin_workout_id persistence —
+required for dedup).
 
 ## Auth & secrets (env)
 `PACEFORGE_GARMIN_EMAIL`, `GARMIN_TOKEN` (base64 token from `paceforge login`),
