@@ -58,3 +58,4 @@ data/fitness.json
 data/hyrox_analysis.json
 data/weekly.json
 _site/
+.claude/worktrees/
