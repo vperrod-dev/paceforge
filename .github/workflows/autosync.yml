@@ -1,0 +1,43 @@
+name: autosync
+
+# Weekly Garmin auto-sync: clean up stale completed workout copies, then push
+# the current + next plan weeks to the Garmin calendar. Runs Mondays after the
+# daily 05:00 data sync, and on demand.
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paceforge-data
+  cancel-in-progress: false
+
+jobs:
+  autosync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Autosync upcoming weeks to Garmin
+        env:
+          PACEFORGE_GARMIN_EMAIL: ${{ secrets.PACEFORGE_GARMIN_EMAIL }}
+          GARMIN_TOKEN: ${{ secrets.GARMIN_TOKEN }}
+        run: paceforge autosync
+
+      - name: Commit updated plan
+        run: |
+          git config user.name "paceforge-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/plan.json
+          git commit -m "data: weekly Garmin autosync" || echo "nothing to commit"
+          git push

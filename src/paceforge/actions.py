@@ -550,18 +550,32 @@ def validate() -> list[str]:
     return validate_plan(plan)
 
 
+def _upcoming_weeks(plan: TrainingPlan) -> list[TrainingWeek]:
+    """Plan weeks with at least one workout scheduled today or later, in order."""
+    today = date.today()
+    return [
+        wk for wk in plan.weeks
+        if any(w.scheduled_date and w.scheduled_date >= today for w in wk.workouts)
+    ]
+
+
 def _select_week(plan: TrainingPlan, week: int | None) -> TrainingWeek:
     if week is not None:
         for wk in plan.weeks:
             if wk.week_number == week:
                 return wk
         raise RuntimeError(f"Week {week} not in plan.")
-    today = date.today()
-    upcoming = [
-        wk for wk in plan.weeks
-        if any(w.scheduled_date and w.scheduled_date >= today for w in wk.workouts)
-    ]
+    upcoming = _upcoming_weeks(plan)
     return upcoming[0] if upcoming else plan.weeks[0]
+
+
+def _plan_paces(plan: TrainingPlan) -> dict:
+    return {
+        "easy_pace": plan.easy_pace,
+        "marathon_pace": plan.marathon_pace,
+        "threshold_pace": plan.threshold_pace,
+        "interval_pace": plan.interval_pace,
+    }
 
 
 def push(week: int | None = None, dry_run: bool = False) -> dict:
@@ -580,18 +594,52 @@ def push(week: int | None = None, dry_run: bool = False) -> dict:
     ]
     if dry_run:
         return {"week": wk.week_number, "dry_run": True, "workouts": summary}
-    paces = {
-        "easy_pace": plan.easy_pace,
-        "marathon_pace": plan.marathon_pace,
-        "threshold_pace": plan.threshold_pace,
-        "interval_pace": plan.interval_pace,
-    }
     client = garmin_connect()
-    result = client.push_plan_week(workouts, plan_paces=paces, pace_bands=plan.pace_bands)
+    result = client.push_plan_week(workouts, plan_paces=_plan_paces(plan),
+                                   pace_bands=plan.pace_bands)
     store.save_plan(plan)  # persist garmin_workout_id for delete-by-id on re-push
     return {"week": wk.week_number, "pushed": len(result["pushed"]),
             "failed": result["failed"], "workouts": summary,
             "uploads": result["pushed"]}
+
+
+def autosync(client: GarminClient | None = None) -> dict:
+    """Weekly self-push: drop stale completed Garmin copies, push current + next week.
+
+    Idempotent — push_plan_week deletes by stored ``garmin_workout_id`` before
+    re-uploading, and cleaned-up ids are set to None so they aren't re-deleted.
+    """
+    plan = store.load_plan()
+    if plan is None or not plan.weeks:
+        raise RuntimeError("No plan at data/plan.json.")
+    if not plan.accepted:
+        raise RuntimeError("Plan not accepted — refusing to autosync.")
+    client = client or garmin_connect()
+
+    # Completed past workouts no longer need their scheduled Garmin copy.
+    today = date.today()
+    stale_deleted = 0
+    for wk in plan.weeks:
+        for w in wk.workouts:
+            if (w.garmin_workout_id and w.completed
+                    and w.scheduled_date and w.scheduled_date < today):
+                client.delete_workout(w.garmin_workout_id)
+                w.garmin_workout_id = None
+                stale_deleted += 1
+
+    weeks = _upcoming_weeks(plan)[:2]  # current + next
+    pushed = 0
+    failed: list[dict] = []
+    for wk in weeks:
+        workouts = [w for w in wk.workouts if w.workout_type.value != "rest"]
+        result = client.push_plan_week(workouts, plan_paces=_plan_paces(plan),
+                                       pace_bands=plan.pace_bands)
+        pushed += len(result["pushed"])
+        failed += result["failed"]
+
+    store.save_plan(plan)  # persist garmin_workout_id changes
+    return {"weeks": [wk.week_number for wk in weeks], "stale_deleted": stale_deleted,
+            "pushed": pushed, "failed": failed}
 
 
 def garmin_delete(client: GarminClient | None = None) -> dict:

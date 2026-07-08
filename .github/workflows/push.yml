@@ -15,7 +15,7 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: paceforge-push
@@ -43,3 +43,13 @@ jobs:
           if [ -n "${{ inputs.week }}" ]; then ARGS="--week ${{ inputs.week }}"; fi
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           paceforge push $ARGS
+
+      # Persist garmin_workout_id written by the push — without this the ids
+      # are discarded with the runner and dedup falls back to the name+date sweep.
+      - name: Commit updated plan
+        run: |
+          git config user.name "paceforge-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/plan.json
+          git commit -m "data: record Garmin workout ids from push" || echo "nothing to commit"
+          git push

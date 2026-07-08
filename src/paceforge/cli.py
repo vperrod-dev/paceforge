@@ -44,6 +44,9 @@ def main(argv: list[str] | None = None) -> int:
     p_push.add_argument("--week", type=int, default=None)
     p_push.add_argument("--dry-run", action="store_true")
 
+    sub.add_parser("autosync",
+                   help="weekly self-push: clean stale copies, push current + next week")
+
     p_adapt = sub.add_parser("adapt", help="reflow missed sessions + readiness-gate hard work")
     p_adapt.add_argument("--dry-run", action="store_true")
 
@@ -119,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
             print("valid")
         elif args.cmd == "push":
             _emit(actions.push(week=args.week, dry_run=args.dry_run))
+        elif args.cmd == "autosync":
+            _emit(actions.autosync())
         elif args.cmd == "rpe":
             _emit(actions.log_rpe(args.activity_id, args.date, rpe=args.rpe,
                                   duration_min=args.duration_min, notes=args.notes))
