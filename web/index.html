@@ -2256,6 +2256,7 @@ function drawWeek(plan) {
       </div>
       ${compliancePct != null ? `<span class="conn-status" style="background:color-mix(in srgb,${compColor} 15%,transparent);color:${compColor}" title="sessions executed as planned (green band)"><span class="dotmark"></span>${compliancePct}% on plan</span>` : ''}
       <button class="btn btn-primary btn-sm" id="push-week">${icons.push} Push Week ${w.week_number || wi+1} to Garmin</button>
+      <div class="hint" style="flex-basis:100%;margin-top:2px">Watch settings for structured workouts: auto-lap OFF, auto-pause OFF, audio prompts ON, units = km.</div>
     </div>`;
     on('push-week', 'click', e => pushWeekToGarmin(w.week_number || (wi + 1), e.currentTarget));
   }

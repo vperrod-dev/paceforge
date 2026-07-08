@@ -1015,6 +1015,10 @@ def _build_garmin_description(workout: Workout, plan_paces: dict | None = None) 
     if header:
         parts.append(header)
 
+    # Briefing purpose — the "why" the engine wrote for this session
+    if workout.briefing and workout.briefing.get("purpose"):
+        parts.append(workout.briefing["purpose"])
+
     # Pace reference line
     if plan_paces:
         pace_items = []

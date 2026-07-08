@@ -67,12 +67,13 @@ jobs:
             python -c "import json; p=json.load(open('data/plan.json')); p['accepted']=True; json.dump(p, open('data/plan.json','w'), indent=2, default=str)"
           fi
           paceforge validate || echo "::warning::plan has validation notes (committed anyway)"
+          paceforge plan-md
 
       - name: Commit scaffold (safety net — always a plan)
         run: |
           git config user.name "paceforge-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add data/plan.json
+          git add data/plan.json plan.md
           git commit -m "plan: ${{ inputs.event_type }} for ${{ inputs.target_date }} (${{ inputs.level }})" || echo "no change"
           git push
 
