@@ -189,3 +189,36 @@ class TestPlanGeneration:
         week = plan.weeks[0]
         rest = [w for w in week.workouts if w.workout_type == WorkoutType.REST]
         assert len(rest) == 0, f"Expected 0 rest days in 7-day plan, got {len(rest)}"
+
+
+def test_long_run_rotation_rules():
+    """Hard long runs alternate with unstructured; no hard subtype repeats
+    back-to-back; taper long runs are unstructured; rehearsal ~3 weeks out."""
+    plan = generate_plan(_make_profile(), _make_goal(weeks_out=14))
+    hard = {WorkoutType.LONG_RUN_PROGRESSIVE, WorkoutType.LONG_RUN_WITH_RACE_PACE}
+    lr_types = []
+    for wk in plan.weeks[:-1]:
+        lrs = [w for w in wk.workouts if w.workout_type in hard | {WorkoutType.LONG_RUN}]
+        if lrs:
+            lr_types.append((wk.week_number, wk.phase, lrs[0].workout_type, lrs[0].name))
+    for (_, _, a, an), (_, _, b, bn) in zip(lr_types, lr_types[1:]):
+        if a in hard and b in hard:
+            assert an != bn, f"hard long run repeats: {an}"
+    rehearsal_week = plan.total_weeks - 3
+    rehearsal = [t for t in lr_types if t[0] == rehearsal_week]
+    assert rehearsal and rehearsal[0][2] == WorkoutType.LONG_RUN_WITH_RACE_PACE
+    taper = [t for t in lr_types if t[1] == "Taper" and t[0] != rehearsal_week]
+    assert all(t[2] == WorkoutType.LONG_RUN for t in taper)
+
+
+def test_time_trial_lands_on_deload_and_strips_q2():
+    plan = generate_plan(_make_profile(), _make_goal(weeks_out=14))
+    tt_weeks = [
+        wk for wk in plan.weeks
+        if any("Time Trial" in w.name for w in wk.workouts)
+    ]
+    assert tt_weeks, "a 14-week plan should include at least one time trial"
+    from paceforge.engine.validate import INTENSE_TYPES
+    for wk in tt_weeks:
+        quality = [w for w in wk.workouts if w.workout_type in INTENSE_TYPES]
+        assert len(quality) == 1, f"TT week {wk.week_number} has extra quality: {[w.name for w in quality]}"

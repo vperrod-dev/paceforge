@@ -241,6 +241,83 @@ class WorkoutFactory:
             steps=steps,
         )
 
+    def long_run_blocks(self, distance_km: float, n_blocks: int = 3, block_km: float = 2.0) -> Workout:
+        """Runna-style 'blocks' long run: easy running with steady Zone-3
+        segments — harder than easy, easier than marathon pace."""
+        p = self.paces
+        dist_m = distance_km * 1000
+        steady_c = (p.easy_low + p.marathon) / 2 if p else None
+        steady_lo = steady_c - 8 if steady_c else None
+        steady_hi = steady_c + 8 if steady_c else None
+        float_km = 1.5
+        lead_km = max(distance_km - n_blocks * (block_km + float_km), 2.0)
+        steps: list[WorkoutStep] = [self._easy_step(distance_meters=lead_km * 1000)]
+        for i in range(n_blocks):
+            steps.append(
+                self._pace_step(
+                    WorkoutStepType.ACTIVE,
+                    f"Block {i + 1}/{n_blocks}: {block_km:.0f} km steady",
+                    distance_meters=block_km * 1000,
+                    pace_low=steady_lo,
+                    pace_high=steady_hi,
+                )
+            )
+            steps.append(self._easy_step(distance_meters=float_km * 1000))
+        dur = None
+        if p:
+            dur = (
+                (lead_km + n_blocks * float_km) * p.easy_low
+                + n_blocks * block_km * (steady_c or p.marathon)
+            )
+        return Workout(
+            workout_type=WorkoutType.LONG_RUN_PROGRESSIVE,
+            name=f"{distance_km:.0f}km Long Run w/ {n_blocks} Steady Blocks",
+            description=(
+                "Long run with steady blocks — easy running broken up by sustained"
+                " Zone-3 segments. Endurance plus rhythm without race-pace stress."
+            ),
+            purpose=TrainingPurpose.ENDURANCE,
+            estimated_distance_meters=dist_m,
+            estimated_duration_seconds=dur,
+            steps=steps,
+        )
+
+    def time_trial(self, km: float) -> Workout:
+        """All-out benchmark over a fixed distance — the plan's fitness check
+        and the input to pace recalibration."""
+        from paceforge.engine.vdot import predict_time
+
+        p = self.paces
+        pace_lo = pace_hi = None
+        dur = None
+        if p and p.vdot:
+            pace_c = predict_time(km * 1000, p.vdot) / km
+            pace_lo, pace_hi = pace_c * 0.98, pace_c * 1.02
+            dur = 15 * 60 + km * pace_c + 10 * 60
+        steps = [
+            self._warmup(15),
+            self._pace_step(
+                WorkoutStepType.INTERVAL,
+                f"{km:.0f} km all-out time trial",
+                distance_meters=km * 1000,
+                pace_low=pace_lo,
+                pace_high=pace_hi,
+            ),
+            self._cooldown(10),
+        ]
+        return Workout(
+            workout_type=WorkoutType.RACE_PACE,
+            name=f"{km:.0f}K Time Trial",
+            description=(
+                "Maximal-effort benchmark. Race it like race day — warm up properly,"
+                " pace evenly, empty the tank. The result recalibrates your training paces."
+            ),
+            purpose=TrainingPurpose.RACE_SPECIFICITY,
+            estimated_distance_meters=km * 1000 + 5000,
+            estimated_duration_seconds=dur,
+            steps=steps,
+        )
+
     def long_run_with_race_pace(self, distance_km: float, race_pace_km: float = 4) -> Workout:
         dist_m = distance_km * 1000
         p = self.paces

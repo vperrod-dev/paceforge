@@ -111,11 +111,36 @@ _Q2_TAPER = ["tempo", "race_pace"]
 # Easy run slot: alternate easy and easy+strides
 _EASY_ROTATION = ["easy", "easy_with_strides"]
 
-# Long run slot: alternate types
-_LR_BASE = ["long", "long", "long_progressive", "long"]
-_LR_BUILD = ["long", "long_progressive", "long_with_race_pace", "long"]
-_LR_PEAK = ["long_progressive", "long_with_race_pace", "long_with_race_pace", "long"]
-_LR_TAPER = ["long", "long"]
+# Hard long-run subtypes cycled per phase — a hard long run fires every OTHER
+# week (odd weeks), so consecutive hard occurrences step through these lists
+# and never repeat a subtype back-to-back. Even weeks are unstructured — run
+# to feel, no targets — which is what makes the hard ones land (Runna's rule).
+_LR_HARD = {
+    "Base": ["long_progressive", "long_blocks"],
+    "Build": ["long_blocks", "long_progressive", "long_with_race_pace"],
+    "Peak": ["long_with_race_pace", "long_blocks", "long_with_race_pace", "long_progressive"],
+}
+
+
+def _long_run_type(phase: str, wk_idx: int, deload: bool, weeks_to_race: int,
+                   week_in_phase: int, phase_len: int) -> str:
+    """Pick the long-run subtype for a week (C10 rules).
+
+    Cutback weeks and the taper are unstructured; the dress rehearsal
+    (race-pace long run) lands ~3 weeks out; otherwise hard subtypes alternate
+    with unstructured runs, race-pace only from mid-build.
+    """
+    if phase == "Taper" or weeks_to_race <= 1:
+        return "long"
+    if weeks_to_race == 3:
+        return "long_with_race_pace"  # dress rehearsal — even on a cutback (fresh legs)
+    if deload or wk_idx % 2 == 0:
+        return "long"  # unstructured — switch off, run to feel
+    hard = _LR_HARD.get(phase, _LR_HARD["Build"])
+    pick = hard[(wk_idx // 2) % len(hard)]
+    if pick == "long_with_race_pace" and phase == "Build" and week_in_phase < phase_len / 2:
+        return "long_progressive"  # race-pace waits until mid-build
+    return pick
 
 # Compromised-running Q1 rotation (HYROX): running-only run-under-fatigue work —
 # 1km repeats at threshold pace mimicking the race's 8x1km, plus VO2max/hills.
@@ -243,6 +268,7 @@ def _generate_template_plan(
         phase_positions.setdefault(ph, []).append(i)
 
     compromised = event_profile(goal.goal_type).compromised_bias
+    last_tt: int | None = None
     goal_pace = None
     goal_dist = RACE_DISTANCES.get(goal.goal_type.value)
     if goal.target_time_seconds and goal_dist:
@@ -306,6 +332,16 @@ def _generate_template_plan(
         members = phase_positions[week_phase[wk_idx]]
         week_in_phase = members.index(wk_idx)
         deload = wk_idx > 0 and week_kms[wk_idx] < week_kms[wk_idx - 1]
+        weeks_to_race = total_weeks - wk_num
+        lr_type = _long_run_type(
+            phase, wk_idx, deload, weeks_to_race, week_in_phase, len(members)
+        )
+        # Milestone time trial on a deload ≥4 weeks out, ≥4 weeks apart — a
+        # maximal effort, so it consumes BOTH quality slots that week.
+        tt_km = None
+        if deload and weeks_to_race >= 4 and (last_tt is None or wk_idx - last_tt >= 4):
+            tt_km = 3.0 if goal.goal_type.value == "5K" else 5.0
+            last_tt = wk_idx
         workouts = _build_varied_week(
             factory=factory, phase=phase, week_km=week_km,
             week_start=week_start, wk_idx=wk_idx,
@@ -315,6 +351,9 @@ def _generate_template_plan(
             compromised=compromised,
             week_in_phase=week_in_phase,
             deload=deload,
+            lr_type=lr_type,
+            lr_rehearsal=weeks_to_race == 3,
+            time_trial_km=tt_km,
         )
         focus = _get_focus(phase, wk_idx)
         actual_km = round(sum(
@@ -374,6 +413,9 @@ def _build_varied_week(
     compromised: bool = False,
     week_in_phase: int = 0,
     deload: bool = False,
+    lr_type: str = "long",
+    lr_rehearsal: bool = False,
+    time_trial_km: float | None = None,
 ) -> list[Workout]:
     """Build a week of running workouts distributed across chosen training days.
 
@@ -421,19 +463,16 @@ def _build_varied_week(
     q2_pool = {
         "Base": _Q2_BASE, "Build": _Q2_BUILD, "Peak": _Q2_PEAK, "Taper": _Q2_TAPER,
     }.get(phase, _Q2_BUILD)
-    lr_pool = {
-        "Base": _LR_BASE, "Build": _LR_BUILD, "Peak": _LR_PEAK, "Taper": _LR_TAPER,
-    }.get(phase, _LR_BUILD)
 
     q1_type = q1_pool[wk_idx % len(q1_pool)]
     q2_type = q2_pool[wk_idx % len(q2_pool)]
-    lr_type = lr_pool[wk_idx % len(lr_pool)]
     easy_type = _EASY_ROTATION[wk_idx % len(_EASY_ROTATION)]
 
     # Skeleton density: at ≤3 run days a hard long-run subtype consumes a
     # quality slot — the week is (Q1 + easy + hard long), never Q1+Q2+hard long,
-    # or the athlete gets zero easy running.
-    demote_q2 = num_run_days <= 3 and lr_type != "long"
+    # or the athlete gets zero easy running. A time trial is maximal effort and
+    # likewise strips the second quality session.
+    demote_q2 = (num_run_days <= 3 and lr_type != "long") or time_trial_km is not None
 
     # Low-volume weeks (ACWR anchor biting): hard Q1 doesn't fit the budget —
     # keep the stimulus mild until volume supports real quality work.
@@ -478,9 +517,24 @@ def _build_varied_week(
     # Quality sessions carry fixed overhead (warmup/cooldown) that can overshoot
     # their nominal budget, so build them first and give the easy days the
     # actual remainder — keeps the week's true volume at week_km.
+    # Strides bolt-on: in Build/Peak the easy day just before Q1 primes the legs.
+    strides_day = None
+    if phase in ("Build", "Peak"):
+        q1_day = next((d for d, r in role_map.items() if r == "q1"), None)
+        if q1_day:
+            strides_day = next(
+                (d for d, r in role_map.items()
+                 if r.startswith("easy_") and _DAY_OFFSETS[d] == _DAY_OFFSETS[q1_day] - 1),
+                None,
+            )
+
     core: dict[str, Workout] = {}
     if "q1" in role_map.values():
-        core["q1"] = _make_quality(factory, q1_type, q1_km, week_in_phase, deload, week_km)
+        core["q1"] = (
+            factory.time_trial(time_trial_km)
+            if time_trial_km
+            else _make_quality(factory, q1_type, q1_km, week_in_phase, deload, week_km)
+        )
     if "q2" in role_map.values():
         core["q2"] = (
             factory.easy_run(q2_km)
@@ -498,7 +552,7 @@ def _build_varied_week(
     else:
         long_km = max(rem, week_km * 0.33)
     long_km = round(min(long_km, week_km * 0.48), 1)
-    core["long_run"] = _make_long_run(factory, lr_type, long_km)
+    core["long_run"] = _make_long_run(factory, lr_type, long_km, rehearsal=lr_rehearsal)
     core_km = sum((w.estimated_distance_meters or 0) / 1000 for w in core.values())
     if num_easy:
         remainder = week_km - core_km
@@ -529,7 +583,11 @@ def _build_varied_week(
 
         if role in core:
             w = core[role]
-        elif easy_type == "easy_with_strides":
+        elif (
+            day_name == strides_day
+            if strides_day
+            else easy_type == "easy_with_strides"
+        ):
             w = factory.easy_with_strides(per_easy_km)
         else:
             w = factory.easy_run(per_easy_km)
@@ -565,12 +623,17 @@ def _make_quality(
     return getattr(factory, method)(**kwargs)
 
 
-def _make_long_run(factory: WorkoutFactory, lr_type: str, distance_km: float) -> Workout:
+def _make_long_run(
+    factory: WorkoutFactory, lr_type: str, distance_km: float, rehearsal: bool = False
+) -> Workout:
     """Generate long run based on rotation type."""
     if lr_type == "long_progressive":
         return factory.long_run_progressive(distance_km)
+    elif lr_type == "long_blocks":
+        return factory.long_run_blocks(distance_km)
     elif lr_type == "long_with_race_pace":
-        return factory.long_run_with_race_pace(distance_km, race_pace_km=min(4, distance_km * 0.25))
+        rp_km = min(8, distance_km * 0.4) if rehearsal else min(4, distance_km * 0.25)
+        return factory.long_run_with_race_pace(distance_km, race_pace_km=rp_km)
     else:
         return factory.long_run(distance_km)
 
