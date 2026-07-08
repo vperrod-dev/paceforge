@@ -1,5 +1,13 @@
 # Plan Quality Upgrade — Runna-Level Running Plans (v2, 2026-07-08)
 
+> **STATUS 2026-07-08: SHIPPED (all 10 PRs, master 7f4963d…6709cf4, 320 tests green).**
+> PR1 bands `7f4963d` · PR2 structural `8fc8077` · PR3 variants `e07a560` · PR4 long
+> runs/TT `8958047` · PR5/6 briefings+renderers `d3f5c19` · PR7/8 Garmin+autosync
+> `1106808`/`0b6cc08` (merge `6ababcc`) · PR9/10 insights+recalibration `fb7d961` ·
+> integration `6709cf4`. Open: **Phase 0 watch confirm (Victor)**; regenerate the
+> active plan (Create Plan button) to get the new engine's output; first Monday
+> autosync run 06:00 UTC.
+
 v1 = research synthesis (repo map + Runna/Garmin/TrainingPeaks/NRC primary-source research).
 v2 = v1 hardened by a three-way review round: **coach-science critique**, **engineering
 fit against the actual code**, **Garmin payload feasibility verification**. v2 supersedes
