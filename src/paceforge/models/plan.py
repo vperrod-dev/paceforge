@@ -36,6 +36,11 @@ class WorkoutStep(BaseModel):
     target_high: float | None = Field(None, description="High end — pace (sec/km) or HR (bpm)")
     repeat_count: int | None = Field(None, description="For repeat groups only")
     steps: list[WorkoutStep] | None = Field(None, description="Sub-steps for repeat groups")
+    pace_key: str | None = Field(
+        None,
+        description="Zone the targets were derived from (easy/marathon/threshold/interval/"
+        "repetition) — lets recalibration re-resolve targets after a VDOT change",
+    )
 
 
 class WorkoutType(StrEnum):
@@ -144,6 +149,10 @@ class TrainingPlan(BaseModel):
     threshold_pace: float | None = None
     interval_pace: float | None = None
     repetition_pace: float | None = None
+    pace_bands: dict[str, list[float]] | None = Field(
+        default=None,
+        description="Per-zone (low, high) sec/km windows; the scalar paces above stay for back-compat",
+    )
     vdot: float | None = Field(default=None, description="Derived VDOT value used for pace calculation")
     pace_source: str = Field(default="", description="How training paces were derived (e.g. 'Lactate threshold speed', 'VO2 Max')")
 

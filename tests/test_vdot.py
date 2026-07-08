@@ -79,3 +79,28 @@ class TestPacesFromRace:
         assert paces.easy_low > 0
         assert paces.threshold < paces.easy_low
         assert paces.interval < paces.threshold
+
+
+class TestPaceBands:
+    def test_easy_band_is_table_range(self):
+        paces = paces_from_vdot(50)
+        assert paces.band("easy") == (paces.easy_low, paces.easy_high)
+
+    def test_band_brackets_center(self):
+        paces = paces_from_vdot(54.7)
+        for key in ("marathon", "threshold", "interval", "repetition"):
+            low, high = paces.band(key)
+            center = getattr(paces, key)
+            assert low < center < high
+
+    def test_bands_wider_than_gps_noise(self):
+        """Windows must exceed ~±3 s/km or the watch alerts constantly."""
+        paces = paces_from_vdot(54.7)
+        for key in ("marathon", "threshold", "interval", "repetition"):
+            low, high = paces.band(key)
+            assert high - low > 8, f"{key} band {high - low:.1f}s too narrow"
+
+    def test_threshold_band_slow_side_biased(self):
+        paces = paces_from_vdot(50)
+        low, high = paces.band("threshold")
+        assert high - paces.threshold > paces.threshold - low

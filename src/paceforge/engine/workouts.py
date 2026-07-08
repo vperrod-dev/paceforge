@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from paceforge.engine.vdot import TrainingPaces
+from paceforge.engine.vdot import ZONE_KEYS, TrainingPaces
 from paceforge.models.plan import (
     IntensityTarget,
     TrainingPurpose,
@@ -30,6 +30,7 @@ class WorkoutFactory:
         distance_meters: float | None = None,
         pace_low: float | None = None,
         pace_high: float | None = None,
+        pace_key: str | None = None,
     ) -> WorkoutStep:
         target_type = IntensityTarget.PACE if pace_low is not None else IntensityTarget.OPEN
         return WorkoutStep(
@@ -40,6 +41,7 @@ class WorkoutFactory:
             target_type=target_type,
             target_low=pace_low,
             target_high=pace_high,
+            pace_key=pace_key if pace_low is not None else None,
         )
 
     def _warmup(self, minutes: float = 10) -> WorkoutStep:
@@ -50,6 +52,7 @@ class WorkoutFactory:
             duration_seconds=minutes * 60,
             pace_low=p.easy_low if p else None,
             pace_high=p.easy_high if p else None,
+            pace_key="easy",
         )
 
     def _cooldown(self, minutes: float = 10) -> WorkoutStep:
@@ -60,6 +63,7 @@ class WorkoutFactory:
             duration_seconds=minutes * 60,
             pace_low=p.easy_low if p else None,
             pace_high=p.easy_high if p else None,
+            pace_key="easy",
         )
 
     def _easy_step(
@@ -81,6 +85,7 @@ class WorkoutFactory:
             duration_seconds=duration_seconds,
             pace_low=p.easy_low if p else None,
             pace_high=p.easy_high if p else None,
+            pace_key="easy",
         )
 
     def _recovery_step(self, duration_seconds: float) -> WorkoutStep:
@@ -91,20 +96,14 @@ class WorkoutFactory:
             duration_seconds=duration_seconds,
             pace_low=p.easy_low if p else None,
             pace_high=p.easy_high if p else None,
+            pace_key="easy",
         )
 
     def _resolve_pace(self, pace_key: str) -> tuple[float | None, float | None]:
         p = self.paces
-        if not p:
+        if not p or pace_key not in ZONE_KEYS:
             return None, None
-        mapping: dict[str, tuple[float, float]] = {
-            "easy": (p.easy_low, p.easy_high),
-            "marathon": (p.marathon - 3, p.marathon + 3),
-            "threshold": (p.threshold - 3, p.threshold + 3),
-            "interval": (p.interval - 3, p.interval + 3),
-            "repetition": (p.repetition - 3, p.repetition + 3),
-        }
-        return mapping.get(pace_key, (None, None))
+        return p.band(pace_key)
 
     # ── Workout generators ───────────────────────────────────────────
 
@@ -141,6 +140,7 @@ class WorkoutFactory:
                         distance_meters=100,
                         pace_low=rep_low,
                         pace_high=rep_high,
+                        pace_key="repetition",
                     ),
                     self._recovery_step(45),
                 ],
@@ -209,6 +209,7 @@ class WorkoutFactory:
                 distance_meters=mp_km * 1000,
                 pace_low=mp_lo,
                 pace_high=mp_hi,
+                pace_key="marathon",
             ),
             self._pace_step(
                 WorkoutStepType.ACTIVE,
@@ -216,6 +217,7 @@ class WorkoutFactory:
                 distance_meters=threshold_km * 1000,
                 pace_low=t_lo,
                 pace_high=t_hi,
+                pace_key="threshold",
             ),
         ]
         return Workout(
@@ -252,6 +254,7 @@ class WorkoutFactory:
                 distance_meters=race_pace_km * 1000,
                 pace_low=mp_lo,
                 pace_high=mp_hi,
+                pace_key="marathon",
             ),
             self._cooldown(10),
         ]
@@ -284,6 +287,7 @@ class WorkoutFactory:
                 distance_meters=tempo_km * 1000,
                 pace_low=t_lo,
                 pace_high=t_hi,
+                pace_key="threshold",
             ),
             self._cooldown(10),
         ]
@@ -327,6 +331,7 @@ class WorkoutFactory:
                         duration_seconds=rep_min * 60,
                         pace_low=t_lo,
                         pace_high=t_hi,
+                        pace_key="threshold",
                     ),
                     self._recovery_step(60),
                 ],
@@ -373,6 +378,7 @@ class WorkoutFactory:
                         duration_seconds=rep_min * 60,
                         pace_low=i_lo,
                         pace_high=i_hi,
+                        pace_key="interval",
                     ),
                     self._recovery_step(rep_min * 60),
                 ],
@@ -415,6 +421,7 @@ class WorkoutFactory:
                         distance_meters=400,
                         pace_low=r_lo,
                         pace_high=r_hi,
+                        pace_key="repetition",
                     ),
                     self._recovery_step(rest_sec),
                 ],
@@ -454,6 +461,7 @@ class WorkoutFactory:
                         distance_meters=200,
                         pace_low=r_lo,
                         pace_high=r_hi,
+                        pace_key="repetition",
                     ),
                     self._recovery_step(rest_sec),
                 ],
@@ -567,6 +575,7 @@ class WorkoutFactory:
                 distance_meters=thirds * 1000,
                 pace_low=mp_lo,
                 pace_high=mp_hi,
+                pace_key="marathon",
             ),
             self._pace_step(
                 WorkoutStepType.ACTIVE,
@@ -574,6 +583,7 @@ class WorkoutFactory:
                 distance_meters=thirds * 1000,
                 pace_low=t_lo,
                 pace_high=t_hi,
+                pace_key="threshold",
             ),
         ]
         return Workout(
@@ -631,6 +641,7 @@ class WorkoutFactory:
                         distance_meters=1000,
                         pace_low=pace_lo,
                         pace_high=pace_hi,
+                        pace_key=pace_key,
                     ),
                 ],
             ),
@@ -667,6 +678,7 @@ class WorkoutFactory:
                 distance_meters=1000,
                 pace_low=pace_lo,
                 pace_high=pace_hi,
+                pace_key=pace_key,
             ))
             steps.append(self._pace_step(
                 WorkoutStepType.ACTIVE,
@@ -749,6 +761,7 @@ class WorkoutFactory:
                         distance_meters=rep_km * 1000,
                         pace_low=pace_lo,
                         pace_high=pace_hi,
+                        pace_key=pace_key,
                     ),
                     self._recovery_step(rest_sec),
                 ],

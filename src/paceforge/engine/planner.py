@@ -19,6 +19,7 @@ import yaml
 from paceforge.engine.events import event_profile
 from paceforge.engine.vdot import (
     RACE_DISTANCES,
+    ZONE_KEYS,
     TrainingPaces,
     normalize_lt_speed,
     paces_from_race,
@@ -295,6 +296,7 @@ def _generate_template_plan(
         threshold_pace=paces.threshold if paces else None,
         interval_pace=paces.interval if paces else None,
         repetition_pace=paces.repetition if paces else None,
+        pace_bands={k: list(paces.band(k)) for k in ZONE_KEYS} if paces else None,
         vdot=paces.vdot if paces else None,
         pace_source=pace_source,
         athlete_summary=athlete_summary,
@@ -716,24 +718,11 @@ def _build_steps(
         target_type = IntensityTarget.OPEN
         target_low = None
         target_high = None
-        if paces and "pace" in sd:
+        pace_key = None
+        if paces and sd.get("pace") in ZONE_KEYS:
             target_type = IntensityTarget.PACE
             pace_key = sd["pace"]
-            if pace_key == "easy":
-                target_low = paces.easy_low
-                target_high = paces.easy_high
-            elif pace_key == "marathon":
-                target_low = paces.marathon - 3
-                target_high = paces.marathon + 3
-            elif pace_key == "threshold":
-                target_low = paces.threshold - 3
-                target_high = paces.threshold + 3
-            elif pace_key == "interval":
-                target_low = paces.interval - 3
-                target_high = paces.interval + 3
-            elif pace_key == "repetition":
-                target_low = paces.repetition - 3
-                target_high = paces.repetition + 3
+            target_low, target_high = paces.band(pace_key)
 
         # Handle repeat groups
         if sd["type"] == "repeat":
@@ -756,6 +745,7 @@ def _build_steps(
                     target_type=target_type,
                     target_low=target_low,
                     target_high=target_high,
+                    pace_key=pace_key,
                 )
             )
 

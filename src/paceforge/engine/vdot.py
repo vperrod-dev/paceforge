@@ -71,6 +71,20 @@ _VDOT_TABLE: list[tuple[int, float, float, float, float, float, float]] = [
 ]
 
 
+# Zone band half-widths as fractions of the zone pace: (fast_side, slow_side).
+# Percentage-derived so bands scale with athlete speed (fixed seconds are
+# relatively tighter for slower runners); I/R carry a slow-side bias — short
+# reps see the worst GPS noise and overshooting fast is the common failure.
+_BAND_FRAC: dict[str, tuple[float, float]] = {
+    "marathon": (0.03, 0.03),
+    "threshold": (0.015, 0.04),
+    "interval": (0.035, 0.045),
+    "repetition": (0.03, 0.04),
+}
+
+ZONE_KEYS = ("easy", "marathon", "threshold", "interval", "repetition")
+
+
 @dataclass(frozen=True)
 class TrainingPaces:
     """Training paces in seconds per kilometre."""
@@ -97,6 +111,18 @@ class TrainingPaces:
 
     def repetition_display(self) -> str:
         return _fmt(self.repetition)
+
+    def band(self, key: str) -> tuple[float, float]:
+        """(low, high) pace window in sec/km for a zone key (low = faster edge).
+
+        Easy uses the table's own range; other zones get percentage-derived
+        windows from ``_BAND_FRAC``.
+        """
+        if key == "easy":
+            return (self.easy_low, self.easy_high)
+        fast_frac, slow_frac = _BAND_FRAC[key]
+        center: float = getattr(self, key)
+        return (center * (1 - fast_frac), center * (1 + slow_frac))
 
     def summary(self) -> dict[str, str]:
         return {
