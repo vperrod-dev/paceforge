@@ -824,7 +824,8 @@ class GarminClient:
         except Exception:
             logger.warning("Failed to delete Garmin workout %s", workout_id, exc_info=True)
 
-    def push_workout(self, workout: Workout, schedule_date: date | None = None, plan_paces: dict | None = None) -> dict:
+    def push_workout(self, workout: Workout, schedule_date: date | None = None,
+                     plan_paces: dict | None = None, pace_bands: dict | None = None) -> dict:
         """Upload a structured workout to Garmin Connect and optionally schedule it.
 
         HYROX/station workouts go up as fitness_equipment (Garmin's cardio/strength
@@ -833,14 +834,14 @@ class GarminClient:
         """
         sport = _sport_for(workout)
         try:
-            result = self._upload(workout, sport, plan_paces)
+            result = self._upload(workout, sport, plan_paces, pace_bands)
         except Exception:
             if sport["sportTypeKey"] == "running":
                 raise
             logger.warning("%s upload as %s rejected — retrying as running",
                            workout.name, sport["sportTypeKey"], exc_info=True)
             sport = _RUNNING_SPORT
-            result = self._upload(workout, sport, plan_paces)
+            result = self._upload(workout, sport, plan_paces, pace_bands)
         workout_id = result.get("workoutId")
         result["sport_used"] = sport["sportTypeKey"]
         logger.info("Uploaded workout %s (id=%s, sport=%s)",
@@ -852,9 +853,10 @@ class GarminClient:
 
         return result
 
-    def _upload(self, workout: Workout, sport: dict, plan_paces: dict | None) -> dict:
+    def _upload(self, workout: Workout, sport: dict, plan_paces: dict | None,
+                pace_bands: dict | None = None) -> dict:
         steps = workout.steps or _fallback_steps(workout, plan_paces)
-        garmin_steps = [_to_garmin_step(step, order=i + 1)
+        garmin_steps = [_to_garmin_step(step, order=i + 1, pace_bands=pace_bands)
                         for i, step in enumerate(steps)]
         garmin_workout = RunningWorkout(
             workoutName=workout.name,
@@ -929,7 +931,8 @@ class GarminClient:
             logger.warning("Could not fetch body composition for %s", target_date, exc_info=True)
         return {}
 
-    def push_plan_week(self, workouts: list[Workout], plan_paces: dict | None = None) -> dict:
+    def push_plan_week(self, workouts: list[Workout], plan_paces: dict | None = None,
+                       pace_bands: dict | None = None) -> dict:
         """Push a list of workouts (typically one week) to Garmin Connect.
 
         Dedup: deletes each workout's previously-pushed Garmin copy by stored id
@@ -965,7 +968,8 @@ class GarminClient:
         failed: list[dict] = []
         for w in active:
             try:
-                r = self.push_workout(w, schedule_date=w.scheduled_date, plan_paces=plan_paces)
+                r = self.push_workout(w, schedule_date=w.scheduled_date,
+                                      plan_paces=plan_paces, pace_bands=pace_bands)
                 if r.get("workoutId"):
                     w.garmin_workout_id = int(r["workoutId"])
                 pushed.append({"name": w.name, "workout_id": r.get("workoutId"),
@@ -1056,9 +1060,9 @@ def _build_garmin_description(workout: Workout, plan_paces: dict | None = None) 
         parts.append(workout.notes)
 
     result = "\n".join(parts)
-    # Truncate to stay within Garmin's limit
-    if len(result) > 450:
-        result = result[:447] + "..."
+    # Truncate to stay within Garmin's limit (512)
+    if len(result) > 500:
+        result = result[:497] + "..."
     return result or workout.description
 
 
@@ -1088,31 +1092,51 @@ def _fallback_steps(workout: Workout, plan_paces: dict | None) -> list[WorkoutSt
     )]
 
 
-def _to_garmin_step(step, order: int = 1):  # noqa: ANN001
+def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None):  # noqa: ANN001
     """Convert a PaceForge WorkoutStep to a garminconnect workout step dict.
 
-    Handles pace targets (sec/km → m/s pace zone) and distance-based
-    end conditions so the Garmin watch guides each segment.
+    Handles pace targets (sec/km → m/s pace zone), custom heart-rate ranges,
+    and distance-based end conditions so the Garmin watch guides each segment.
     """
     # ── Repeat groups must be checked first ──────────────────────────
     if step.repeat_count and step.steps:
-        sub_steps = [_to_garmin_step(s, i + 1) for i, s in enumerate(step.steps)]
+        sub_steps = [_to_garmin_step(s, i + 1, pace_bands=pace_bands)
+                     for i, s in enumerate(step.steps)]
         return create_repeat_group(step.repeat_count, sub_steps, order)
 
-    # ── Build pace target if available ───────────────────────────────
-    target = None
-    if (
+    has_bounds = (
         step.target_low is not None
         and step.target_high is not None
         and step.target_low > 0
         and step.target_high > 0
-    ):
+    )
+
+    # ── Build target if available ────────────────────────────────────
+    target = None
+    target_val_one = None
+    target_val_two = None
+    if has_bounds and step.target_type == IntensityTarget.HEART_RATE:
+        # Custom bpm range (NOT a Garmin zone number) — without this, HR steps
+        # silently became no.target.
+        target = {
+            "workoutTargetTypeId": TargetType.HEART_RATE,
+            "workoutTargetTypeKey": "heart.rate.zone",
+            "displayOrder": 4,
+        }
+        target_val_one = min(step.target_low, step.target_high)
+        target_val_two = max(step.target_low, step.target_high)
+    elif has_bounds:
         # A single-pace step (target_low == target_high) serializes to a
         # zero-width target that Garmin treats as no-op — this silently killed
-        # pacing on every easy/warmup/cooldown step. Widen it to a usable band.
+        # pacing on every easy/warmup/cooldown step. Widen it to the plan's
+        # real zone band when we know it, else a ±3 s/km fallback.
         pace_low, pace_high = step.target_low, step.target_high
         if pace_low == pace_high:
-            pace_low, pace_high = pace_low + 3.0, pace_high - 3.0
+            band = (pace_bands or {}).get(step.pace_key) if step.pace_key else None
+            if band and len(band) == 2 and band[0] > 0 and band[1] > 0 and band[0] != band[1]:
+                pace_low, pace_high = band[0], band[1]
+            else:
+                pace_low, pace_high = pace_low + 3.0, pace_high - 3.0
         # Convert sec/km → m/s. Faster pace (smaller sec/km) = higher m/s.
         speed_a = round(1000.0 / pace_low, 4)
         speed_b = round(1000.0 / pace_high, 4)
@@ -1128,9 +1152,6 @@ def _to_garmin_step(step, order: int = 1):  # noqa: ANN001
         # Garmin expects targetValueOne <= targetValueTwo
         target_val_one = min(speed_a, speed_b)
         target_val_two = max(speed_a, speed_b)
-    else:
-        target_val_one = None
-        target_val_two = None
 
     # ── Build end condition (distance or time) ───────────────────────
     if step.distance_meters and step.distance_meters > 0:
@@ -1156,6 +1177,8 @@ def _to_garmin_step(step, order: int = 1):  # noqa: ANN001
         WorkoutStepType.COOLDOWN: (StepType.COOLDOWN, "cooldown", 2),
         WorkoutStepType.RECOVERY: (StepType.RECOVERY, "recovery", 4),
         WorkoutStepType.INTERVAL: (StepType.INTERVAL, "interval", 3),
+        WorkoutStepType.ACTIVE: (StepType.INTERVAL, "interval", 3),
+        WorkoutStepType.REST: (StepType.REST, "rest", 5),
     }
     type_id, type_key, type_order = step_type_map.get(
         step.step_type, (StepType.INTERVAL, "interval", 3)
@@ -1177,9 +1200,13 @@ def _to_garmin_step(step, order: int = 1):  # noqa: ANN001
         },
     )
 
-    # Add speed target values (ExecutableStep has extra="allow")
+    # Add target values (ExecutableStep has extra="allow")
     if target_val_one is not None:
         garmin_step.targetValueOne = target_val_one  # type: ignore[attr-defined]
         garmin_step.targetValueTwo = target_val_two  # type: ignore[attr-defined]
+
+    # Per-step notes — Garmin renders these on the watch during the step.
+    if step.description:
+        garmin_step.description = step.description[:200]  # type: ignore[attr-defined]
 
     return garmin_step
