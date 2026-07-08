@@ -39,6 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("status", help="show stored profile + plan summary")
     sub.add_parser("analyze", help="run analytics over the stored profile")
     sub.add_parser("validate", help="validate data/plan.json")
+    sub.add_parser("plan-md", help="regenerate plan.md from data/plan.json")
 
     p_push = sub.add_parser("push", help="push a plan week to Garmin")
     p_push.add_argument("--week", type=int, default=None)
@@ -117,6 +118,9 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"  - {i}")
                 return 1
             print("valid")
+        elif args.cmd == "plan-md":
+            actions.plan_md()
+            print("plan.md regenerated")
         elif args.cmd == "push":
             _emit(actions.push(week=args.week, dry_run=args.dry_run))
         elif args.cmd == "rpe":

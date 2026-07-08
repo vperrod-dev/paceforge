@@ -16,6 +16,7 @@ from pathlib import Path
 
 import yaml
 
+from paceforge.engine.briefings import build_briefing, week_intro
 from paceforge.engine.events import event_profile
 from paceforge.engine.variants import pick_variant
 from paceforge.engine.vdot import (
@@ -323,9 +324,11 @@ def _generate_template_plan(
             for w in workouts:
                 if w.workout_type != WorkoutType.REST and w.purpose is None:
                     w.purpose = TrainingPurpose.RECOVERY
+                w.briefing = build_briefing(w, phase=phase, hyrox=compromised)
             weeks.append(TrainingWeek(
                 week_number=wk_num, phase=phase, total_distance_km=week_km,
                 workouts=workouts, focus="Race week — trust the training",
+                intro=week_intro(phase, 0, 1, False, 0),
             ))
             continue
 
@@ -355,6 +358,8 @@ def _generate_template_plan(
             lr_rehearsal=weeks_to_race == 3,
             time_trial_km=tt_km,
         )
+        for w in workouts:
+            w.briefing = build_briefing(w, phase=phase, hyrox=compromised)
         focus = _get_focus(phase, wk_idx)
         actual_km = round(sum(
             (w.estimated_distance_meters or 0) / 1000
@@ -364,6 +369,7 @@ def _generate_template_plan(
         weeks.append(TrainingWeek(
             week_number=wk_num, phase=phase, total_distance_km=actual_km or week_km,
             workouts=workouts, focus=focus,
+            intro=week_intro(phase, week_in_phase, len(members), deload, weeks_to_race),
         ))
 
     pace_bands = {k: list(paces.band(k)) for k in ZONE_KEYS} if paces else None

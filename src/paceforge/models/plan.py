@@ -90,6 +90,11 @@ class Workout(BaseModel):
     estimated_distance_meters: float | None = None
     steps: list[WorkoutStep] = Field(default_factory=list)
     notes: str = ""
+    briefing: dict[str, str] | None = Field(
+        None,
+        description="Structured coaching briefing — keys: purpose, structure, feel, "
+        "if_wrong, and optionally cue, venue, fuel, warmup",
+    )
     purpose: TrainingPurpose | None = None
     cadence_target: int | None = None
     # Completion tracking
@@ -131,6 +136,7 @@ class TrainingWeek(BaseModel):
     total_distance_km: float | None = None
     workouts: list[Workout] = Field(default_factory=list)
     focus: str = Field(default="", description="Week's training focus summary")
+    intro: str = Field(default="", description="This week's role in the plan arc")
 
 
 class TrainingPlan(BaseModel):

@@ -38,16 +38,26 @@ From the workflow (env vars or the prompt): `mode` (create|reassess), `event_typ
    - **Physio** — injury-history red flags.
    Protocol: Running Coach drafts → each role critiques → Head Coach synthesises →
    repeat until the panel agrees and it survives validation.
-4. **Personalise** `data/plan.json` from the deliberation: week `focus`, each workout's
-   `notes` (purpose + feel, specific), variety so no two weeks are identical, adapt to
-   readiness signals. Stay in the schema in `src/paceforge/models/plan.py`. Every
-   workout stays a **running** type — never `hyrox_mixed`/`cross_training`. For HYROX
-   the race is the plan's `target_date`, not a workout entry.
+4. **Personalise** `data/plan.json` from the deliberation. The engine now owns
+   variety, progression, structure and the per-session `briefing` (purpose /
+   structure / feel / if_wrong / cue / venue / fuel / warmup) — do NOT rewrite
+   sessions, reshuffle variants, or restate the briefing. Your layer is
+   athlete-specific judgement: each workout's `notes` must ADD what the briefing
+   cannot know — this athlete's readiness trend, RPE history ("your week-3 tempo
+   felt 8/10, so this one holds pace"), the cadence flag, HYROX load on off-days,
+   schedule realism. Tone rules: name the feel, give the why, pre-empt the failure
+   mode. Also set week `focus` and plan `rationale`/`tips` from profile evidence,
+   and adapt to readiness signals (swap a quality day to easy when flagged). Stay
+   in the schema in `src/paceforge/models/plan.py`. Every workout stays a
+   **running** type — never `hyrox_mixed`/`cross_training`. For HYROX the race is
+   the plan's `target_date`, not a workout entry.
 5. **Mark it active:** set `"accepted": true` in `data/plan.json` (so the portal shows
    it and Push works).
 6. **Validate:** `paceforge validate` must return no issues. Fix what it flags; if a fix
    needs new paces, re-scaffold rather than invent.
-7. **Human view:** regenerate `plan.md` from `data/plan.json`.
+7. **Human view:** run `paceforge plan-md` — the deterministic renderer builds
+   `plan.md` from `data/plan.json` (briefings, week intros, pace bands included).
+   Never hand-write plan.md.
 8. **Commit** `data/plan.json` and `plan.md` and push.
 
 ## Reassess mode

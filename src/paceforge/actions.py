@@ -550,6 +550,85 @@ def validate() -> list[str]:
     return validate_plan(plan)
 
 
+_BRIEFING_LABELS = [
+    ("purpose", "Why"), ("structure", "Structure"), ("feel", "Feel"),
+    ("if_wrong", "If it goes wrong"), ("cue", "Form cue"), ("venue", "Venue"),
+    ("fuel", "Fueling"), ("warmup", "Warm-up"),
+]
+
+
+def _fmt_pace(sec: float | None) -> str:
+    if not sec:
+        return "—"
+    m, s = divmod(int(sec), 60)
+    return f"{m}:{s:02d}/km"
+
+
+def plan_md(path: str = "plan.md") -> str:
+    """Render plan.md deterministically from data/plan.json.
+
+    The engine owns this view — the coach skill personalises workout notes in
+    the plan itself, then regenerates this file.
+    """
+    plan = store.load_plan()
+    if plan is None or not plan.weeks:
+        raise RuntimeError("No plan at data/plan.json.")
+    L: list[str] = [f"# {plan.name}", ""]
+    goal_line = f"**Goal:** {plan.goal_type} on **{plan.target_date}**"
+    if plan.target_time_seconds:
+        m, s = divmod(int(plan.target_time_seconds), 60)
+        goal_line += f" — target **{m}:{s:02d}**"
+    L += [goal_line,
+          f"**Weeks:** {plan.total_weeks} | **VDOT:** {plan.vdot or '—'} ({plan.pace_source})",
+          ""]
+    bands = plan.pace_bands or {}
+    keys = ["easy", "marathon", "threshold", "interval", "repetition"]
+    if "race" in bands:
+        keys.append("race")
+    L += ["| " + " | ".join(k.title() for k in keys) + " |", "|" + "---|" * len(keys)]
+    row = []
+    for k in keys:
+        b = bands.get(k)
+        row.append(
+            f"{_fmt_pace(b[0])}–{_fmt_pace(b[1])}" if b
+            else _fmt_pace(getattr(plan, f"{k}_pace", None))
+        )
+    L += ["| " + " | ".join(row) + " |", ""]
+    if plan.rationale:
+        L += ["## Rationale", "", plan.rationale, ""]
+    if plan.tips:
+        L += ["## Coaching notes", ""] + [f"- {t}" for t in plan.tips] + [""]
+    L += ["## Week-by-week", "",
+          "| Wk | Phase | Focus | Total km | Sessions |", "|---|---|---|---|---|"]
+    for wk in plan.weeks:
+        sessions = "<br>".join(
+            f"**{w.scheduled_date:%a %m/%d}** {w.name}" if w.scheduled_date else w.name
+            for w in wk.workouts
+        )
+        L.append(f"| {wk.week_number} | {wk.phase} | {wk.focus} | "
+                 f"{wk.total_distance_km or '—'} | {sessions} |")
+    L += ["", "## Session detail", ""]
+    for wk in plan.weeks:
+        L += [f"### Week {wk.week_number} — {wk.phase} ({wk.total_distance_km or '?'} km)", ""]
+        if wk.intro:
+            L += [f"_{wk.intro}_", ""]
+        for w in wk.workouts:
+            when = f"{w.scheduled_date:%a %Y-%m-%d} — " if w.scheduled_date else ""
+            km = (w.estimated_distance_meters or 0) / 1000
+            mins = (w.estimated_duration_seconds or 0) / 60
+            L.append(f"- **{when}{w.name}** ({km:.1f} km, ~{mins:.0f} min)")
+            for key, label in _BRIEFING_LABELS:
+                val = (w.briefing or {}).get(key)
+                if val:
+                    L.append(f"  - **{label}:** {val}")
+            if w.notes:
+                L.append(f"  - **Coach's note:** {w.notes}")
+        L.append("")
+    md = "\n".join(L).rstrip() + "\n"
+    Path(path).write_text(md)
+    return md
+
+
 def _select_week(plan: TrainingPlan, week: int | None) -> TrainingWeek:
     if week is not None:
         for wk in plan.weeks:

@@ -2227,6 +2227,7 @@ function drawWeek(plan) {
       <div style="flex:1;min-width:160px">
         <div class="eyebrow">${escHtml(w.phase || 'Block')}${w.focus ? ' · ' + escHtml(w.focus) : ''}</div>
         <div style="font-size:.84rem;color:var(--text-2);margin-top:4px">${w.total_distance_km ? w.total_distance_km.toFixed(0) + ' km total' : ''} · ${done}/${planned.length} workouts done</div>
+        ${w.intro ? `<div style="font-size:.82rem;color:var(--text-3);margin-top:6px;line-height:1.5">${escHtml(w.intro)}</div>` : ''}
       </div>
       ${compliancePct != null ? `<span class="conn-status" style="background:color-mix(in srgb,${compColor} 15%,transparent);color:${compColor}" title="sessions executed as planned (green band)"><span class="dotmark"></span>${compliancePct}% on plan</span>` : ''}
       <button class="btn btn-primary btn-sm" id="push-week">${icons.push} Push Week ${w.week_number || wi+1} to Garmin</button>
@@ -2302,6 +2303,23 @@ function workoutCardHtml(wo, wkIdx, woIdx) {
   </div>`;
 }
 
+const BRIEFING_LABELS = [
+  ['purpose', 'Why this session'], ['structure', 'Structure'], ['feel', 'How it should feel'],
+  ['if_wrong', 'If it goes wrong'], ['cue', 'Form cue'], ['venue', 'Venue'],
+  ['fuel', 'Fueling'], ['warmup', 'Warm-up'],
+];
+
+function briefingHtml(b) {
+  if (!b) return '';
+  const rows = BRIEFING_LABELS
+    .filter(([k]) => b[k])
+    .map(([k, label]) => `<div style="margin-bottom:8px">
+      <div class="eyebrow" style="margin-bottom:2px">${label}</div>
+      <div style="font-size:.84rem;color:var(--text-2);line-height:1.5">${escHtml(b[k])}</div>
+    </div>`).join('');
+  return rows ? `<div style="margin:12px 0;border-top:1px solid var(--border-s);padding-top:12px">${rows}</div>` : '';
+}
+
 function showWorkoutSheet(wo, wkIdx, woIdx) {
   const dist = wo.estimated_distance_meters ? (wo.estimated_distance_meters/1000).toFixed(1) + ' km' : '';
   const dur = wo.estimated_duration_seconds ? Math.round(wo.estimated_duration_seconds/60) + ' min' : '';
@@ -2334,6 +2352,7 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
       <button class="modal-close" data-close>${icons.x}</button>
     </div>
     ${wo.description ? `<div style="font-size:.88rem;color:var(--text-2);line-height:1.55;margin-bottom:8px">${escHtml(wo.description)}</div>` : ''}
+    ${briefingHtml(wo.briefing)}
     ${stepsHtml}
     ${metricsHtml}
     ${rpeHtml}
