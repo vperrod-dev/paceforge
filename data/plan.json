@@ -83,6 +83,7 @@
             }
           ],
           "notes": "Unstructured surges to open the block — let effort, not the watch, set the hard 2-min pushes. Recoveries should feel like a genuine reset before the next surge, not a jog-through.",
+          "briefing": null,
           "purpose": "aerobic_base",
           "cadence_target": null,
           "completed": true,
@@ -150,6 +151,7 @@
             }
           ],
           "notes": "Controlled-uncomfortable, not a race. You should be able to speak in broken sentences, not full ones — settle into that effort by the second kilometre and hold it flat.",
+          "briefing": null,
           "purpose": "lactate_threshold",
           "cadence_target": null,
           "completed": true,
@@ -193,6 +195,7 @@
             }
           ],
           "notes": "Fully conversational the whole way — this is aerobic economy and time-on-feet, not a fitness test. If you're breathing hard you're going too fast; slow down.",
+          "briefing": null,
           "purpose": "endurance",
           "cadence_target": null,
           "completed": true,
@@ -214,7 +217,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Aerobic base + running economy"
+      "focus": "Aerobic base + running economy",
+      "intro": ""
     },
     {
       "week_number": 2,
@@ -244,6 +248,7 @@
             }
           ],
           "notes": "Swapped from hill reps: your HRV read 'Unbalanced' this morning and readiness is soft (44) on top of a recent anaerobic-heavy stretch. Hills wait until you've absorbed that load — keep this fully easy, the goal is blood flow, not stimulus.",
+          "briefing": null,
           "purpose": "recovery",
           "cadence_target": null,
           "completed": true,
@@ -311,6 +316,7 @@
             }
           ],
           "notes": "Three even thirds building from easy to threshold — a smooth ladder, not a jump. Hold each third honestly and don't rush into the fast finish; let the pace climb on its own.",
+          "briefing": null,
           "purpose": "lactate_threshold",
           "cadence_target": null,
           "completed": true,
@@ -328,7 +334,7 @@
             "activity_id": 23520223309
           },
           "garmin_workout_id": null,
-          "user_rpe": null,
+          "user_rpe": 5,
           "user_notes": null
         },
         {
@@ -354,6 +360,7 @@
             }
           ],
           "notes": "Steady and easy — check in on how the legs feel after yesterday's swap. This should feel comfortably repeatable, the kind of run you could describe as 'pleasant' afterwards.",
+          "briefing": null,
           "purpose": "endurance",
           "cadence_target": null,
           "completed": false,
@@ -365,7 +372,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Aerobic base + neuromuscular strides"
+      "focus": "Aerobic base + neuromuscular strides",
+      "intro": ""
     },
     {
       "week_number": 3,
@@ -432,6 +440,7 @@
             }
           ],
           "notes": "Easy running with 6 short strides at the end — relaxed and fast, not a sprint. Think 'smooth acceleration,' cue tall posture and quick turnover, then walk back fully recovered.",
+          "briefing": null,
           "purpose": "running_economy",
           "cadence_target": null,
           "completed": false,
@@ -489,6 +498,7 @@
             }
           ],
           "notes": "Your longest tempo block yet — 6km at threshold. Go out slightly conservative through the first 2km; the goal is an even effort you can hold to the last stride, not a fade.",
+          "briefing": null,
           "purpose": "lactate_threshold",
           "cadence_target": null,
           "completed": false,
@@ -546,6 +556,7 @@
             }
           ],
           "notes": "Start easy, ease into marathon effort, finish the last tenth at threshold. Mental-toughness work — the finish should feel purposeful, not desperate. Bank the pacing discipline for race day.",
+          "briefing": null,
           "purpose": "mental_toughness",
           "cadence_target": null,
           "completed": false,
@@ -557,7 +568,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Aerobic endurance + strength (hills)"
+      "focus": "Aerobic endurance + strength (hills)",
+      "intro": ""
     },
     {
       "week_number": 4,
@@ -636,6 +648,7 @@
             }
           ],
           "notes": "Cutback week — shorter fartlek, same crisp surges. This is about absorbing the last three weeks, not adding more load. Keep the hard bits genuinely hard and brief.",
+          "briefing": null,
           "purpose": "aerobic_base",
           "cadence_target": null,
           "completed": false,
@@ -693,6 +706,7 @@
             }
           ],
           "notes": "A shorter version of the ladder — easy, marathon, threshold. Light legs, clean form. Use it to check that recent fatigue is clearing, not to chase a number.",
+          "briefing": null,
           "purpose": "lactate_threshold",
           "cadence_target": null,
           "completed": false,
@@ -726,6 +740,7 @@
             }
           ],
           "notes": "Deliberately shorter long run this week. Easy pace throughout — this is recovery volume banked for the build phase ahead, not a session to push.",
+          "briefing": null,
           "purpose": "endurance",
           "cadence_target": null,
           "completed": false,
@@ -737,7 +752,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Recovery week — maintain aerobic base"
+      "focus": "Recovery week — maintain aerobic base",
+      "intro": ""
     },
     {
       "week_number": 5,
@@ -816,6 +832,7 @@
             }
           ],
           "notes": "Hard reps at I-pace with full jog recovery between — sharper than the fartlek surges. Effort should be 'hard but repeatable' on rep 1 through rep 6: even splits, not a fast start that fades.",
+          "briefing": null,
           "purpose": "vo2max",
           "cadence_target": null,
           "completed": false,
@@ -873,6 +890,7 @@
             }
           ],
           "notes": "Threshold effort — settle in by kilometre two and hold it, 'comfortably hard,' the pace you could sustain for about an hour if you had to.",
+          "briefing": null,
           "purpose": "lactate_threshold",
           "cadence_target": null,
           "completed": false,
@@ -906,6 +924,7 @@
             }
           ],
           "notes": "Easy aerobic long run — first big-block long run of the build. Relaxed effort; save the legs for Thursday's intervals next week.",
+          "briefing": null,
           "purpose": "endurance",
           "cadence_target": null,
           "completed": false,
@@ -917,7 +936,8 @@
           "user_notes": null
         }
       ],
-      "focus": "VO2max development + lactate threshold"
+      "focus": "VO2max development + lactate threshold",
+      "intro": ""
     },
     {
       "week_number": 6,
@@ -996,6 +1016,7 @@
             }
           ],
           "notes": "Fast 400s at R-pace with a full jog recovery — this is neuromuscular speed and form, not a lactate session. Relaxed arms, quick turnover, and stop a rep early if form breaks down.",
+          "briefing": null,
           "purpose": "speed_neuromuscular",
           "cadence_target": null,
           "completed": false,
@@ -1078,6 +1099,7 @@
             }
           ],
           "notes": "Broken threshold — same lactate-clearance benefit as a tempo run with less mental grind thanks to the short jog recoveries. Hold each 5-min rep dead even; don't let the first one be the fastest.",
+          "briefing": null,
           "purpose": "lactate_threshold",
           "cadence_target": null,
           "completed": false,
@@ -1135,6 +1157,7 @@
             }
           ],
           "notes": "Building block — easy into marathon effort into threshold to close. Practice staying relaxed as the pace rises; tension in the shoulders is the first sign you're overreaching.",
+          "briefing": null,
           "purpose": "mental_toughness",
           "cadence_target": null,
           "completed": false,
@@ -1146,7 +1169,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Speed + sustained tempo effort"
+      "focus": "Speed + sustained tempo effort",
+      "intro": ""
     },
     {
       "week_number": 7,
@@ -1225,6 +1249,7 @@
             }
           ],
           "notes": "Shorter, punchier hill reps than week 2's — power and running economy. Drive the arms and knees on the way up, then float back down easy; the recovery jog is part of the session.",
+          "briefing": null,
           "purpose": "running_economy",
           "cadence_target": 170,
           "completed": false,
@@ -1282,6 +1307,7 @@
             }
           ],
           "notes": "Easy, marathon, threshold thirds — a rehearsal for controlling effort as fatigue builds, which is exactly what race day asks of you.",
+          "briefing": null,
           "purpose": "lactate_threshold",
           "cadence_target": null,
           "completed": false,
@@ -1351,6 +1377,7 @@
             }
           ],
           "notes": "First taste of goal race effort inside a long run — settle into the 3km block only once you're warm, and resist the urge to push it faster than that effort.",
+          "briefing": null,
           "purpose": "race_specificity",
           "cadence_target": null,
           "completed": false,
@@ -1362,7 +1389,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Hill power + race-pace specificity"
+      "focus": "Hill power + race-pace specificity",
+      "intro": ""
     },
     {
       "week_number": 8,
@@ -1441,6 +1469,7 @@
             }
           ],
           "notes": "Cutback week — same fartlek shape as week 4, a touch longer. Trust the taper-down; the fitness from the last three weeks needs this week to actually stick.",
+          "briefing": null,
           "purpose": "aerobic_base",
           "cadence_target": null,
           "completed": false,
@@ -1523,6 +1552,7 @@
             }
           ],
           "notes": "A shorter, easier version of the race-pace intervals to come — 4 x 1.2km at goal effort with a jog rest. Smooth and even, not a test.",
+          "briefing": null,
           "purpose": "race_specificity",
           "cadence_target": null,
           "completed": false,
@@ -1556,6 +1586,7 @@
             }
           ],
           "notes": "Easy, shorter long run to close the cutback. Full recovery effort — the legs should feel fresher by Sunday evening than they did Friday.",
+          "briefing": null,
           "purpose": "endurance",
           "cadence_target": null,
           "completed": false,
@@ -1567,7 +1598,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Recovery week — absorb build-phase gains"
+      "focus": "Recovery week — absorb build-phase gains",
+      "intro": ""
     },
     {
       "week_number": 9,
@@ -1646,6 +1678,7 @@
             }
           ],
           "notes": "More, shorter reps than week 5's — quicker turnover at the same I-pace. These should feel sharp, almost fast-feeling by the last two reps once you're warmed into it.",
+          "briefing": null,
           "purpose": "vo2max",
           "cadence_target": null,
           "completed": false,
@@ -1728,6 +1761,7 @@
             }
           ],
           "notes": "Longer reps than week 6's cruise intervals — 6-minute blocks that ask for patience. Same threshold effort, just a longer time to hold your composure inside each rep.",
+          "briefing": null,
           "purpose": "lactate_threshold",
           "cadence_target": null,
           "completed": false,
@@ -1785,6 +1819,7 @@
             }
           ],
           "notes": "Peak-phase progressive long run — the biggest one yet. Be patient through the easy portion; the marathon- and threshold-pace finish will feel earned, not forced, if you are.",
+          "briefing": null,
           "purpose": "mental_toughness",
           "cadence_target": null,
           "completed": false,
@@ -1796,7 +1831,8 @@
           "user_notes": null
         }
       ],
-      "focus": "VO2max sharpening + race-pace confidence"
+      "focus": "VO2max sharpening + race-pace confidence",
+      "intro": ""
     },
     {
       "week_number": 10,
@@ -1875,6 +1911,7 @@
             }
           ],
           "notes": "More reps than week 6's — same sharp 400s at R-pace, deeper into the session. Quality over the first 10 matters more than gutting out the last 6; drop a rep if form goes.",
+          "briefing": null,
           "purpose": "speed_neuromuscular",
           "cadence_target": null,
           "completed": false,
@@ -1957,6 +1994,7 @@
             }
           ],
           "notes": "Longer race-pace blocks than week 8's — 1.4km at goal effort. This is the closest rehearsal yet to holding half-marathon effort for real; even splits across all five reps is the win.",
+          "briefing": null,
           "purpose": "race_specificity",
           "cadence_target": null,
           "completed": false,
@@ -2026,6 +2064,7 @@
             }
           ],
           "notes": "The peak long run — a 4km race-effort block inside it, longer than week 7's. Treat that block like the middle of the actual race: locked in, not laboured.",
+          "briefing": null,
           "purpose": "race_specificity",
           "cadence_target": null,
           "completed": false,
@@ -2037,7 +2076,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Speed + threshold tuning"
+      "focus": "Speed + threshold tuning",
+      "intro": ""
     },
     {
       "week_number": 11,
@@ -2104,6 +2144,7 @@
             }
           ],
           "notes": "Easy running with a handful of relaxed strides to keep the legs sharp as volume drops. Effort stays low — this is about feeling fast for a few seconds, not training.",
+          "briefing": null,
           "purpose": "running_economy",
           "cadence_target": null,
           "completed": false,
@@ -2161,6 +2202,7 @@
             }
           ],
           "notes": "Short, crisp reminder of threshold effort — shorter than week 3's or week 5's tempo. Legs should feel noticeably fresher than they did mid-block.",
+          "briefing": null,
           "purpose": "lactate_threshold",
           "cadence_target": null,
           "completed": false,
@@ -2194,6 +2236,7 @@
             }
           ],
           "notes": "Easy taper long run — comfortably under peak distance. The fitness is banked; this is about staying loose, not building anything new.",
+          "briefing": null,
           "purpose": "endurance",
           "cadence_target": null,
           "completed": false,
@@ -2205,7 +2248,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Volume reduction — maintain intensity"
+      "focus": "Volume reduction — maintain intensity",
+      "intro": ""
     },
     {
       "week_number": 12,
@@ -2222,6 +2266,7 @@
           "estimated_distance_meters": 5000.0,
           "steps": [],
           "notes": "Easy shakeout, nothing more. Effort should feel almost too easy — that's the point with the race five days out.",
+          "briefing": null,
           "purpose": "recovery",
           "cadence_target": null,
           "completed": false,
@@ -2304,6 +2349,7 @@
             }
           ],
           "notes": "Short and easy with a few strides to wake the legs up. Resist any urge to test race pace this close to the start.",
+          "briefing": null,
           "purpose": "recovery",
           "cadence_target": null,
           "completed": false,
@@ -2324,6 +2370,7 @@
           "estimated_distance_meters": 21100.0,
           "steps": [],
           "notes": "Race day. Trust the training — start controlled through the first 5km, settle into goal effort, and save something for the last 3km. You've done the work.",
+          "briefing": null,
           "purpose": "recovery",
           "cadence_target": null,
           "completed": false,
@@ -2335,7 +2382,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Race week — trust the training"
+      "focus": "Race week — trust the training",
+      "intro": ""
     }
   ],
   "created_at": "2026-07-06",
@@ -2351,6 +2399,7 @@
   "tips": [],
   "athlete_summary": "VO2 Max: 54.7 · Resting HR: 42 bpm · Max HR: 195 bpm · Weekly mileage: 15.1 km · Training status: Productive · LT pace: 4:22/km · LT HR: 161 bpm · Endurance score: 6402.0 · Recent runs: 36 activities, avg 5.4km @ 4:55/km · Pace source: Garmin VO2 Max (54.7)",
   "accepted": true,
+  "last_recalibration": null,
   "last_ai_review": null,
   "adaptation_notes": null
 }
