@@ -1,5 +1,28 @@
 [
   {
+    "activity_id": 23554757955,
+    "name": "Cardio",
+    "activity_type": "indoor_cardio",
+    "start_time": "2026-07-11T07:05:58",
+    "distance_meters": 0.0,
+    "duration_seconds": 2605.009033203125,
+    "avg_hr": 131,
+    "max_hr": 176,
+    "avg_pace_sec_per_km": null,
+    "calories": 638,
+    "training_effect_aerobic": 3.0999999046325684,
+    "training_effect_anaerobic": 2.799999952316284,
+    "vo2_max_value": null,
+    "avg_running_cadence": null,
+    "avg_stride_length": null,
+    "avg_ground_contact_time": null,
+    "avg_vertical_oscillation": null,
+    "avg_vertical_ratio": null,
+    "avg_power": null,
+    "elevation_gain": null,
+    "avg_respiration_rate": null
+  },
+  {
     "activity_id": 23532144120,
     "name": "Cardio",
     "activity_type": "indoor_cardio",
