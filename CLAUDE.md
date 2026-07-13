@@ -23,6 +23,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
 .venv/bin/paceforge rpe 7 <activity_id> # log session RPE (HR-less strength/HYROX load)
 .venv/bin/paceforge link <activity_id> --date 2026-06-01   # pin activity to a workout (or --session-id)
 .venv/bin/paceforge unlink <activity_id>                   # detach + never auto-rematch there
+.venv/bin/paceforge brief [--date YYYY-MM-DD]  # morning-brief text (readiness/sleep/today)
 
 .venv/bin/paceforge push [--week N] [--dry-run]   # upload a plan week to Garmin
 .venv/bin/paceforge autosync            # Monday cron: push next 2 weeks, delete stale copies
@@ -85,11 +86,14 @@ personalise notes, re-validate, regenerate the human view with
 (athlete-accepted, guarded), never hand-edits.
 
 ## Scheduled workflows (beyond sync)
+`sync.yml` runs ~06:45 Dublin (DST-split crons) and ends by pushing
+`paceforge brief` to ntfy (`NTFY_TOPIC` secret; skipped when unset).
 `autosync.yml` (Mon 06:00 UTC) pushes the next 2 accepted-plan weeks to Garmin
 and cleans stale copies; `recalibrate.yml` applies portal-accepted pace shifts;
-`plan.yml` scaffolds deterministically, then Claude enriches notes. push.yml
-and autosync.yml **commit plan.json back** (garmin_workout_id persistence —
-required for dedup).
+`plan.yml` scaffolds deterministically, then Claude enriches notes; `coach.yml`
+(Mon 07:19 UTC) writes week-review.md and pushes its headline to ntfy
+(`NTFY_TOPIC_DAILY` secret). push.yml and autosync.yml **commit plan.json
+back** (garmin_workout_id persistence — required for dedup).
 
 ## Auth & secrets (env)
 `PACEFORGE_GARMIN_EMAIL`, `GARMIN_TOKEN` (base64 token from `paceforge login`),
