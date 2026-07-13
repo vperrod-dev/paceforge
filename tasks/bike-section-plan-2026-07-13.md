@@ -1,6 +1,14 @@
 # PaceForge Bike — Indoor Cycling Section (Zwift replacement)
 
 **Date:** 2026-07-13 · **Hardware:** Zwift Ride frame + Wahoo KICKR CORE 2 + (any BLE HR strap)
+
+> **BUILD STATUS (2026-07-13, same day):** all 5 phases built and deployed
+> (commits 48c9ce1, 5ff62b8, 3fc88b8). Verified: JS selftests (BLE parsing,
+> formats, FIT round-trip + fitdecode strict-CRC), 351 pytest, Playwright
+> end-to-end in demo mode (mock trainer). **Awaiting hardware:** first real
+> KICKR pairing + 10-min ERG hold, Zwift Ride pod handshake/bitmap, real
+> intervals.icu/Strava upload. Deliberately minimal: virtual gearing is a flat
+> pseudo-grade, suggestion engine is 3 rules, Strava token manual (no OAuth).
 **Goal:** replace the Zwift subscription (~€200/yr) with a Bike section inside the PaceForge portal: connect to the trainer from the browser, run structured workouts in ERG mode, record rides, and eventually plan/adapt cycling training the way PaceForge already does for running.
 
 ---
