@@ -113,6 +113,20 @@ function profileShapes(steps, ftpW, W, Hh) {
 
 // ═══════════ HOME ═══════════
 
+// ponytail: 3-rule suggestion — per-zone progression levels once real ride history exists
+function suggestNext(rides, workouts) {
+  if (!workouts.length) return null;
+  const pick = name => workouts.find(w => w.name === name) || workouts[0];
+  const last = rides[0];
+  if (!last) return { w: pick('2x20 Sweet Spot'), why: 'First ride — settle in at sweet spot' };
+  const weekTss = rides
+    .filter(r => r.date && (Date.now() - Date.parse(r.date)) < 7 * 864e5)
+    .reduce((s, r) => s + (r.tss || 0), 0);
+  if (weekTss > 250) return { w: pick('Recovery 45'), why: `Big week (${Math.round(weekTss)} TSS) — spin easy` };
+  if ((last.if || 0) >= 0.83 || (last.tss || 0) >= 70) return { w: pick('Endurance 90'), why: 'Last ride was hard — aerobic day' };
+  return { w: pick('4x8 VO2'), why: 'Fresh legs — quality day' };
+}
+
 async function renderHome() {
   H.setTopbar('Bike', 'Indoor trainer — workouts, ERG & rides');
   const [profile, index, rides] = await Promise.all([
@@ -126,6 +140,7 @@ async function renderHome() {
   const pending = ls(PENDING_KEY, []);
   const allRides = [...pending.map(r => ({ ...r, pending: true })), ...(rides.rides || []).slice().reverse()].slice(0, 8);
   const imports = ls(IMPORTS_KEY, []);
+  const suggestion = suggestNext(allRides, index.workouts || []);
 
   S.page.innerHTML = `
   ${recovered ? `
@@ -163,6 +178,15 @@ async function renderHome() {
         <label class="btn btn-sm btn-outline" style="cursor:pointer">Import .zwo/.erg/.mrc<input type="file" id="bk-import" accept=".zwo,.erg,.mrc" hidden></label>
       </div>
       <div class="divlist">
+        ${suggestion ? `
+        <div class="bk-wo-row" style="background:var(--emerald-g);border-radius:var(--r-sm)">
+          <div class="bk-wo-info">
+            <div class="act-name">${H.escHtml(suggestion.w.name)}</div>
+            <div class="act-meta">${H.escHtml(suggestion.why)} · TSS ${Math.round(suggestion.w.tss)}</div>
+          </div>
+          ${zoneChip('SUGGESTED', 'var(--emerald)')}
+          <button class="btn btn-sm btn-primary" data-start="wo" data-file="${H.escHtml(suggestion.w.file)}" data-name="${H.escHtml(suggestion.w.name)}">Start</button>
+        </div>` : ''}
         <div class="bk-wo-row">
           <div class="bk-wo-info"><div class="act-name">Ramp test</div><div class="act-meta">~25 min · one-minute steps to failure · estimates FTP</div></div>
           ${zoneChip('TEST', 'var(--violet)')}
