@@ -72,6 +72,21 @@ def log_rpe(rpe: int, activity_id: int | None = None, date: str | None = None,
 
 
 @mcp.tool()
+def link_activity(activity_id: int, session_id: str | None = None,
+                  date: str | None = None) -> dict:
+    """Pin a Garmin activity to a plan workout as its actual session (sync-proof).
+    Target the workout by session_id or by date YYYY-MM-DD."""
+    return actions.link_activity(activity_id, session_id=session_id, when=date)
+
+
+@mcp.tool()
+def unlink_activity(activity_id: int) -> dict:
+    """Detach a Garmin activity from its linked workout and prevent the matcher
+    from ever auto-linking it there again."""
+    return actions.unlink_activity(activity_id)
+
+
+@mcp.tool()
 def get_fitness() -> dict:
     """Fitness 2.0 assessment: durability, load/recovery, strength/HYROX, and the
     readiness-gated ranked limiters + coach contract."""

@@ -114,6 +114,47 @@ def test_run_slot_claims_run_before_hyrox_slot():
     assert hyrox_slot.matched_activity_ids == []
 
 
+def test_run_below_90pct_distance_does_not_match():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="long_run", name="Long", scheduled_date=d,
+                         estimated_distance_meters=15000))
+    assert match_plan_to_activities(plan, [_act(1, d, 8000)]) == 0
+    assert plan.weeks[0].workouts[0].matched_activity_ids == []
+
+
+def test_run_within_90pct_distance_matches():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="easy_run", name="Easy", scheduled_date=d,
+                         estimated_distance_meters=10000))
+    match_plan_to_activities(plan, [_act(1, d, 9100)])
+    assert plan.weeks[0].workouts[0].matched_activity_ids == [1]
+
+
+def test_run_without_estimated_distance_never_auto_matches():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="easy_run", name="Easy", scheduled_date=d))
+    assert match_plan_to_activities(plan, [_act(1, d, 6000)]) == 0
+
+
+def test_manual_pin_applied_verbatim_and_never_overridden():
+    d = date(2026, 6, 1)
+    wo = Workout(workout_type="easy_run", name="Easy", scheduled_date=d,
+                 estimated_distance_meters=6000, manual_activity_ids=[99])
+    plan = _plan(wo)
+    # 99 is days away and the wrong size; 1 is a perfect auto candidate — pin wins.
+    match_plan_to_activities(plan, [_act(1, d, 6000), _act(99, date(2026, 6, 10), 500)])
+    assert wo.matched_activity_ids == [99] and wo.completed
+
+
+def test_excluded_activity_never_auto_matched():
+    d = date(2026, 6, 1)
+    wo = Workout(workout_type="easy_run", name="Easy", scheduled_date=d,
+                 estimated_distance_meters=6000, excluded_activity_ids=[1])
+    plan = _plan(wo)
+    match_plan_to_activities(plan, [_act(1, d, 6000)])
+    assert wo.matched_activity_ids == []
+
+
 def test_rpe_copied_onto_matched_workout():
     d = date(2026, 6, 1)
     plan = _plan(Workout(workout_type="easy_run", name="Easy", scheduled_date=d,

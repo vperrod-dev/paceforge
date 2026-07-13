@@ -206,6 +206,74 @@ def log_rpe(activity_id: int | None = None, when: str | None = None, *,
             "matched_workouts": matched}
 
 
+def link_activity(activity_id: int, session_id: str | None = None,
+                  when: str | None = None) -> dict:
+    """Pin a Garmin activity to a plan workout. The matcher applies pins verbatim,
+    so sync can never re-assign or drop the link. Target workout by session_id or
+    by date (YYYY-MM-DD, must be unambiguous)."""
+    if not any(a.activity_id == activity_id for a in store.load_activities()):
+        raise RuntimeError(f"Unknown activity {activity_id} — sync first.")
+    plan = store.load_plan()
+    if not plan:
+        raise RuntimeError("No plan stored.")
+    wo = _find_workout(plan, session_id=session_id, when=when)
+    for wk in plan.weeks:
+        for w in wk.workouts:
+            if w is not wo and activity_id in w.manual_activity_ids:
+                w.manual_activity_ids.remove(activity_id)
+    if activity_id in wo.excluded_activity_ids:
+        wo.excluded_activity_ids.remove(activity_id)
+    if activity_id not in wo.manual_activity_ids:
+        wo.manual_activity_ids.append(activity_id)
+    store.save_plan(plan)
+    _match_plan()
+    return {"linked": activity_id, "workout": wo.name, "session_id": wo.session_id,
+            "date": str(wo.scheduled_date)}
+
+
+def unlink_activity(activity_id: int) -> dict:
+    """Detach an activity from whatever workout it is linked to (manual or auto)
+    and exclude it there, so the next sync cannot silently re-link it."""
+    plan = store.load_plan()
+    if not plan:
+        raise RuntimeError("No plan stored.")
+    hits = []
+    for wk in plan.weeks:
+        for w in wk.workouts:
+            if activity_id in w.manual_activity_ids or activity_id in w.matched_activity_ids:
+                hits.append(w)
+                if activity_id in w.manual_activity_ids:
+                    w.manual_activity_ids.remove(activity_id)
+                if activity_id not in w.excluded_activity_ids:
+                    w.excluded_activity_ids.append(activity_id)
+    if not hits:
+        raise RuntimeError(f"Activity {activity_id} is not linked to any workout.")
+    store.save_plan(plan)
+    _match_plan()
+    return {"unlinked": activity_id,
+            "workouts": [{"name": w.name, "session_id": w.session_id,
+                          "date": str(w.scheduled_date)} for w in hits]}
+
+
+def _find_workout(plan, *, session_id: str | None, when: str | None):
+    if session_id:
+        for wk in plan.weeks:
+            for w in wk.workouts:
+                if w.session_id == session_id:
+                    return w
+        raise RuntimeError(f"No workout with session_id {session_id}.")
+    if not when:
+        raise RuntimeError("Provide a session_id or a date.")
+    hits = [w for wk in plan.weeks for w in wk.workouts
+            if str(w.scheduled_date) == when and str(w.workout_type) != "rest"]
+    if not hits:
+        raise RuntimeError(f"No workout scheduled on {when}.")
+    if len(hits) > 1:
+        opts = ", ".join(f"{w.session_id} ({w.name})" for w in hits)
+        raise RuntimeError(f"Multiple workouts on {when} — use a session_id: {opts}")
+    return hits[0]
+
+
 def _match_plan() -> int:
     """Re-match stored activities to the plan and annotate plan-vs-actual compliance."""
     from paceforge.engine.compliance import annotate_pace, annotate_plan

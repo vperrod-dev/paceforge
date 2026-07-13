@@ -100,6 +100,8 @@ class Workout(BaseModel):
     # Completion tracking
     completed: bool = False
     matched_activity_ids: list[int] = Field(default_factory=list, description="Garmin activity IDs matched to this workout")
+    manual_activity_ids: list[int] = Field(default_factory=list, description="User-pinned activity IDs — matcher links these verbatim, sync never overrides")
+    excluded_activity_ids: list[int] = Field(default_factory=list, description="Activity IDs the matcher must never auto-link to this workout")
     completion_analysis: str | None = Field(None, description="AI analysis of how the workout went")
     completion_metrics: dict | None = Field(None, description="Actual vs planned metrics from matched activity")
     garmin_workout_id: int | None = Field(None, description="Garmin workout id from the last push (delete-by-id on re-push)")

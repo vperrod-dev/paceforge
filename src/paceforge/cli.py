@@ -84,6 +84,15 @@ def main(argv: list[str] | None = None) -> int:
     p_rpe.add_argument("--duration-min", type=float, default=None)
     p_rpe.add_argument("--notes", default="")
 
+    p_link = sub.add_parser("link", help="pin a Garmin activity to a plan workout (sync-proof)")
+    p_link.add_argument("activity_id", type=int)
+    p_link.add_argument("--session-id", default=None, help="Workout.session_id from plan.json")
+    p_link.add_argument("--date", default=None, help="workout date YYYY-MM-DD")
+
+    p_unlink = sub.add_parser("unlink",
+                              help="detach an activity from its workout and block re-auto-match")
+    p_unlink.add_argument("activity_id", type=int)
+
     sub.add_parser("export-token", help="print current on-disk token as a GARMIN_TOKEN blob")
 
     p_hp = sub.add_parser("hyrox-import-profile",
@@ -137,6 +146,11 @@ def main(argv: list[str] | None = None) -> int:
         elif args.cmd == "rpe":
             _emit(actions.log_rpe(args.activity_id, args.date, rpe=args.rpe,
                                   duration_min=args.duration_min, notes=args.notes))
+        elif args.cmd == "link":
+            _emit(actions.link_activity(args.activity_id, session_id=args.session_id,
+                                        when=args.date))
+        elif args.cmd == "unlink":
+            _emit(actions.unlink_activity(args.activity_id))
         elif args.cmd == "adapt":
             _emit(actions.adapt(dry_run=args.dry_run))
         elif args.cmd == "garmin-delete":

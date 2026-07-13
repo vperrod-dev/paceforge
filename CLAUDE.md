@@ -21,6 +21,9 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
 .venv/bin/paceforge adapt [--dry-run]   # reflow missed sessions + readiness-gate hard work
 .venv/bin/paceforge recalibrate --delta 0.5 [--force]  # accepted pace shift, future weeks only
 .venv/bin/paceforge rpe 7 <activity_id> # log session RPE (HR-less strength/HYROX load)
+.venv/bin/paceforge link <activity_id> --date 2026-06-01   # pin activity to a workout (or --session-id)
+.venv/bin/paceforge unlink <activity_id>                   # detach + never auto-rematch there
+
 .venv/bin/paceforge push [--week N] [--dry-run]   # upload a plan week to Garmin
 .venv/bin/paceforge autosync            # Monday cron: push next 2 weeks, delete stale copies
 .venv/bin/paceforge-mcp                 # stdio MCP server (Claude desktop app)
