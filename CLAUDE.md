@@ -59,6 +59,19 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
   windows from plan bands, per-step notes ≤200 chars, HR bpm targets, REST
   steps; description ≤500 chars leads with the briefing purpose).
 - **`hyrox/`** — race-result analyzer vs field benchmarks.
+- **`web/bike/` + `engine/bike.py`** — indoor cycling (Zwift replacement; plan:
+  `tasks/bike-section-plan-2026-07-13.md`). Browser-side ES modules (Chrome/Edge
+  Web Bluetooth, ES modules → needs http(s), not file://): `trainer.js` (FTMS
+  0x1826 ERG/sim control of the KICKR CORE 2, plus a duck-typed `MockTrainer`
+  for hardware-free dev), `hr.js`, `zwift-ride.js` (reverse-engineered Ride
+  button pods — "RideOn" handshake, protobuf `0x23` bitmap; unverified on real
+  hardware until first ride), `workouts.js` (ZWO/ERG/MRC parse + ramp test),
+  `metrics.js` (NP/IF/TSS/W'bal, Coggan zones), `recorder.js` + `fit.js`
+  (crash-safe recording → valid .FIT, fitdecode-verified), `upload.js`
+  (intervals.icu + Strava). Node selftests: `node web/bike/selftest-*.mjs`.
+  State: `data/bike/` (profile with FTP history, workout library, rides.json)
+  written via `save-ride.yml` / `save-bike-profile.yml`. Python side: POWER
+  intensity targets (watts), `sport="bike"` workouts, Garmin `power.zone` push.
 
 ## The AI / validation split
 Deterministic facts stay in code; judgement is Claude's. The **engine owns**

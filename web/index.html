@@ -422,6 +422,50 @@ a{color:var(--emerald);text-decoration:none}
   #toasts{left:12px;right:12px;max-width:none}
 }
 @media (min-width:1024px){.mobile-only{display:none!important}}
+
+/* ── BIKE ── */
+.bk-demo{display:flex;align-items:center;gap:7px;font-size:.82rem;font-weight:600;color:var(--text-2);cursor:pointer}
+.bk-demo input{accent-color:var(--emerald);width:16px;height:16px}
+.bk-dev-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border-s)}
+.bk-dev-row:last-child{border-bottom:none}
+.bk-dot{width:10px;height:10px;border-radius:50%;background:var(--text-3);flex-shrink:0}
+.bk-dot.on{background:var(--emerald);box-shadow:0 0 8px var(--emerald)}
+.bk-ftp-row{display:flex;align-items:flex-end;gap:10px;margin-bottom:14px}
+.bk-zonebar{display:flex;gap:2px;height:14px;border-radius:var(--r-pill);overflow:hidden;margin-bottom:8px}
+.bk-zoneseg{min-width:6px}
+.bk-zonelegend{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:.68rem;color:var(--text-3);font-family:var(--font-m);margin-bottom:10px}
+.bk-zonelegend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+.bk-wo-row{display:flex;align-items:center;gap:12px;padding:11px 0}
+.bk-wo-info{flex:1;min-width:0}
+.bk-spark{width:120px;height:28px;flex-shrink:0;background:var(--bg-2);border-radius:6px}
+.bk-hist-row{display:flex;align-items:center;gap:14px;padding:10px 0}
+.bk-player{display:flex;flex-direction:column;gap:14px}
+#bk-graph{display:block;width:100%;height:180px;background:var(--bg-2);border-radius:var(--r-md)}
+.bk-nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+.bk-num{background:linear-gradient(160deg,var(--card),var(--surface));border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;text-align:center}
+.bk-num-l{font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+.bk-num-v{font-family:var(--font-m);font-size:3.2rem;font-weight:700;line-height:1.05;margin-top:6px;letter-spacing:-.02em}
+.bk-num-sm{font-size:1.7rem;padding-top:14px}
+.bk-unit{font-size:1.1rem;color:var(--text-3);font-weight:500;margin-left:4px}
+.bk-subnums{display:flex;flex-wrap:wrap;gap:8px 26px;justify-content:center;padding:4px 8px}
+.bk-subnums>div{display:flex;align-items:baseline;gap:8px}
+.bk-sub-l{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.bk-sub-v{font-family:var(--font-m);font-size:1.25rem;font-weight:700}
+.bk-wbal-box{align-items:center!important}
+.bk-wbal{width:64px;height:12px;border:1px solid var(--violet);border-radius:4px;padding:1px;display:inline-block}
+.bk-wbal i{display:block;height:100%;background:var(--violet);border-radius:2px;width:100%;transition:width .5s linear}
+.bk-strip{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 20px;font-weight:600}
+.bk-prompt{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:60;background:var(--elevated);border:1px solid var(--border-x);border-radius:var(--r-md);padding:12px 20px;font-size:1rem;font-weight:600;box-shadow:var(--shadow-lg);max-width:min(90vw,640px);text-align:center}
+.bk-controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}
+.bk-ctl{min-height:48px;min-width:48px}
+.bk-ctl-big{min-width:140px;font-size:1rem}
+.bk-ctl-gap{width:10px}
+.bk-bias{font-family:var(--font-m);font-size:.9rem;font-weight:700;min-width:88px;text-align:center}
+.bk-laps-wrap{overflow-x:auto}
+.bk-laps{width:100%;border-collapse:collapse;font-size:.86rem}
+.bk-laps th{text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);padding:6px 10px;border-bottom:1px solid var(--border)}
+.bk-laps td{font-family:var(--font-m);padding:7px 10px;border-bottom:1px solid var(--border-s)}
+.bk-post-btns{display:flex;flex-direction:column;gap:9px}
 </style>
 </head>
 <body>
@@ -1038,6 +1082,7 @@ const icons = {
   edit:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>`,
   download:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M5 21h14"/></svg>`,
   heart:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5.6a4.4 4.4 0 0 0-6.2 0L12 6.4l-.8-.8A4.4 4.4 0 1 0 5 11.8L12 19l7-7.2a4.4 4.4 0 0 0 0-6.2z"/></svg>`,
+  bike:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M5.5 17.5 9 11h6l3.5 6.5"/><path d="m9 11-1.5-4H5"/><path d="M15 11 13.5 6H12"/></svg>`,
 };
 
 const logoMark = `<svg viewBox="0 0 512 512" fill="none" width="100%" height="100%"><rect x="96" y="320" width="68" height="124" rx="10" fill="#13C892" opacity=".28"/><rect x="200" y="216" width="68" height="228" rx="10" fill="#13C892" opacity=".55"/><rect x="304" y="96" width="68" height="348" rx="10" fill="#13C892" opacity=".9"/><path d="M130 308 230 206 338 90" stroke="#13C892" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M322 116 338 90 310 98" stroke="#13C892" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
@@ -1061,6 +1106,7 @@ const NAV = [
   ['plan', 'Plan', icons.plan, 'HYROX block — edit, sync & push'],
   ['calendar', 'Calendar', icons.calendar, 'Planned workouts & completed activities'],
   ['hyrox', 'HYROX', icons.hyrox, 'Race results & station splits'],
+  ['bike', 'Bike', icons.bike, 'Indoor trainer — workouts, ERG & rides'],
   ['settings', 'Settings', icons.settings, 'Connections & GitHub integration'],
 ];
 
@@ -1148,6 +1194,7 @@ async function loadTab(tab) {
       case 'calendar': await renderCalendar(page); break;
       case 'settings': await renderSettings(page); break;
       case 'hyrox': await renderHyroxPage(page); break;
+      case 'bike': await renderBikeTab(page); break;
       default: page.innerHTML = emptyState('Coming soon', '');
     }
   } catch (e) {
@@ -1157,6 +1204,14 @@ async function loadTab(tab) {
 
 function emptyState(title, sub, icon) {
   return `<div class="empty"><div class="e-ico">${icon || icons.info}</div><div class="e-title">${title}</div>${sub ? `<div>${sub}</div>` : ''}</div>`;
+}
+
+// ── Bike tab: real logic lives in ./bike/view.js (ES module, loaded at the
+// bottom); this glue hands it the page node plus the host helpers it needs.
+function renderBikeTab(page) {
+  return window.PF_BIKE && window.PF_BIKE.renderBikeTab
+    ? window.PF_BIKE.renderBikeTab(page, { escHtml, toast, withBusy, emptyState, loadJSON, ghHeaders, requireToken, REPO, REF, githubToken, setTopbar })
+    : page.innerHTML = emptyState('Bike module not loaded', 'Serve over http(s) — ES modules do not run from file://');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -4024,5 +4079,6 @@ function formatTimeAgo(iso) {
 try { const u = JSON.parse(localStorage.getItem('pf_user') || 'null'); if (u && u.name) state.user = u; } catch {}
 render();
 </script>
+<script type="module">import { initBike } from './bike/view.js'; initBike(window.PF_BIKE = {});</script>
 </body>
 </html>
