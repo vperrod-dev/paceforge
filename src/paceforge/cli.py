@@ -93,6 +93,9 @@ def main(argv: list[str] | None = None) -> int:
                               help="detach an activity from its workout and block re-auto-match")
     p_unlink.add_argument("activity_id", type=int)
 
+    p_brief = sub.add_parser("brief", help="print the morning brief (readiness/sleep/today)")
+    p_brief.add_argument("--date", default=None, help="YYYY-MM-DD (default today)")
+
     sub.add_parser("export-token", help="print current on-disk token as a GARMIN_TOKEN blob")
 
     p_hp = sub.add_parser("hyrox-import-profile",
@@ -146,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
         elif args.cmd == "rpe":
             _emit(actions.log_rpe(args.activity_id, args.date, rpe=args.rpe,
                                   duration_min=args.duration_min, notes=args.notes))
+        elif args.cmd == "brief":
+            print(actions.brief(args.date))
         elif args.cmd == "link":
             _emit(actions.link_activity(args.activity_id, session_id=args.session_id,
                                         when=args.date))

@@ -274,6 +274,50 @@ def _find_workout(plan, *, session_id: str | None, when: str | None):
     return hits[0]
 
 
+def brief(when: str | None = None) -> str:
+    """Plain-text morning brief: readiness, sleep, HRV, body battery + today's
+    scheduled session(s). Composed for a phone push notification (ntfy)."""
+    from datetime import date as _date
+
+    day = _date.fromisoformat(when) if when else _date.today()
+    p = store.load_profile()
+    lines = []
+    if p:
+        vitals = []
+        if p.training_readiness is not None:
+            vitals.append(f"Readiness {p.training_readiness:.0f}")
+        if p.sleep_score is not None:
+            sleep = f"Sleep {p.sleep_score}"
+            if p.sleep_duration_seconds:
+                h, m = divmod(int(p.sleep_duration_seconds // 60), 60)
+                sleep += f" ({h}h{m:02d})"
+            vitals.append(sleep)
+        if p.hrv_status:
+            vitals.append(f"HRV {p.hrv_status}")
+        if p.body_battery_current is not None:
+            vitals.append(f"Battery {p.body_battery_current}")
+        if vitals:
+            lines.append(" · ".join(vitals))
+
+    plan = store.load_plan()
+    todays = [wo for wk in plan.weeks for wo in wk.workouts
+              if wo.scheduled_date == day] if plan else []
+    sessions = [wo for wo in todays if str(wo.workout_type) != "rest"]
+    if sessions:
+        for wo in sessions:
+            line = f"Today: {wo.name}"
+            if wo.estimated_distance_meters:
+                line += f" — {wo.estimated_distance_meters / 1000:.1f} km"
+            elif wo.estimated_duration_seconds:
+                line += f" — {wo.estimated_duration_seconds / 60:.0f} min"
+            if wo.briefing and wo.briefing.get("purpose"):
+                line += f". {wo.briefing['purpose']}"
+            lines.append(line)
+    else:
+        lines.append("Today: rest day." if todays else "Today: nothing scheduled.")
+    return "\n".join(lines) or "No data synced yet."
+
+
 def _match_plan() -> int:
     """Re-match stored activities to the plan and annotate plan-vs-actual compliance."""
     from paceforge.engine.compliance import annotate_pace, annotate_plan

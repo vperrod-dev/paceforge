@@ -59,6 +59,16 @@ jobs:
           git diff --cached --quiet || git commit -m "data: daily Garmin sync"
           git push
 
+      # Daily phone push (ntfy.sh). No NTFY_TOPIC secret → silently skipped.
+      - name: Morning brief → ntfy
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          [ -z "$NTFY_TOPIC" ] && { echo "NTFY_TOPIC not set — skipping brief."; exit 0; }
+          paceforge brief | curl -s --fail-with-body \
+            -H "Title: PaceForge morning brief" -H "Tags: running" \
+            --data-binary @- "https://ntfy.sh/$NTFY_TOPIC"
+
       - name: Open sync-failure issue
         if: failure()
         env:
