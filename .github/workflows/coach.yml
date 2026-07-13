@@ -73,6 +73,16 @@ jobs:
             Then run `paceforge validate`, regenerate plan.md if the plan changed, and
             commit any changes to data/, plan.md, and week-review.md and push to master.
 
+      # Weekly review headline → phone + ops console (ntfy bus). Skipped if unset.
+      - name: Notify weekly review
+        if: github.event_name == 'schedule'
+        env:
+          NTFY_TOPIC_DAILY: ${{ secrets.NTFY_TOPIC_DAILY }}
+        run: |
+          [ -z "$NTFY_TOPIC_DAILY" ] && exit 0
+          head -c 600 week-review.md | curl -s -H "Title: PaceForge weekly review" \
+            --data-binary @- "https://ntfy.sh/$NTFY_TOPIC_DAILY" || true
+
       - name: Acknowledge the issue
         if: github.event_name == 'issues'
         env:
