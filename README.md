@@ -1,8 +1,10 @@
 # PaceForge
 
-A personal, serverless running coach for Garmin. Pulls your Garmin Connect fitness
-data, builds and adapts training plans, pushes structured workouts to your watch,
-and reviews your training — with **no backend, no database, and no LLM API bill**.
+A personal, serverless running coach for Garmin — plus an **indoor-cycling trainer
+app** (a Zwift replacement). Pulls your Garmin Connect fitness data, builds and
+adapts training plans, pushes structured workouts to your watch, drives a smart
+trainer over Web Bluetooth, and reviews your training — with **no backend, no
+database, and no LLM API bill**.
 
 It runs four ways, all free beyond a Claude subscription:
 - a **web dashboard** on GitHub Pages — **[vperrod.github.io/paceforge](https://vperrod.github.io/paceforge/)** (single-user, static, reads the committed `data/*.json`),
@@ -87,7 +89,19 @@ deployed by `pages.yml` and re-deployed automatically after each sync:
   priorities. A `--goal HYROX` plan is **running-only** by design (S&C stays outside
   the plan): it biases the quality slots toward **compromised running** — 1 km
   threshold repeats growing toward the race's 8×1 km — plus VO2max and hill work.
-- **Events** — add upcoming races/runs (Settings → Upcoming events); they show as a
+- **Bike** — an in-browser smart-trainer app (Chrome/Edge desktop or Android;
+  needs Web Bluetooth): pair a **KICKR CORE 2** (any FTMS trainer), a BLE heart-rate
+  strap, and **Zwift Ride button pods** (shift/pause/skip from the bars); run
+  structured workouts in **ERG mode** with a TrainerRoad-style player (zone-coloured
+  interval graph, live power trace, coaching prompts, intensity ±1%, live
+  NP/IF/TSS/W′bal), take a **ramp test** (FTP = 75% of best 1-min, one-click apply),
+  free-ride with virtual gears, or import any `.zwo`/`.erg`/`.mrc` file (a 10-workout
+  library is built in, and whatsonzwift.com's ~3,100 workouts import directly).
+  Rides record **crash-safe** and export as standard **.FIT** — download, or upload
+  to **intervals.icu / Strava** with one click; summaries persist to `data/bike/`
+  via the `save-ride` workflow and feed the ride history + a rule-based
+  *suggested next ride*. A **Demo mode** (simulated trainer) runs the whole flow
+  with no hardware. Plan & build log: `tasks/bike-section-plan-2026-07-13.md`. (Settings → Upcoming events); they show as a
   countdown on Today and on the Calendar, and the coach rebalances your plan around
   them (taper into races, build between them) gated by your health metrics.
 - **Fitness** — the full assessment (below).
