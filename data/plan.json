@@ -446,10 +446,20 @@
           "briefing": null,
           "purpose": "running_economy",
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            23577256433
+          ],
           "completion_analysis": null,
-          "completion_metrics": null,
+          "completion_metrics": {
+            "status": "orange",
+            "ratio": 0.44,
+            "planned_km": 8.5,
+            "actual_km": 3.73,
+            "planned_min": 38.3,
+            "actual_min": 18.6,
+            "activity_id": 23577256433
+          },
           "garmin_workout_id": null,
           "user_rpe": null,
           "user_notes": null
