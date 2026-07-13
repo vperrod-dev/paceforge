@@ -1,0 +1,22 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Sprints 8x30s</name>
+    <description>Eight 30-second sprints at 150% with long, full recoveries. Trains raw power and the snap to close a gap — quality over quantity, every rep from fresh-ish legs.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="sprint"/>
+        <tag name="anaerobic"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.75" Cadence="95">
+            <textevent timeoffset="30" message="Wake the legs up — add a few short spin-ups as you go."/>
+        </Warmup>
+        <IntervalsT Repeat="8" OnDuration="30" OffDuration="270" OnPower="1.50" OffPower="0.45" Cadence="110" CadenceResting="85">
+            <textevent timeoffset="0" message="GO! 30 seconds, everything on the pedals."/>
+            <textevent timeoffset="30" message="Spin it out. Full recovery before the next one."/>
+        </IntervalsT>
+        <Cooldown Duration="600" PowerLow="0.55" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Sprint day done. Keep it feather-light now."/>
+        </Cooldown>
+    </workout>
+</workout_file>

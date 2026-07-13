@@ -42,6 +42,7 @@ DEFAULT_TOKEN_DIR = "~/.garminconnect"
 # an automatic fall-back to running if the account/API rejects it.
 _RUNNING_SPORT = {"sportTypeId": 1, "sportTypeKey": "running"}
 _FITNESS_SPORT = {"sportTypeId": 6, "sportTypeKey": "fitness_equipment"}
+_CYCLING_SPORT = {"sportTypeId": 2, "sportTypeKey": "cycling"}  # SportType.CYCLING
 _SPORT_BY_WORKOUT_TYPE = {
     "hyrox_mixed": _FITNESS_SPORT,
     "cross_training": _FITNESS_SPORT,
@@ -49,6 +50,8 @@ _SPORT_BY_WORKOUT_TYPE = {
 
 
 def _sport_for(workout: Workout) -> dict:
+    if workout.sport == "bike":
+        return _CYCLING_SPORT
     return _SPORT_BY_WORKOUT_TYPE.get(str(workout.workout_type), _RUNNING_SPORT)
 
 
@@ -1100,7 +1103,8 @@ def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None):  # no
     """Convert a PaceForge WorkoutStep to a garminconnect workout step dict.
 
     Handles pace targets (sec/km → m/s pace zone), custom heart-rate ranges,
-    and distance-based end conditions so the Garmin watch guides each segment.
+    power targets (watts → power.zone), and distance-based end conditions so
+    the Garmin watch guides each segment.
     """
     # ── Repeat groups must be checked first ──────────────────────────
     if step.repeat_count and step.steps:
@@ -1119,7 +1123,16 @@ def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None):  # no
     target = None
     target_val_one = None
     target_val_two = None
-    if has_bounds and step.target_type == IntensityTarget.HEART_RATE:
+    if has_bounds and step.target_type == IntensityTarget.POWER:
+        # Custom watt range — Garmin's power.zone target (TargetType.POWER = 2).
+        target = {
+            "workoutTargetTypeId": TargetType.POWER,
+            "workoutTargetTypeKey": "power.zone",
+            "displayOrder": 2,
+        }
+        target_val_one = min(step.target_low, step.target_high)
+        target_val_two = max(step.target_low, step.target_high)
+    elif has_bounds and step.target_type == IntensityTarget.HEART_RATE:
         # Custom bpm range (NOT a Garmin zone number) — without this, HR steps
         # silently became no.target.
         target = {

@@ -23,10 +23,17 @@ class IntensityTarget(StrEnum):
 
     PACE = "pace"
     HEART_RATE = "heart_rate"
+    POWER = "power"
     OPEN = "open"  # no specific target (by feel)
 
 
 class WorkoutStep(BaseModel):
+    """One step of a workout.
+
+    target_low/target_high units depend on target_type: PACE = sec/km,
+    HEART_RATE = bpm, POWER = watts.
+    """
+
     step_type: WorkoutStepType
     description: str = ""
     duration_seconds: float | None = None
@@ -63,6 +70,8 @@ class WorkoutType(StrEnum):
     EASY_WITH_STRIDES = "easy_with_strides"
     LONG_RUN_PROGRESSIVE = "long_run_progressive"
     LONG_RUN_WITH_RACE_PACE = "long_run_with_race_pace"
+    BIKE_WORKOUT = "bike_workout"
+    BIKE_RECOVERY = "bike_recovery"
 
 
 class TrainingPurpose(StrEnum):
@@ -83,6 +92,7 @@ class Workout(BaseModel):
         description="Stable id for calendar reschedule/delete; persisted in plan.json",
     )
     workout_type: WorkoutType
+    sport: str = Field(default="run", description='"run" | "bike" | "other"')
     name: str
     description: str = ""
     scheduled_date: date | None = None
@@ -162,6 +172,7 @@ class TrainingPlan(BaseModel):
         description="Per-zone (low, high) sec/km windows; the scalar paces above stay for back-compat",
     )
     vdot: float | None = Field(default=None, description="Derived VDOT value used for pace calculation")
+    ftp: int | None = Field(default=None, description="Cycling Functional Threshold Power (watts)")
     pace_source: str = Field(default="", description="How training paces were derived (e.g. 'Lactate threshold speed', 'VO2 Max')")
 
     # AI-generated plan context

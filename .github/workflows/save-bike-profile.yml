@@ -1,0 +1,68 @@
+name: save-bike-profile
+
+# Persist bike profile changes (FTP, weight, virtual-gear prefs) from the web
+# UI into data/bike/profile.json. FTP changes append to ftp_history.
+on:
+  workflow_dispatch:
+    inputs:
+      data:
+        description: 'Profile patch: {"ftp", "weight_kg", "wprime_j", "source"}'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paceforge-data
+  cancel-in-progress: false
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch data/bike/profile.json (validated)
+        env:
+          DATA: ${{ github.event.inputs.data }}
+        run: |
+          python3 - <<'EOF'
+          import datetime, json, os
+
+          patch = json.loads(os.environ["DATA"])
+          path = "data/bike/profile.json"
+          try:
+              profile = json.load(open(path))
+          except FileNotFoundError:
+              profile = {"ftp": None, "ftp_history": [], "weight_kg": None, "wprime_j": 20000}
+
+          if patch.get("ftp") is not None:
+              ftp = int(patch["ftp"])
+              assert 50 <= ftp <= 600, "ftp out of range"
+              if ftp != profile.get("ftp"):
+                  profile["ftp"] = ftp
+                  profile.setdefault("ftp_history", []).append({
+                      "date": datetime.date.today().isoformat(),
+                      "ftp": ftp,
+                      "source": str(patch.get("source") or "manual")[:40],
+                  })
+          if patch.get("weight_kg") is not None:
+              w = float(patch["weight_kg"])
+              assert 30 <= w <= 200, "weight out of range"
+              profile["weight_kg"] = w
+          if patch.get("wprime_j") is not None:
+              wp = int(patch["wprime_j"])
+              assert 5000 <= wp <= 50000, "wprime out of range"
+              profile["wprime_j"] = wp
+
+          os.makedirs("data/bike", exist_ok=True)
+          json.dump(profile, open(path, "w"), indent=2)
+          EOF
+
+      - name: Commit
+        run: |
+          git config user.name "paceforge-bot"
+          git config user.email "bot@paceforge.local"
+          git add data/bike/profile.json
+          git diff --cached --quiet || git commit -m "data: update bike profile"
+          git push

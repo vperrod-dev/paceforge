@@ -1,0 +1,23 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Threshold 2x15</name>
+    <description>Two 15-minute efforts right at FTP with 5 minutes between. The most honest workout there is — if FTP is set right, this is hard but doable.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="threshold"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.75" Cadence="90">
+            <textevent timeoffset="30" message="Warm up thoroughly — threshold from cold is misery."/>
+            <textevent timeoffset="540" message="First 15 at FTP coming up. Pace it like a time trial."/>
+        </Warmup>
+        <IntervalsT Repeat="2" OnDuration="900" OffDuration="300" OnPower="1.00" OffPower="0.50" Cadence="90" CadenceResting="85">
+            <textevent timeoffset="60" message="Right at threshold. Smooth pedaling, steady breathing."/>
+            <textevent timeoffset="720" message="3 min left — hold form."/>
+            <textevent timeoffset="900" message="Recover. Second one counts double."/>
+        </IntervalsT>
+        <Cooldown Duration="600" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="That's real fitness earned. Easy spin."/>
+        </Cooldown>
+    </workout>
+</workout_file>

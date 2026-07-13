@@ -14,7 +14,7 @@ on:
   # Redeploy after sync/coach commit fresh data. (Their GITHUB_TOKEN pushes don't
   # fire the `push` trigger above, so we react to their completion instead.)
   workflow_run:
-    workflows: [sync, coach, hyrox, save-events, save-benchmarks, plan, calendar-edit, garmin-delete, garmin-clear-calendar]
+    workflows: [sync, coach, hyrox, save-events, save-benchmarks, save-ride, save-bike-profile, plan, calendar-edit, garmin-delete, garmin-clear-calendar]
     types: [completed]
   workflow_dispatch:
 
@@ -49,8 +49,8 @@ jobs:
       - name: Assemble _site (app + data)
         run: |
           mkdir -p _site/data
-          cp web/index.html _site/index.html
-          cp -r data/. _site/data/   # includes details/ + analyses/ subdirs
+          cp -r web/. _site/         # index.html + bike/ JS modules
+          cp -r data/. _site/data/   # includes details/ + analyses/ + bike/ subdirs
 
       - uses: actions/upload-pages-artifact@v3
         with:

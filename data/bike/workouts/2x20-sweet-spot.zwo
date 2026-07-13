@@ -1,0 +1,24 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>2x20 Sweet Spot</name>
+    <description>Two 20-minute blocks just below threshold. Big aerobic payoff for the effort — settle in, keep the pressure steady, and resist surging on the second block.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="sweetspot"/>
+        <tag name="threshold"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.75" Cadence="90">
+            <textevent timeoffset="30" message="Ease into it — power climbs gradually over 10 minutes."/>
+            <textevent timeoffset="480" message="Almost there. First 20-minute block starts in 2 minutes."/>
+        </Warmup>
+        <IntervalsT Repeat="2" OnDuration="1200" OffDuration="300" OnPower="0.90" OffPower="0.50" Cadence="90" CadenceResting="85">
+            <textevent timeoffset="60" message="Settle into a rhythm you could hold for an hour on a good day."/>
+            <textevent timeoffset="1020" message="3 min left — hold form, no surging."/>
+            <textevent timeoffset="1200" message="Recovery. Spin light, drink."/>
+        </IntervalsT>
+        <Cooldown Duration="600" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Done. Let the legs flush out."/>
+        </Cooldown>
+    </workout>
+</workout_file>

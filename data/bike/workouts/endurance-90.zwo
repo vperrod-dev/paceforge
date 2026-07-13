@@ -1,0 +1,33 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Endurance 90</name>
+    <description>Ninety minutes of steady Zone 2 with cadence variety: high-cadence spin-ups and low-cadence strength blocks keep it engaging while the aerobic engine does its quiet work.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="endurance"/>
+        <tag name="z2"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.65" Cadence="90">
+            <textevent timeoffset="30" message="Long easy day. Settle in and enjoy it."/>
+        </Warmup>
+        <SteadyState Duration="1200" Power="0.68" Cadence="85">
+            <textevent timeoffset="60" message="Conversational pace — you should be able to talk."/>
+        </SteadyState>
+        <SteadyState Duration="600" Power="0.70" Cadence="100">
+            <textevent timeoffset="10" message="Cadence block: 100 rpm, smooth circles, quiet upper body."/>
+        </SteadyState>
+        <SteadyState Duration="1200" Power="0.70" Cadence="85">
+            <textevent timeoffset="60" message="Back to normal cadence. Keep the power honest."/>
+        </SteadyState>
+        <SteadyState Duration="600" Power="0.68" Cadence="65">
+            <textevent timeoffset="10" message="Strength block: 65 rpm, stay seated, drive from the hips."/>
+        </SteadyState>
+        <SteadyState Duration="800" Power="0.70" Cadence="90">
+            <textevent timeoffset="500" message="5 min of work left — hold form to the end."/>
+        </SteadyState>
+        <Cooldown Duration="400" PowerLow="0.55" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Easy spin home. Miles in the bank."/>
+        </Cooldown>
+    </workout>
+</workout_file>

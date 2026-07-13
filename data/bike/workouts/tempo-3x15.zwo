@@ -1,0 +1,22 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Tempo 3x15</name>
+    <description>Three 15-minute tempo blocks at a comfortably hard pace. Builds the muscular endurance that makes long threshold work possible later in the season.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="tempo"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.70" Cadence="90">
+            <textevent timeoffset="30" message="Roll into it — tempo should feel busy, not painful."/>
+        </Warmup>
+        <IntervalsT Repeat="3" OnDuration="900" OffDuration="300" OnPower="0.85" OffPower="0.50" Cadence="90" CadenceResting="85">
+            <textevent timeoffset="60" message="Comfortably hard. Breathing deeper, still in control."/>
+            <textevent timeoffset="720" message="3 min left — hold form, keep the cadence up."/>
+            <textevent timeoffset="900" message="Easy 5. Drink and reset."/>
+        </IntervalsT>
+        <Cooldown Duration="600" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Solid session. Spin it down."/>
+        </Cooldown>
+    </workout>
+</workout_file>

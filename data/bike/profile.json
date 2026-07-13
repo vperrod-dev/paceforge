@@ -1,0 +1,13 @@
+{
+  "ftp": 200,
+  "ftp_history": [
+    { "date": "2026-07-13", "ftp": 200, "source": "default" }
+  ],
+  "weight_kg": null,
+  "wprime_j": 20000,
+  "virtual_gears": {
+    "count": 24,
+    "ratio_step": 1.07,
+    "current_default": 12
+  }
+}

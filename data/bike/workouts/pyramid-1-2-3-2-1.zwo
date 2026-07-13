@@ -1,0 +1,38 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Pyramid 1-2-3-2-1</name>
+    <description>A pyramid of 1-2-3-2-1 minute efforts just above threshold with matching recoveries. Climbs to a 3-minute peak, then descends — short, sharp, and over before it gets boring.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="threshold"/>
+        <tag name="vo2max"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.75" Cadence="90">
+            <textevent timeoffset="30" message="Warm up well — the pyramid starts with a fast minute."/>
+        </Warmup>
+        <SteadyState Duration="60" Power="1.05" Cadence="95">
+            <textevent timeoffset="0" message="1 minute up — punchy but poised."/>
+        </SteadyState>
+        <SteadyState Duration="60" Power="0.50" Cadence="85"/>
+        <SteadyState Duration="120" Power="1.05" Cadence="95">
+            <textevent timeoffset="0" message="2 minutes — settle just above threshold."/>
+        </SteadyState>
+        <SteadyState Duration="120" Power="0.50" Cadence="85"/>
+        <SteadyState Duration="180" Power="1.05" Cadence="95">
+            <textevent timeoffset="0" message="The peak: 3 minutes. Steady to the top."/>
+            <textevent timeoffset="120" message="1 min left — over the summit."/>
+        </SteadyState>
+        <SteadyState Duration="180" Power="0.50" Cadence="85"/>
+        <SteadyState Duration="120" Power="1.05" Cadence="95">
+            <textevent timeoffset="0" message="Back down: 2 minutes. It doesn't get easier, you get closer."/>
+        </SteadyState>
+        <SteadyState Duration="120" Power="0.50" Cadence="85"/>
+        <SteadyState Duration="60" Power="1.05" Cadence="95">
+            <textevent timeoffset="0" message="Last minute — empty the tank."/>
+        </SteadyState>
+        <Cooldown Duration="600" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Pyramid complete. Roll it out easy."/>
+        </Cooldown>
+    </workout>
+</workout_file>

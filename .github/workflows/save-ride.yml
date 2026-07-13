@@ -1,0 +1,80 @@
+name: save-ride
+
+# Persist one completed indoor-cycling ride summary from the web UI into
+# data/bike/rides.json. Same dispatch-and-commit path as save-rpe: the user's
+# token only needs actions:write; the commit uses GITHUB_TOKEN. The raw .FIT
+# stays on the rider's machine / intervals.icu — this is the portal's summary.
+on:
+  workflow_dispatch:
+    inputs:
+      data:
+        description: 'One ride summary: {"date","workout","duration_sec","avg_power","np","if","tss","kj","avg_hr","avg_cadence","ftp","notes"}'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paceforge-data
+  cancel-in-progress: false
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Append to data/bike/rides.json (validated)
+        env:
+          DATA: ${{ github.event.inputs.data }}
+        run: |
+          # Parse via env (never inline untrusted input); validate shape + ranges.
+          python3 - <<'EOF'
+          import json, os
+
+          entry = json.loads(os.environ["DATA"])
+
+          def num(key, lo, hi, required=False):
+              v = entry.get(key)
+              if v is None:
+                  assert not required, f"{key} required"
+                  return None
+              v = float(v)
+              assert lo <= v <= hi, f"{key} out of range"
+              return round(v, 1)
+
+          clean = {
+              "date": str(entry["date"])[:19],
+              "workout": (str(entry.get("workout") or "Free ride")[:120]),
+              "duration_sec": int(num("duration_sec", 1, 86400, required=True)),
+              "avg_power": num("avg_power", 0, 2000),
+              "np": num("np", 0, 2000),
+              "if": num("if", 0, 3),
+              "tss": num("tss", 0, 1000),
+              "kj": num("kj", 0, 10000),
+              "avg_hr": num("avg_hr", 0, 250),
+              "avg_cadence": num("avg_cadence", 0, 200),
+              "ftp": num("ftp", 50, 600),
+              "notes": (str(entry.get("notes") or "")[:500] or None),
+              "source": "web",
+          }
+          path = "data/bike/rides.json"
+          os.makedirs("data/bike", exist_ok=True)
+          try:
+              rides = json.load(open(path)).get("rides") or []
+          except FileNotFoundError:
+              rides = []
+          # Idempotent on exact date stamp (double-click / retry safety).
+          rides = [r for r in rides if r.get("date") != clean["date"]]
+          rides.append(clean)
+          rides.sort(key=lambda r: str(r.get("date") or ""))
+          json.dump({"rides": rides}, open(path, "w"), indent=2)
+          EOF
+
+      - name: Commit
+        run: |
+          git config user.name "paceforge-bot"
+          git config user.email "bot@paceforge.local"
+          git add data/bike/rides.json
+          git diff --cached --quiet || git commit -m "data: log bike ride"
+          git push

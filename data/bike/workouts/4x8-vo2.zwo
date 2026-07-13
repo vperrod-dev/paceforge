@@ -1,0 +1,22 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>4x8 VO2</name>
+    <description>Four 8-minute repeats slightly above threshold with 4 minutes easy between. Long enough to pull oxygen uptake near its ceiling without the sting of short VO2 work.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="vo2max"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.75" Cadence="90">
+            <textevent timeoffset="30" message="Long warmup — these repeats bite late, arrive ready."/>
+        </Warmup>
+        <IntervalsT Repeat="4" OnDuration="480" OffDuration="240" OnPower="1.08" OffPower="0.50" Cadence="95" CadenceResting="85">
+            <textevent timeoffset="30" message="Breathe deep and keep the cadence lively."/>
+            <textevent timeoffset="360" message="2 min left — this is where the adaptation happens."/>
+            <textevent timeoffset="480" message="Easy spin. Let the breathing come back down."/>
+        </IntervalsT>
+        <Cooldown Duration="600" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Great work. Spin it out."/>
+        </Cooldown>
+    </workout>
+</workout_file>

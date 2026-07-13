@@ -1,0 +1,34 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Over-Unders 3x9</name>
+    <description>Three 9-minute blocks alternating 2 minutes just under threshold with 1 minute just over. Teaches your legs to clear lactate while still working — race-winning fitness.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="threshold"/>
+        <tag name="overunders"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.75" Cadence="90">
+            <textevent timeoffset="30" message="Warm up well — the overs come around fast."/>
+        </Warmup>
+        <IntervalsT Repeat="3" OnDuration="120" OffDuration="60" OnPower="0.95" OffPower="1.05" Cadence="90" CadenceResting="95">
+            <textevent timeoffset="10" message="Under: strong but controlled."/>
+            <textevent timeoffset="120" message="Over! 1 minute above threshold — lift the cadence."/>
+        </IntervalsT>
+        <SteadyState Duration="300" Power="0.50" Cadence="85">
+            <textevent timeoffset="15" message="Set done. Spin easy and shake it out."/>
+        </SteadyState>
+        <IntervalsT Repeat="3" OnDuration="120" OffDuration="60" OnPower="0.95" OffPower="1.05" Cadence="90" CadenceResting="95">
+            <textevent timeoffset="120" message="Over again — don't let the power sag at the end."/>
+        </IntervalsT>
+        <SteadyState Duration="300" Power="0.50" Cadence="85">
+            <textevent timeoffset="15" message="One set to go. Recover smart."/>
+        </SteadyState>
+        <IntervalsT Repeat="3" OnDuration="120" OffDuration="60" OnPower="0.95" OffPower="1.05" Cadence="90" CadenceResting="95">
+            <textevent timeoffset="400" message="Last over of the day — finish it properly."/>
+        </IntervalsT>
+        <Cooldown Duration="600" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Done. That clearing ability pays off on race day."/>
+        </Cooldown>
+    </workout>
+</workout_file>

@@ -1,0 +1,21 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Recovery 45</name>
+    <description>Forty-five genuinely easy minutes. The discipline here is keeping the power DOWN — this ride makes the hard days work, it doesn't add to them.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="recovery"/>
+    </tags>
+    <workout>
+        <Warmup Duration="300" PowerLow="0.35" PowerHigh="0.50" Cadence="85">
+            <textevent timeoffset="30" message="Recovery ride. If it feels too easy, it's exactly right."/>
+        </Warmup>
+        <SteadyState Duration="2100" Power="0.50" Cadence="90">
+            <textevent timeoffset="600" message="Light and smooth. No heroics today."/>
+            <textevent timeoffset="1800" message="5 min left of the steady spin."/>
+        </SteadyState>
+        <Cooldown Duration="300" PowerLow="0.50" PowerHigh="0.35">
+            <textevent timeoffset="30" message="Done. Legs fresher than when you started — that was the point."/>
+        </Cooldown>
+    </workout>
+</workout_file>

@@ -1,0 +1,94 @@
+{
+  "workouts": [
+    {
+      "file": "2x20-sweet-spot.zwo",
+      "name": "2x20 Sweet Spot",
+      "durationSec": 4200,
+      "tss": 75,
+      "if": 0.802,
+      "zones": "Z3-Z4",
+      "description": "Two 20-minute blocks just below threshold. Big aerobic payoff for the effort — settle in, keep the pressure steady, and resist surging on the second block."
+    },
+    {
+      "file": "4x8-vo2.zwo",
+      "name": "4x8 VO2",
+      "durationSec": 4080,
+      "tss": 93.2,
+      "if": 0.907,
+      "zones": "Z5",
+      "description": "Four 8-minute repeats slightly above threshold with 4 minutes easy between. Long enough to pull oxygen uptake near its ceiling without the sting of short VO2 work."
+    },
+    {
+      "file": "5x5-vo2.zwo",
+      "name": "5x5 VO2",
+      "durationSec": 4200,
+      "tss": 94.7,
+      "if": 0.901,
+      "zones": "Z5",
+      "description": "The classic five-by-five: 5 minutes hard, 5 minutes easy, five times. Simple to remember, brutally effective at raising your aerobic ceiling."
+    },
+    {
+      "file": "endurance-90.zwo",
+      "name": "Endurance 90",
+      "durationSec": 5400,
+      "tss": 67.3,
+      "if": 0.67,
+      "zones": "Z2",
+      "description": "Ninety minutes of steady Zone 2 with cadence variety: high-cadence spin-ups and low-cadence strength blocks keep it engaging while the aerobic engine does its quiet work."
+    },
+    {
+      "file": "over-unders-3x9.zwo",
+      "name": "Over-Unders 3x9",
+      "durationSec": 3420,
+      "tss": 66.5,
+      "if": 0.837,
+      "zones": "Z4-Z5",
+      "description": "Three 9-minute blocks alternating 2 minutes just under threshold with 1 minute just over. Teaches your legs to clear lactate while still working — race-winning fitness."
+    },
+    {
+      "file": "pyramid-1-2-3-2-1.zwo",
+      "name": "Pyramid 1-2-3-2-1",
+      "durationSec": 2220,
+      "tss": 36.1,
+      "if": 0.766,
+      "zones": "Z4-Z5",
+      "description": "A pyramid of 1-2-3-2-1 minute efforts just above threshold with matching recoveries. Climbs to a 3-minute peak, then descends — short, sharp, and over before it gets boring."
+    },
+    {
+      "file": "recovery-45.zwo",
+      "name": "Recovery 45",
+      "durationSec": 2700,
+      "tss": 17.9,
+      "if": 0.488,
+      "zones": "Z1",
+      "description": "Forty-five genuinely easy minutes. The discipline here is keeping the power DOWN — this ride makes the hard days work, it doesn't add to them."
+    },
+    {
+      "file": "sprints-8x30s.zwo",
+      "name": "Sprints 8x30s",
+      "durationSec": 3600,
+      "tss": 50,
+      "if": 0.707,
+      "zones": "Z6",
+      "description": "Eight 30-second sprints at 150% with long, full recoveries. Trains raw power and the snap to close a gap — quality over quantity, every rep from fresh-ish legs."
+    },
+    {
+      "file": "tempo-3x15.zwo",
+      "name": "Tempo 3x15",
+      "durationSec": 4800,
+      "tss": 76.2,
+      "if": 0.756,
+      "zones": "Z3",
+      "description": "Three 15-minute tempo blocks at a comfortably hard pace. Builds the muscular endurance that makes long threshold work possible later in the season."
+    },
+    {
+      "file": "threshold-2x15.zwo",
+      "name": "Threshold 2x15",
+      "durationSec": 3600,
+      "tss": 73.7,
+      "if": 0.859,
+      "zones": "Z4",
+      "description": "Two 15-minute efforts right at FTP with 5 minutes between. The most honest workout there is — if FTP is set right, this is hard but doable."
+    }
+  ]
+}
