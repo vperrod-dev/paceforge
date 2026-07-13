@@ -78,7 +78,7 @@ PaceForge = static SPA (`web/index.html`, vanilla JS, no build step) on GitHub P
 Phases 1–3 = the minimum lovable Zwift replacement. 4 is ergonomics, 5 is where it out-Zwifts Zwift for *training*.
 
 ## 5. Open decisions for Victor
-1. **Ride device:** which machine sits in front of the bike — laptop (Chrome, ideal) or Android tablet? If iPad-only → we need Bluefy or rethink (nothing else changes).
+1. **Ride device: laptop (decided 2026-07-13)** — Chrome/Edge, the ideal target. No iOS workaround needed.
 2. **intervals.icu account** — recommended as the free analytics backend (CTL/W'bal/power curve) instead of building analysis in-portal. Have/want one?
 3. **Workout source preference:** curated ZWO library in-repo vs. TrainerDay API as live backend (API key, personal use). Plan assumes in-repo + paste-import first.
 4. Cancel Zwift after Phase 2 exit test passes, not before.
