@@ -7,7 +7,7 @@ license = { text = "MIT" }
 requires-python = ">=3.11"
 authors = [{ name = "vipe" }]
 dependencies = [
-    "garminconnect[workout] @ git+https://github.com/diegoscarabelli/python-garminconnect.git@feat/widget-cffi-login-strategy",
+    "garminconnect[workout] @ git+https://github.com/diegoscarabelli/python-garminconnect.git@c1f8a9a38291387178ea10c4416fe3c72137297c",  # feat/widget-cffi-login-strategy @ 2026-07-15 — pinned SHA (immutable)
     "curl_cffi>=0.7",
     "pydantic>=2.0",
     "pyyaml>=6.0",

@@ -38,10 +38,13 @@ jobs:
         env:
           PACEFORGE_GARMIN_EMAIL: ${{ secrets.PACEFORGE_GARMIN_EMAIL }}
           GARMIN_TOKEN: ${{ secrets.GARMIN_TOKEN }}
+          # inputs via env, not inline interpolation — no shell injection
+          WEEK: ${{ inputs.week }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           ARGS=""
-          if [ -n "${{ inputs.week }}" ]; then ARGS="--week ${{ inputs.week }}"; fi
-          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ -n "$WEEK" ]; then ARGS="--week $WEEK"; fi
+          if [ "$DRY_RUN" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           paceforge push $ARGS
 
       # Persist garmin_workout_id written by the push — without this the ids

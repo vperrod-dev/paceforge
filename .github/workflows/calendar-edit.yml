@@ -42,15 +42,22 @@ jobs:
         env:
           PACEFORGE_GARMIN_EMAIL: ${{ secrets.PACEFORGE_GARMIN_EMAIL }}
           GARMIN_TOKEN: ${{ secrets.GARMIN_TOKEN }}
+          # inputs via env, not inline interpolation — no shell injection
+          SESSION_ID: ${{ inputs.session_id }}
+          EDIT_ACTION: ${{ inputs.action }}
+          NEW_DATE: ${{ inputs.new_date }}
         run: |
           ARGS=""
-          if [ -n "${{ inputs.new_date }}" ]; then ARGS="--new-date ${{ inputs.new_date }}"; fi
-          paceforge calendar-edit "${{ inputs.session_id }}" "${{ inputs.action }}" $ARGS
+          if [ -n "$NEW_DATE" ]; then ARGS="--new-date $NEW_DATE"; fi
+          paceforge calendar-edit "$SESSION_ID" "$EDIT_ACTION" $ARGS
 
       - name: Commit updated plan
+        env:
+          SESSION_ID: ${{ inputs.session_id }}
+          EDIT_ACTION: ${{ inputs.action }}
         run: |
           git config user.name "paceforge-bot"
           git config user.email "bot@users.noreply.github.com"
           git add data/plan.json
-          git commit -m "calendar: ${{ inputs.action }} session ${{ inputs.session_id }}" || echo "nothing to commit"
+          git commit -m "calendar: $EDIT_ACTION session $SESSION_ID" || echo "nothing to commit"
           git push

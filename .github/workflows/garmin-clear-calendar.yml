@@ -40,9 +40,12 @@ jobs:
         env:
           PACEFORGE_GARMIN_EMAIL: ${{ secrets.PACEFORGE_GARMIN_EMAIL }}
           GARMIN_TOKEN: ${{ secrets.GARMIN_TOKEN }}
+          # inputs via env, not inline interpolation — no shell injection
+          DAYS: ${{ inputs.days }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          ARGS="--days ${{ inputs.days }}"
-          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          ARGS="--days $DAYS"
+          if [ "$DRY_RUN" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           paceforge garmin-clear-calendar $ARGS
 
       - name: Commit cleared workout ids

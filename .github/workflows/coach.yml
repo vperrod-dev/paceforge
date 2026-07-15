@@ -65,8 +65,10 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # Owner-gated CI job — let the coach actually run paceforge/git and write files.
-          claude_args: '--allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,TodoWrite"'
+          # COACH_TASK is issue/dispatch-derived text — Bash is scoped to the
+          # commands the coach skill actually uses (paceforge, python, git),
+          # not a blanket grant.
+          claude_args: '--allowedTools "Bash(paceforge:*),Bash(python:*),Bash(python3:*),Bash(git:*),Read,Write,Edit,MultiEdit,Glob,Grep,TodoWrite"'
           prompt: |
             Use the coach skill in .claude/skills/coach/.
             The athlete's request is in the COACH_TASK environment variable — read it and do it.

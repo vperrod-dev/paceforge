@@ -691,13 +691,15 @@ function exportPlan() { planStore.export(); }
 
 // ═══════════════════════════════════════════════════════
 // GITHUB INTEGRATION  — real actions from a static page
-// Token lives ONLY in localStorage (pf_gh_token). Never committed.
+// Token lives ONLY in sessionStorage (pf_gh_token) — cleared when the
+// browser session ends, never persisted to disk-backed localStorage.
 // ═══════════════════════════════════════════════════════
 const GH_TOKEN_KEY = 'pf_gh_token';
+try { localStorage.removeItem(GH_TOKEN_KEY); } catch {} // purge tokens persisted by older versions
 const githubToken = {
-  get() { return (localStorage.getItem(GH_TOKEN_KEY) || '').trim(); },
-  set(t) { localStorage.setItem(GH_TOKEN_KEY, (t || '').trim()); },
-  clear() { localStorage.removeItem(GH_TOKEN_KEY); },
+  get() { return (sessionStorage.getItem(GH_TOKEN_KEY) || '').trim(); },
+  set(t) { sessionStorage.setItem(GH_TOKEN_KEY, (t || '').trim()); },
+  clear() { sessionStorage.removeItem(GH_TOKEN_KEY); },
   has() { return !!this.get(); },
 };
 
@@ -3891,7 +3893,7 @@ async function renderSettings(page) {
         <div class="field">
           <label for="gh-token">Fine-grained Personal Access Token</label>
           <input type="password" id="gh-token" class="mono-input" placeholder="${tokenSet ? '•••••••••••••••• (stored)' : 'github_pat_…'}" autocomplete="off">
-          <div class="hint">Needs <b>Actions: write</b> and <b>Issues: write</b> on <b>${REPO}</b>. Stored only in this browser's localStorage (<code>pf_gh_token</code>) — never committed.</div>
+          <div class="hint">Needs <b>Actions: write</b> and <b>Issues: write</b> on <b>${REPO}</b>. Kept only in this browser session (<code>sessionStorage</code>) — gone when you close the browser, never sent anywhere but api.github.com, never committed.</div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" id="gh-save">Save token</button>

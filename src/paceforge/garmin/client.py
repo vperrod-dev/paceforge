@@ -120,56 +120,25 @@ class GarminClient:
         if self._client is None:
             raise RuntimeError("Call login() first before completing MFA.")
 
-        inner = self._client.client  # the inner Client instance
-
-        # Ensure the tokenstore path is set so tokens persist after MFA
-        if self._token_dir and not getattr(inner, '_tokenstore_path', None):
-            inner._tokenstore_path = str(Path(self._token_dir).expanduser().resolve())
-
-        # Directly dispatch MFA completion based on which session attribute
-        # exists, rather than relying on resume_login which may be out-of-sync
-        # with the login strategy used.
-        if hasattr(inner, '_widget_session'):
-            ticket = inner._complete_mfa_widget(mfa_code)
-            sso_embed = f"{inner._sso}/sso/embed"
-            inner._establish_session(
-                ticket, sess=inner._widget_session, service_url=sso_embed,
-            )
-            for attr in ('_widget_session', '_widget_signin_params', '_widget_last_resp'):
-                if hasattr(inner, attr):
-                    delattr(inner, attr)
-        elif hasattr(inner, '_mfa_portal_web_session'):
-            inner._complete_mfa_portal_web(mfa_code)
-        elif hasattr(inner, '_mfa_cffi_session'):
-            inner._complete_mfa_portal(mfa_code)
-        elif hasattr(inner, '_mfa_session'):
-            inner._complete_mfa(mfa_code)
-        else:
+        # The pinned fork's public resume_login() dispatches on the same MFA
+        # session attributes (widget / portal-web / cffi / mobile) this method
+        # used to poke by hand, and also refetches profile + user settings.
+        # An expired/lost MFA session surfaces as AttributeError inside it.
+        try:
+            self._client.resume_login(self._mfa_state or {}, mfa_code)
+        except AttributeError as exc:
             raise RuntimeError(
                 "MFA session expired or was lost. Please restart the login."
-            )
+            ) from exc
 
         self._mfa_state = None
 
         # Persist tokens after successful MFA so future logins skip MFA
         if self._token_dir:
             try:
-                inner.dump(str(Path(self._token_dir).expanduser().resolve()))
+                self._client.client.dump(str(Path(self._token_dir).expanduser().resolve()))
             except Exception:
                 logger.debug("Token persistence after MFA failed", exc_info=True)
-
-        # Load profile/settings that Garmin.login() skips in return_on_mfa mode
-        try:
-            self._client.display_name = None
-            self._client.full_name = None
-            prof = self._client.client.connectapi(
-                "/userprofile-service/socialProfile"
-            )
-            if isinstance(prof, dict):
-                self._client.display_name = prof.get("displayName")
-                self._client.full_name = prof.get("fullName", "")
-        except Exception:
-            logger.debug("Profile fetch after MFA failed", exc_info=True)
 
         logger.info("MFA verified — authenticated with Garmin Connect")
 

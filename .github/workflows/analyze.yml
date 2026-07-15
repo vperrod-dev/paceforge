@@ -54,8 +54,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # Owner-gated CI job — let the coach actually run paceforge/git and write files.
-          claude_args: '--allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,TodoWrite"'
+          # Analysis writer only needs to read data, write analyses and git-push —
+          # Bash is scoped to git, no blanket grant.
+          claude_args: '--allowedTools "Bash(git:*),Read,Write,Glob,Grep,TodoWrite"'
           prompt: |
             Use the coach skill in .claude/skills/coach/ — the "Per-activity analysis"
             section. Write data/analyses/{id}.md for each of these Garmin activity ids

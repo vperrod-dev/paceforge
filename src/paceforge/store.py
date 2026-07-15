@@ -23,7 +23,11 @@ def _path(name: str) -> Path:
 
 def _write(path: Path, payload: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(payload)
+    # Atomic: write a sibling temp file, then rename — a crash mid-write must
+    # never leave a truncated JSON file behind.
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(payload)
+    os.replace(tmp, path)
 
 
 def load_profile() -> UserFitnessProfile | None:

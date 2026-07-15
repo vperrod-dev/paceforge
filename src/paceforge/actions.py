@@ -48,7 +48,7 @@ def _materialize_token(token_dir: Path) -> None:
         return
     token_dir.mkdir(parents=True, exist_ok=True)
     with tarfile.open(fileobj=io.BytesIO(base64.b64decode(blob)), mode="r:gz") as tar:
-        tar.extractall(token_dir)  # noqa: S202 — our own token archive
+        tar.extractall(token_dir, filter="data")  # refuse path traversal / device members
 
 
 def _export_token(token_dir: Path) -> str:
