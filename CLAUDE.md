@@ -109,3 +109,10 @@ hand. After a successful login the token is on disk — recover it without re-lo
 ## Style
 - Ruff, 100-char lines (see `pyproject.toml`). `from __future__ import annotations` at top.
 - Named exports, verb-first functions. Commit messages: `area: short description`.
+
+## Agentic OS
+
+- Registry entry: `paceforge` in `claude-config/os/registry.yaml` (autonomy: `report-only`)
+- Cross-project backlog: `claude-config/os/backlog.md` under `## PaceForge`
+- Working tasks: `tasks/todo.md` · Lessons after corrections: `tasks/lessons.md`
+- At session start, check the registry entry and this project's backlog section.
