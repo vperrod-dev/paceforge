@@ -761,9 +761,11 @@ class GarminClient:
         except Exception:
             logger.warning("Could not fetch Garmin workouts", exc_info=True)
 
-        # Method 3: Try daily events for upcoming days if nothing found
+        # Method 3: Try daily events for upcoming days if nothing found.
+        # The fork has no range endpoint for all-day events (one API call per day),
+        # so cap this last-resort sweep — callers pass days_ahead up to 400.
         if not scheduled:
-            for d in range(days_ahead):
+            for d in range(min(days_ahead, 60)):
                 try:
                     day = (date.today() + timedelta(days=d)).isoformat()
                     events = self.client.get_all_day_events(day)
