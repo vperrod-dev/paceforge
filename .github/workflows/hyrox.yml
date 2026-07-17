@@ -71,9 +71,12 @@ jobs:
           fi
 
       - name: Commit
+        # User-supplied text via env (never inlined into the shell) to avoid injection.
+        env:
+          MODE: ${{ github.event.inputs.mode }}
         run: |
           git config user.name "paceforge-bot"
           git config user.email "bot@users.noreply.github.com"
           git add data/hyrox.json data/hyrox_preview.json
-          git diff --cached --quiet || git commit -m "data: HYROX ${{ github.event.inputs.mode }}"
+          git diff --cached --quiet || git commit -m "data: HYROX $MODE"
           git push
