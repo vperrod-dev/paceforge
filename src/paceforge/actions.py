@@ -276,7 +276,7 @@ def _find_workout(plan, *, session_id: str | None, when: str | None):
 
 def brief(when: str | None = None) -> str:
     """Plain-text morning brief: readiness, sleep, HRV, body battery + today's
-    scheduled session(s). Composed for a phone push notification (ntfy)."""
+    scheduled session(s). Composed for a phone push notification (Telegram)."""
     from datetime import date as _date
 
     day = _date.fromisoformat(when) if when else _date.today()

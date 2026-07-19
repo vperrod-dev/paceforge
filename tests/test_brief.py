@@ -1,4 +1,4 @@
-"""brief() — the daily ntfy morning-brief text."""
+"""brief() — the daily Telegram morning-brief text."""
 
 from __future__ import annotations
 

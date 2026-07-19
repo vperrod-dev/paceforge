@@ -63,15 +63,32 @@ jobs:
           git diff --cached --quiet || git commit -m "data: daily Garmin sync"
           git push
 
-      # Daily phone push (ntfy.sh). No NTFY_TOPIC secret → silently skipped.
-      - name: Morning brief → ntfy
+      # Daily phone push (Telegram). No TG_TOKEN/TG_CHAT_ID secret → silently skipped.
+      - name: Morning brief → Telegram
         env:
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
-          [ -z "$NTFY_TOPIC" ] && { echo "NTFY_TOPIC not set — skipping brief."; exit 0; }
-          paceforge brief | curl -s --fail-with-body \
-            -H "Title: PaceForge morning brief" -H "Tags: running" \
-            --data-binary @- "https://ntfy.sh/$NTFY_TOPIC"
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then
+            echo "TG_TOKEN/TG_CHAT_ID not set — skipping brief."
+            exit 0
+          fi
+          body=$(paceforge brief | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' | head -c 3900) || true
+          text=$(printf '<b>🏃 PaceForge morning brief</b>\n<pre>%s</pre>' "$body")
+          api="https://api.telegram.org/bot$TG_TOKEN/sendMessage"
+          resp=$(curl -s "$api" \
+            --data-urlencode "chat_id=$TG_CHAT_ID" \
+            --data-urlencode "text=$text" \
+            -d parse_mode=HTML -d disable_web_page_preview=true) || true
+          # A malformed-HTML rejection must not silently drop the brief: resend as plain text.
+          case "$resp" in
+            *'"ok":true'*) echo "Telegram brief sent." ;;
+            *) echo "Telegram HTML send failed ($resp) — retrying without parse_mode."
+               curl -s "$api" \
+                 --data-urlencode "chat_id=$TG_CHAT_ID" \
+                 --data-urlencode "text=$text" \
+                 -d disable_web_page_preview=true >/dev/null || true ;;
+          esac
 
       - name: Open sync-failure issue
         if: failure()

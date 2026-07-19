@@ -75,15 +75,33 @@ jobs:
             Then run `paceforge validate`, regenerate plan.md if the plan changed, and
             commit any changes to data/, plan.md, and week-review.md and push to master.
 
-      # Weekly review headline → phone + ops console (ntfy bus). Skipped if unset.
+      # Weekly review headline → phone (Telegram). Skipped if the secrets are unset.
       - name: Notify weekly review
         if: github.event_name == 'schedule'
         env:
-          NTFY_TOPIC_DAILY: ${{ secrets.NTFY_TOPIC_DAILY }}
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
         run: |
-          [ -z "$NTFY_TOPIC_DAILY" ] && exit 0
-          head -c 600 week-review.md | curl -s -H "Title: PaceForge weekly review" \
-            --data-binary @- "https://ntfy.sh/$NTFY_TOPIC_DAILY" || true
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then
+            echo "TG_TOKEN/TG_CHAT_ID not set — skipping weekly review notification."
+            exit 0
+          fi
+          body=$(head -c 600 week-review.md | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' | head -c 3900) || true
+          text=$(printf '<b>📊 PaceForge weekly review</b>\n<pre>%s</pre>' "$body")
+          api="https://api.telegram.org/bot$TG_TOKEN/sendMessage"
+          resp=$(curl -s "$api" \
+            --data-urlencode "chat_id=$TG_CHAT_ID" \
+            --data-urlencode "text=$text" \
+            -d parse_mode=HTML -d disable_web_page_preview=true) || true
+          # A malformed-HTML rejection must not silently drop the review: resend as plain text.
+          case "$resp" in
+            *'"ok":true'*) echo "Telegram weekly review sent." ;;
+            *) echo "Telegram HTML send failed ($resp) — retrying without parse_mode."
+               curl -s "$api" \
+                 --data-urlencode "chat_id=$TG_CHAT_ID" \
+                 --data-urlencode "text=$text" \
+                 -d disable_web_page_preview=true >/dev/null || true ;;
+          esac
 
       - name: Acknowledge the issue
         if: github.event_name == 'issues'
