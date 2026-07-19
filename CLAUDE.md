@@ -87,12 +87,12 @@ personalise notes, re-validate, regenerate the human view with
 
 ## Scheduled workflows (beyond sync)
 `sync.yml` runs ~06:45 Dublin (DST-split crons) and ends by pushing
-`paceforge brief` to ntfy (`NTFY_TOPIC` secret; skipped when unset).
+`paceforge brief` to Telegram (`TG_TOKEN` + `TG_CHAT_ID` secrets; skipped when unset).
 `autosync.yml` (Mon 06:00 UTC) pushes the next 2 accepted-plan weeks to Garmin
 and cleans stale copies; `recalibrate.yml` applies portal-accepted pace shifts;
 `plan.yml` scaffolds deterministically, then Claude enriches notes; `coach.yml`
-(Mon 07:19 UTC) writes week-review.md and pushes its headline to ntfy
-(`NTFY_TOPIC_DAILY` secret). push.yml and autosync.yml **commit plan.json
+(Mon 07:19 UTC) writes week-review.md and pushes its headline to Telegram
+(same `TG_TOKEN` + `TG_CHAT_ID` secrets). push.yml and autosync.yml **commit plan.json
 back** (garmin_workout_id persistence — required for dedup).
 
 ## Auth & secrets (env)
