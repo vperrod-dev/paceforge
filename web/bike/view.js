@@ -15,8 +15,12 @@ import { RidePlayer } from './player.js';
 const PROFILE_KEY = 'pf-bike-profile';
 const PENDING_KEY = 'pf-bike-rides-pending';
 const IMPORTS_KEY = 'pf-bike-imports';
+// Upload tokens live ONLY in sessionStorage — same threat model as the GitHub
+// PAT in index.html: cleared when the browser session ends, never disk-backed.
 const INTERVALS_KEY = 'pf-bike-intervals-key';
 const STRAVA_KEY = 'pf-bike-strava-token';
+// purge tokens persisted by older versions
+try { localStorage.removeItem(INTERVALS_KEY); localStorage.removeItem(STRAVA_KEY); } catch {}
 
 let H = null; // host helpers, set on every renderBikeTab call
 
@@ -231,11 +235,11 @@ async function renderHome() {
       : H.emptyState('No rides yet', 'Finished rides land here after "Save to PaceForge".')}
       <div class="card-h" style="margin:20px 0 12px"><div class="card-title"><span class="ico">${bikeIcons.link}</span>Integrations</div></div>
       <div class="field"><label for="bk-icu">intervals.icu API key</label>
-        <input type="password" id="bk-icu" class="mono-input" autocomplete="off" value="${H.escHtml(localStorage.getItem(INTERVALS_KEY) || '')}">
+        <input type="password" id="bk-icu" class="mono-input" autocomplete="off" value="${H.escHtml(sessionStorage.getItem(INTERVALS_KEY) || '')}">
         <div class="hint">Stored in this browser only. intervals.icu → Settings → Developer.</div>
       </div>
       <div class="field" style="margin-bottom:0"><label for="bk-strava">Strava access token</label>
-        <input type="password" id="bk-strava" class="mono-input" autocomplete="off" value="${H.escHtml(localStorage.getItem(STRAVA_KEY) || '')}">
+        <input type="password" id="bk-strava" class="mono-input" autocomplete="off" value="${H.escHtml(sessionStorage.getItem(STRAVA_KEY) || '')}">
         <div class="hint">Needs activity:write scope. Stored locally, never committed.</div>
       </div>
     </div>
@@ -351,7 +355,7 @@ function bindHome(recovered) {
 
   ;[[INTERVALS_KEY, 'bk-icu'], [STRAVA_KEY, 'bk-strava']].forEach(([key, id]) => {
     document.getElementById(id)?.addEventListener('change', e => {
-      try { localStorage.setItem(key, e.target.value.trim()); } catch {}
+      try { sessionStorage.setItem(key, e.target.value.trim()); } catch {}
     });
   });
 
@@ -737,8 +741,8 @@ function renderPost() {
       <td>${ac != null ? Math.round(ac) : '—'}</td></tr>`;
   }).join('');
   const rampFtp = r.mode === 'ramp' && r.best60 ? rampTestFtp(r.best60) : null;
-  const icuKey = (localStorage.getItem(INTERVALS_KEY) || '').trim();
-  const stravaTok = (localStorage.getItem(STRAVA_KEY) || '').trim();
+  const icuKey = (sessionStorage.getItem(INTERVALS_KEY) || '').trim();
+  const stravaTok = (sessionStorage.getItem(STRAVA_KEY) || '').trim();
   const stat = (label, v, unit = '') => `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${v}<span class="unit">${unit}</span></div></div>`;
 
   S.page.innerHTML = `
