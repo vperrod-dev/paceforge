@@ -486,6 +486,11 @@ const state = {
 };
 const REPO = 'vperrod/paceforge';     // owner/repo for GitHub actions
 const REF  = 'master';
+// Served off the VM (Caddy basic_auth) → actions go to the local runner, which
+// speaks the same GitHub-API shapes at api/gh (scripts/runner.py). On GitHub
+// Pages → the real GitHub API with the user's PAT (rollback path, unchanged).
+const LOCAL = !location.hostname.endsWith('github.io');
+const GH_API = LOCAL ? 'api/gh' : 'https://api.github.com';
 
 // ═══════════════════════════════════════════════════════
 // STATIC DATA LAYER  (unchanged contract — DO NOT BREAK)
@@ -700,7 +705,7 @@ const githubToken = {
   get() { return (sessionStorage.getItem(GH_TOKEN_KEY) || '').trim(); },
   set(t) { sessionStorage.setItem(GH_TOKEN_KEY, (t || '').trim()); },
   clear() { sessionStorage.removeItem(GH_TOKEN_KEY); },
-  has() { return !!this.get(); },
+  has() { return LOCAL || !!this.get(); },   // local runner needs no PAT
 };
 
 function ghHeaders() {
@@ -722,7 +727,7 @@ function requireToken() {
 async function syncFromGarmin(btn) {
   if (!requireToken()) return;
   withBusy(btn, 'Dispatching…', async () => {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/sync.yml/dispatches`, {
+    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/sync.yml/dispatches`, {
       method: 'POST', headers: ghHeaders(), body: JSON.stringify({ ref: REF }),
     });
     if (res.status === 204) {
@@ -737,7 +742,7 @@ async function syncFromGarmin(btn) {
 async function pushWeekToGarmin(weekNumber, btn) {
   if (!requireToken()) return;
   withBusy(btn, 'Pushing…', async () => {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/push.yml/dispatches`, {
+    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/push.yml/dispatches`, {
       method: 'POST', headers: ghHeaders(),
       body: JSON.stringify({ ref: REF, inputs: { week: String(weekNumber) } }),
     });
@@ -753,7 +758,7 @@ async function pushWeekToGarmin(weekNumber, btn) {
 // HR-less strength/HYROX sessions only count toward training load via these.
 async function saveRpe(entry) {
   if (!requireToken()) throw new Error('GitHub token required');
-  const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/save-rpe.yml/dispatches`, {
+  const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/save-rpe.yml/dispatches`, {
     method: 'POST', headers: ghHeaders(),
     body: JSON.stringify({ ref: REF, inputs: { data: JSON.stringify(entry) } }),
   });
@@ -856,7 +861,7 @@ async function submitCoachIssue() {
   const body = document.getElementById('coach-body')?.value || '';
   const btn = document.getElementById('coach-submit');
   withBusy(btn, 'Creating…', async () => {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/issues`, {
+    const res = await fetch(`${GH_API}/repos/${REPO}/issues`, {
       method: 'POST', headers: ghHeaders(),
       body: JSON.stringify({ title, body, labels: ['coach'] }),
     });
@@ -874,7 +879,7 @@ async function submitCoachIssue() {
 async function dispatchWorkflow(name, inputs, okTitle, okBody, btn) {
   if (!requireToken()) return;
   await withBusy(btn, 'Dispatching…', async () => {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${name}/dispatches`, {
+    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/${name}/dispatches`, {
       method: 'POST', headers: ghHeaders(),
       body: JSON.stringify({ ref: REF, inputs: inputs || {} }),
     });
@@ -887,13 +892,13 @@ async function dispatchWorkflow(name, inputs, okTitle, okBody, btn) {
 async function planBuildStatus() {
   if (!githubToken.has()) return null;
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/plan.yml/runs?per_page=1`, { headers: ghHeaders() });
+    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/plan.yml/runs?per_page=1`, { headers: ghHeaders() });
     if (!res.ok) return null;
     const run = (await res.json()).workflow_runs?.[0];
     if (!run) return null;
     let steps = [];
     try {
-      const jr = await fetch(`https://api.github.com/repos/${REPO}/actions/runs/${run.id}/jobs`, { headers: ghHeaders() });
+      const jr = await fetch(`${GH_API}/repos/${REPO}/actions/runs/${run.id}/jobs`, { headers: ghHeaders() });
       if (jr.ok) steps = (await jr.json()).jobs?.[0]?.steps || [];
     } catch {}
     return { status: run.status, conclusion: run.conclusion, created: run.created_at, url: run.html_url, steps };
@@ -1212,7 +1217,7 @@ function emptyState(title, sub, icon) {
 // bottom); this glue hands it the page node plus the host helpers it needs.
 function renderBikeTab(page) {
   return window.PF_BIKE && window.PF_BIKE.renderBikeTab
-    ? window.PF_BIKE.renderBikeTab(page, { escHtml, toast, withBusy, emptyState, loadJSON, ghHeaders, requireToken, REPO, REF, githubToken, setTopbar })
+    ? window.PF_BIKE.renderBikeTab(page, { escHtml, toast, withBusy, emptyState, loadJSON, ghHeaders, requireToken, REPO, REF, GH_API, githubToken, setTopbar })
     : page.innerHTML = emptyState('Bike module not loaded', 'Serve over http(s) — ES modules do not run from file://');
 }
 
@@ -1901,7 +1906,7 @@ function bindBenchmarkForm(container, redraw) {
     status.textContent = 'Saving…';
     // Dispatch a workflow (same mechanism as Sync) — it commits benchmarks.json with
     // GITHUB_TOKEN, so the user's token only needs the actions:write it already has.
-    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/save-benchmarks.yml/dispatches`,
+    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/save-benchmarks.yml/dispatches`,
       { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ ref: REF, inputs: { data: JSON.stringify(bm) } }) });
     if (!res.ok && res.status !== 204) throw new Error(await ghError(res));
     status.innerHTML = 'Saved — building your strength assessment (~1–2 min). Reload the page after that to see it.';
@@ -2823,7 +2828,7 @@ function analyzeActivityWithCoach(act, btn) {
   withBusy(btn, 'Requesting…', async () => {
     const title = `Coach: analyze activity ${id} (${act.name || 'activity'})`;
     const body = `Analyze Garmin activity **${id}** — "${act.name || ''}" on ${act.start_time || ''}.\n\nWrite the analysis to \`data/analyses/${id}.md\`: what was done, how it compares to the planned workout (if one matched), how it affects my athlete profile, and what I should improve.`;
-    const res = await fetch(`https://api.github.com/repos/${REPO}/issues`, { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ title, body, labels: ['coach'] }) });
+    const res = await fetch(`${GH_API}/repos/${REPO}/issues`, { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ title, body, labels: ['coach'] }) });
     if (!res.ok) throw new Error(await ghError(res));
     const issue = await res.json();
     toast('ok', 'Analysis requested', `<a href="${issue.html_url}" target="_blank" rel="noopener">#${issue.number}</a> — tracking progress below.`);
@@ -2854,7 +2859,7 @@ async function pollForAnalysis(id, issueUrl) {
     if (!document.body.contains(slot)) return;  // user navigated away — stop polling
     slot.innerHTML = coachProgressHtml(Math.floor((Date.now() - start) / 1000), statusLine, issueUrl);
     try {
-      const r = await fetch(`https://api.github.com/repos/${REPO}/contents/data/analyses/${id}.md?ref=master&t=${Date.now()}`, { headers: ghHeaders() });
+      const r = await fetch(`${GH_API}/repos/${REPO}/contents/data/analyses/${id}.md?ref=master&t=${Date.now()}`, { headers: ghHeaders() });
       if (r.ok) {
         const j = await r.json();
         const md = decodeURIComponent(escape(atob((j.content || '').replace(/\s/g, ''))));
@@ -2864,7 +2869,7 @@ async function pollForAnalysis(id, issueUrl) {
       }
     } catch {}
     try {
-      const wr = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/coach.yml/runs?per_page=1&t=${Date.now()}`, { headers: ghHeaders() });
+      const wr = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/coach.yml/runs?per_page=1&t=${Date.now()}`, { headers: ghHeaders() });
       if (wr.ok) {
         const run = (await wr.json()).workflow_runs?.[0];
         // Only trust a run started around/after this request, not a stale prior one.
@@ -3807,7 +3812,7 @@ _Generated from the PaceForge dashboard. Edit freely before submitting._`;
 async function fetchLastSyncRun() {
   if (!githubToken.has()) return null;
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/sync.yml/runs?per_page=1`, { headers: ghHeaders() });
+    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/sync.yml/runs?per_page=1`, { headers: ghHeaders() });
     if (!res.ok) return null;
     const j = await res.json();
     return (j.workflow_runs || [])[0] || null;
@@ -3926,7 +3931,7 @@ async function renderSettings(page) {
   });
   on('gh-clear', 'click', () => { githubToken.clear(); toast('info', 'Token removed', 'GitHub actions disabled.'); renderSettings(page); });
   on('gh-test', 'click', e => withBusy(e.currentTarget, 'Testing…', async () => {
-    const res = await fetch(`https://api.github.com/repos/${REPO}`, { headers: ghHeaders() });
+    const res = await fetch(`${GH_API}/repos/${REPO}`, { headers: ghHeaders() });
     if (res.ok) { const j = await res.json(); toast('ok', 'Connected', `Authenticated for ${escHtml(j.full_name || REPO)}.`); }
     else throw new Error(await ghError(res));
   }));
@@ -3954,7 +3959,7 @@ function hyroxImportCard() {
 }
 
 async function dispatchHyrox(inputs) {
-  const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/hyrox.yml/dispatches`,
+  const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/hyrox.yml/dispatches`,
     { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ ref: REF, inputs }) });
   if (!res.ok && res.status !== 204) throw new Error(await ghError(res));
 }
@@ -4031,7 +4036,7 @@ function bindEventsCard(page) {
       const g = k => (r.querySelector(`[data-ev="${k}"]`)?.value || '').trim();
       return { date: g('date'), name: g('name'), type: g('type'), goal_time: g('goal_time') };
     }).filter(ev => ev.date || ev.name).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    const res = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/save-events.yml/dispatches`,
+    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/save-events.yml/dispatches`,
       { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ ref: REF, inputs: { data: JSON.stringify(list) } }) });
     if (!res.ok && res.status !== 204) throw new Error(await ghError(res));
     toast('ok', 'Events saved', 'Rebuilding (~1–2 min). Ask the coach to rebalance your plan around them.');

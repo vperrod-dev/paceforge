@@ -1,0 +1,10 @@
+# autosync.yml cron replacement: Monday 06:00 UTC — push next 2 plan weeks to Garmin.
+[Unit]
+Description=PaceForge weekly Garmin autosync Mon 06:00 UTC
+
+[Timer]
+OnCalendar=Mon *-*-* 06:00:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

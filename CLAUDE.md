@@ -5,6 +5,22 @@ key — **Claude is the coach** (see `.claude/skills/coach/`), the `paceforge`
 Python package does the deterministic maths and the Garmin I/O, and
 `data/*.json` (git-tracked) is the only state.
 
+## VM runner (ACTIVE since 2026-07-21 — GitHub account flagged, ticket 4583559)
+
+While GitHub Actions/Pages are dead, the app runs entirely on the claude-dev VM:
+`https://claude-dev-vperrod.westeurope.cloudapp.azure.com/paceforge/` (Caddy
+basic auth, user `victor`, same password as the audit console — never commit it).
+`scripts/runner.py` (systemd user unit `paceforge-runner`, 127.0.0.1:8123)
+replaces every workflow 1:1 — the portal talks to it through the same
+GitHub-API shapes at `/paceforge/api/gh/*` (`GH_API` const in `web/index.html`;
+on github.io it still targets the real GitHub API, so Pages remains the
+rollback). Timers: `paceforge-sync` daily 06:45 Dublin, `paceforge-autosync`
+Mon 06:00 UTC, `paceforge-coach` Mon 07:19 UTC (units in `ops/`). Secrets:
+`~/.config/paceforge/env` (0600). Data commits push to `origin` as before.
+Claude steps (plan enrichment, analyses, coach) run the local `claude` CLI.
+Debug: `GET /paceforge/api/runs`, logs in `~/.local/state/paceforge-runner/`.
+Retirement steps when the flag lifts: `claude-config os/github-restore-checklist.md`.
+
 ## Commands
 
 ```bash

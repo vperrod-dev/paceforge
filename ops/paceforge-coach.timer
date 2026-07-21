@@ -1,0 +1,11 @@
+# coach.yml cron replacement: Monday 07:19 UTC — Claude writes week-review.md,
+# headline goes to Telegram.
+[Unit]
+Description=PaceForge weekly coach review Mon 07:19 UTC
+
+[Timer]
+OnCalendar=Mon *-*-* 07:19:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

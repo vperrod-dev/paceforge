@@ -387,7 +387,7 @@ async function saveProfilePatch(patch, btn) {
   lsSet(PROFILE_KEY, { ftp: S.profile.ftp, wprime_j: S.profile.wprime_j });
   if (!H.requireToken()) return;
   await H.withBusy(btn, 'Saving…', async () => {
-    const res = await fetch(`https://api.github.com/repos/${H.REPO}/actions/workflows/save-bike-profile.yml/dispatches`, {
+    const res = await fetch(`${H.GH_API}/repos/${H.REPO}/actions/workflows/save-bike-profile.yml/dispatches`, {
       method: 'POST', headers: H.ghHeaders(),
       body: JSON.stringify({ ref: H.REF, inputs: { data: JSON.stringify(patch) } }),
     });
@@ -833,7 +833,7 @@ function renderPost() {
       notes: document.getElementById('bk-notes').value.trim() || null,
     };
     H.withBusy(this, 'Saving…', async () => {
-      const res = await fetch(`https://api.github.com/repos/${H.REPO}/actions/workflows/save-ride.yml/dispatches`, {
+      const res = await fetch(`${H.GH_API}/repos/${H.REPO}/actions/workflows/save-ride.yml/dispatches`, {
         method: 'POST', headers: H.ghHeaders(),
         body: JSON.stringify({ ref: H.REF, inputs: { data: JSON.stringify(entry) } }),
       });

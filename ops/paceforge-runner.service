@@ -1,0 +1,19 @@
+# Local job runner replacing GitHub Actions (ticket 4583559). See scripts/runner.py.
+# Install (user unit):
+#   ln -sf ~/projects/paceforge/ops/paceforge-*.{service,timer} ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now paceforge-runner \
+#     paceforge-sync.timer paceforge-autosync.timer paceforge-coach.timer
+[Unit]
+Description=PaceForge local job runner (GitHub Actions replacement)
+After=network-online.target
+
+[Service]
+ExecStart=/home/azureuser/projects/paceforge/.venv/bin/python /home/azureuser/projects/paceforge/scripts/runner.py
+WorkingDirectory=/home/azureuser/projects/paceforge
+EnvironmentFile=/home/azureuser/.config/paceforge/env
+Environment=PATH=/home/azureuser/.local/bin:/usr/local/bin:/usr/bin:/bin
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

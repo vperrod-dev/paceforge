@@ -1,0 +1,11 @@
+# sync.yml cron replacement: ~06:45 Dublin daily (systemd handles DST properly —
+# the old GH cron was month-split and off by 1h around the switches).
+[Unit]
+Description=PaceForge daily Garmin sync at 06:45 Dublin
+
+[Timer]
+OnCalendar=*-*-* 06:45:00 Europe/Dublin
+Persistent=true
+
+[Install]
+WantedBy=timers.target
