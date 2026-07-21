@@ -8,15 +8,19 @@ Python package does the deterministic maths and the Garmin I/O, and
 ## VM runner (ACTIVE since 2026-07-21 — GitHub account flagged, ticket 4583559)
 
 While GitHub Actions/Pages are dead, the app runs entirely on the claude-dev VM:
-`https://claude-dev-vperrod.westeurope.cloudapp.azure.com/paceforge/` (Caddy
-basic auth, user `victor`, same password as the audit console — never commit it).
-`scripts/runner.py` (systemd user unit `paceforge-runner`, 127.0.0.1:8123)
-replaces every workflow 1:1 — the portal talks to it through the same
+`https://claude-dev-vperrod.westeurope.cloudapp.azure.com/paceforge/`.
+Auth is a cookie-session login page served by the runner (user `vperrod`;
+scrypt hash in the env file — no Caddy basic auth, Caddy only proxies
+`/paceforge/*` to the runner). `scripts/runner.py` (systemd user unit
+`paceforge-runner`, 127.0.0.1:8123) serves `web/` + `data/` straight from this
+repo AND replaces every workflow 1:1 — the portal talks to it through the same
 GitHub-API shapes at `/paceforge/api/gh/*` (`GH_API` const in `web/index.html`;
 on github.io it still targets the real GitHub API, so Pages remains the
 rollback). Timers: `paceforge-sync` daily 06:45 Dublin, `paceforge-autosync`
-Mon 06:00 UTC, `paceforge-coach` Mon 07:19 UTC (units in `ops/`). Secrets:
-`~/.config/paceforge/env` (0600). Data commits push to `origin` as before.
+Mon 06:00 UTC, `paceforge-coach` Mon 07:19 UTC (units in `ops/`; they call
+127.0.0.1:8123 directly, which bypasses the session check by design — only
+Caddy-forwarded requests need a session). Secrets: `~/.config/paceforge/env`
+(0600). Data commits push to `origin` as before.
 Claude steps (plan enrichment, analyses, coach) run the local `claude` CLI.
 Garmin (re)login happens in the portal — Settings → "Connect Garmin"
 (password → optional MFA; runner endpoints `/garmin/login|mfa|status`) — no

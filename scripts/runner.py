@@ -34,12 +34,17 @@ from __future__ import annotations
 
 # ruff: noqa: S603, S607, S310  (fixed argv lists; https-only Telegram URL)
 import base64
+import hashlib
+import hmac
 import json
+import mimetypes
 import os
 import re
+import secrets
 import subprocess
 import sys
 import threading
+import time
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
@@ -49,7 +54,6 @@ from pathlib import Path
 REPO_DIR = Path(__file__).resolve().parent.parent
 VENV_BIN = REPO_DIR / ".venv" / "bin"
 STATE_DIR = Path(os.environ.get("PACEFORGE_RUNNER_STATE", Path.home() / ".local/state/paceforge-runner"))
-SITE_DIR = os.environ.get("PACEFORGE_SITE_DIR", "/srv/paceforge")
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", str(Path.home() / ".local/bin/claude"))
 PORT = int(os.environ.get("PACEFORGE_RUNNER_PORT", "8123"))
 BOT = ["-c", "user.name=paceforge-bot", "-c", "user.email=bot@paceforge.local"]
@@ -129,7 +133,8 @@ def commit_push(run: Run, paths: list[str], msg: str) -> None:
 
 
 def publish(run: Run | None = None) -> None:
-    """pages.yml replacement: bake derived JSON, rsync web/. + data/. → /srv/paceforge."""
+    """pages.yml replacement: bake derived JSON. The runner serves web/ + data/
+    straight from the repo, so there is nothing to copy anywhere."""
     def _log(t: str) -> None:
         run.log(t) if run else print(t)
     p = subprocess.run([str(VENV_BIN / "python"), "scripts/build_site_data.py"],
@@ -137,16 +142,6 @@ def publish(run: Run | None = None) -> None:
     _log(p.stdout + p.stderr)
     if p.returncode != 0:
         raise RuntimeError("build_site_data.py failed")
-    for cmd in (
-        ["sudo", "/usr/bin/rsync", "-a", "--delete", "--exclude=/data", "--chown=caddy:caddy",
-         f"{REPO_DIR}/web/", f"{SITE_DIR}/"],
-        ["sudo", "/usr/bin/rsync", "-a", "--delete", "--chown=caddy:caddy",
-         f"{REPO_DIR}/data/", f"{SITE_DIR}/data/"],
-    ):
-        q = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        if q.returncode != 0:
-            raise RuntimeError("rsync failed: " + q.stderr)
-    _log(f"published → {SITE_DIR}")
 
 
 def telegram(text: str, pre: bool = False, title: str = "") -> None:
@@ -585,6 +580,74 @@ def dispatch(job: str, inputs: dict) -> int:
     return run.id
 
 
+# ── web auth: cookie session with a real login page (Victor: no basic-auth
+# prompts). Caddy just proxies /paceforge/* here; requests that came through
+# Caddy carry X-Forwarded-For and need a session — direct localhost calls
+# (systemd timers, debugging) stay open exactly as before. ──
+
+COOKIE = "pf_session"
+COOKIE_PATH = os.environ.get("PF_COOKIE_PATH", "/paceforge")
+SESSION_TTL = 180 * 86400
+SESSIONS_FILE = STATE_DIR / "sessions.json"
+_SESSIONS: dict[str, float] = {}
+
+
+def _load_sessions() -> None:
+    if SESSIONS_FILE.exists():
+        _SESSIONS.update(json.loads(SESSIONS_FILE.read_text()))
+
+
+def _new_session() -> str:
+    tok = secrets.token_urlsafe(32)
+    _SESSIONS[tok] = time.time()
+    for t, ts in list(_SESSIONS.items()):   # prune expired
+        if time.time() - ts > SESSION_TTL:
+            del _SESSIONS[t]
+    SESSIONS_FILE.write_text(json.dumps(_SESSIONS))
+    return tok
+
+
+def check_login(user: str, password: str) -> bool:
+    """scrypt hash + constant-time compares; PF_WEB_PASS_SCRYPT = '<salt_hex>$<hash_hex>'."""
+    conf = os.environ.get("PF_WEB_PASS_SCRYPT", "")
+    want_user = os.environ.get("PF_WEB_USER", "")
+    if "$" not in conf or not want_user:
+        return False
+    salt, want = conf.split("$", 1)
+    got = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1).hex()
+    return hmac.compare_digest(user, want_user) & hmac.compare_digest(got, want)
+
+
+LOGIN_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PaceForge — sign in</title><style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+background:#0b0f14;color:#e6edf3;font:16px/1.5 system-ui,-apple-system,sans-serif}
+form{background:#11161d;border:1px solid #232b36;border-radius:12px;padding:32px;width:300px}
+h1{font-size:1.2rem;margin:0 0 18px}label{display:block;font-size:.8rem;color:#8b949e;margin:12px 0 4px}
+input{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #2d3743;
+background:#0b0f14;color:#e6edf3;font-size:1rem}
+button{width:100%;margin-top:18px;padding:11px;border:0;border-radius:8px;background:#2f81f7;
+color:#fff;font-size:1rem;font-weight:600;cursor:pointer}
+#err{color:#f85149;font-size:.85rem;min-height:1.2em;margin-top:10px}</style></head><body>
+<form id="f"><h1>🏃 PaceForge</h1>
+<label for="u">User</label><input id="u" autocomplete="username" autocapitalize="none">
+<label for="p">Password</label><input id="p" type="password" autocomplete="current-password">
+<button>Sign in</button><div id="err"></div></form>
+<script>
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const r = await fetch('%COOKIE_PATH%/api/auth/login', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({user: document.getElementById('u').value.trim(),
+                          password: document.getElementById('p').value}),
+  });
+  if (r.ok) location.reload();
+  else document.getElementById('err').textContent = 'Wrong user or password.';
+});
+</script></body></html>""".replace("%COOKIE_PATH%", COOKIE_PATH)
+
+
 # ── HTTP ──
 
 def run_json(rec: dict) -> dict:
@@ -613,11 +676,33 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # quiet
         pass
 
+    def _route(self) -> str:
+        """Caddy strips only /paceforge, the frontend prefixes api/ — drop it here."""
+        path = urllib.parse.urlparse(self.path).path
+        return path[4:] if path.startswith("/api/") else path
+
+    def _authed(self) -> bool:
+        if "X-Forwarded-For" not in self.headers:
+            return True   # direct localhost (timers, curl) — same trust as before
+        cookies = dict(p.strip().split("=", 1) for p in
+                       (self.headers.get("Cookie") or "").split(";") if "=" in p)
+        tok = cookies.get(COOKIE, "")
+        return tok in _SESSIONS and time.time() - _SESSIONS[tok] < SESSION_TTL
+
     def do_GET(self):
-        path, _, query = urllib.parse.urlparse(self.path).path, "", urllib.parse.urlparse(self.path).query
+        path = self._route()
+        query = urllib.parse.urlparse(self.path).query
         q = urllib.parse.parse_qs(query)
         if path == "/healthz":
             return self._send(200, {"ok": True})
+        if not self._authed():
+            if path.startswith(("/gh/", "/garmin/", "/runs", "/run/")):
+                return self._send(401, {"message": "sign in first"})
+            return self._send(200, LOGIN_HTML.encode(), "text/html; charset=utf-8")
+        if path == "/" or path == "/index.html":
+            return self._static(REPO_DIR / "web" / "index.html")
+        if path.startswith("/data/"):
+            return self._static(REPO_DIR / path.lstrip("/"), root="data")
         if path == "/garmin/status":
             return self._send(200, dict(GARMIN))
         if path == "/runs":
@@ -649,10 +734,32 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, [])
         if re.fullmatch(r"/gh/repos/[^/]+/[^/]+", path):
             return self._send(200, {"full_name": "local/paceforge"})
-        return self._send(404, {"message": "Not Found"})
+        return self._static(REPO_DIR / "web" / path.lstrip("/"))   # bike/ modules, assets
+
+    def _static(self, f: Path, root: str = "web"):
+        f = f.resolve()
+        if not str(f).startswith(str((REPO_DIR / root).resolve())) or not f.is_file():
+            return self._send(404, {"message": "Not Found"})
+        ctype = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
+        return self._send(200, f.read_bytes(), ctype)
 
     def do_POST(self):
-        path = urllib.parse.urlparse(self.path).path
+        path = self._route()
+        if path == "/auth/login":
+            b = self._body()
+            if not check_login(str(b.get("user") or ""), str(b.get("password") or "")):
+                time.sleep(1)   # cheap brute-force brake — single-user service
+                return self._send(401, {"message": "wrong user or password"})
+            tok = _new_session()
+            self.send_response(204)
+            self.send_header("Set-Cookie",
+                             f"{COOKIE}={tok}; Path={COOKIE_PATH}; Max-Age={SESSION_TTL}; "
+                             "HttpOnly; Secure; SameSite=Lax")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
+        if not self._authed():
+            return self._send(401, {"message": "sign in first"})
         if path == "/garmin/login":
             b = self._body()
             email = str(b.get("email") or os.environ.get("PACEFORGE_GARMIN_EMAIL") or "")
@@ -689,6 +796,7 @@ def main() -> int:
     if "--publish" in sys.argv:
         publish()
         return 0
+    _load_sessions()
     global _NEXT_ID
     try:   # resume run-id sequence + history across restarts
         for line in (STATE_DIR / "runs.jsonl").read_text().splitlines()[-50:]:
