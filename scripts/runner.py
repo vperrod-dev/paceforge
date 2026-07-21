@@ -434,6 +434,8 @@ def job_plan(run: Run, inputs: dict) -> None:
     else:
         days = (inputs.get("days") or "tuesday,thursday,saturday,sunday").replace(" ", "")
         cmd = pf("plan", "--goal", event, "--date", target, "--level", level, "--days", days)
+        if inputs.get("long_run_day"):
+            cmd += ["--long-run-day", str(inputs["long_run_day"])]
         if inputs.get("goal_time"):
             cmd += ["--target-time", str(inputs["goal_time"])]
         sh(run, cmd)

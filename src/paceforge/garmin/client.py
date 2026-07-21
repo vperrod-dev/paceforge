@@ -830,7 +830,8 @@ class GarminClient:
     def _upload(self, workout: Workout, sport: dict, plan_paces: dict | None,
                 pace_bands: dict | None = None) -> dict:
         steps = workout.steps or _fallback_steps(workout, plan_paces)
-        garmin_steps = [_to_garmin_step(step, order=i + 1, pace_bands=pace_bands)
+        garmin_steps = [_to_garmin_step(step, order=i + 1, pace_bands=pace_bands,
+                                        cadence=workout.cadence_target)
                         for i, step in enumerate(steps)]
         garmin_workout = RunningWorkout(
             workoutName=workout.name,
@@ -1033,6 +1034,9 @@ def _build_garmin_description(workout: Workout, plan_paces: dict | None = None) 
         if step_lines:
             parts.append("Steps: " + " > ".join(step_lines))
 
+    if workout.cadence_target:
+        parts.append(f"Cadence: ~{workout.cadence_target} spm on the work reps")
+
     # Coaching notes
     if workout.notes:
         parts.append(workout.notes)
@@ -1070,16 +1074,19 @@ def _fallback_steps(workout: Workout, plan_paces: dict | None) -> list[WorkoutSt
     )]
 
 
-def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None):  # noqa: ANN001
+def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None,  # noqa: ANN001
+                    cadence: int | None = None):
     """Convert a PaceForge WorkoutStep to a garminconnect workout step dict.
 
     Handles pace targets (sec/km → m/s pace zone), custom heart-rate ranges,
     power targets (watts → power.zone), and distance-based end conditions so
-    the Garmin watch guides each segment.
+    the Garmin watch guides each segment. Effort-based (open-target) work
+    steps get a cadence target when the workout defines one — Garmin allows a
+    single target per step, so cadence never displaces a pace target.
     """
     # ── Repeat groups must be checked first ──────────────────────────
     if step.repeat_count and step.steps:
-        sub_steps = [_to_garmin_step(s, i + 1, pace_bands=pace_bands)
+        sub_steps = [_to_garmin_step(s, i + 1, pace_bands=pace_bands, cadence=cadence)
                      for i, s in enumerate(step.steps)]
         return create_repeat_group(step.repeat_count, sub_steps, order)
 
@@ -1140,6 +1147,16 @@ def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None):  # no
         # Garmin expects targetValueOne <= targetValueTwo
         target_val_one = min(speed_a, speed_b)
         target_val_two = max(speed_a, speed_b)
+    elif cadence and step.step_type in (WorkoutStepType.INTERVAL, WorkoutStepType.ACTIVE):
+        # Effort-based work step (e.g. hill reps run on feel): give the watch a
+        # cadence window so it still coaches turnover on the rep.
+        target = {
+            "workoutTargetTypeId": TargetType.CADENCE,
+            "workoutTargetTypeKey": "cadence",
+            "displayOrder": 3,
+        }
+        target_val_one = float(cadence - 5)
+        target_val_two = float(cadence + 5)
 
     # ── Build end condition (distance or time) ───────────────────────
     if step.distance_meters and step.distance_meters > 0:

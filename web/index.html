@@ -370,6 +370,20 @@ a{color:var(--emerald);text-decoration:none}
 .detail-item .d-val{font-family:var(--font-m);font-size:.95rem;font-weight:600}
 .detail-item .d-lbl{font-size:.64rem;color:var(--text-3);margin-top:3px;text-transform:uppercase;letter-spacing:.04em}
 .step-item{padding:11px 14px;background:var(--elevated);border-radius:var(--r-sm);margin-bottom:7px;font-size:.84rem}
+/* Runna-style structured step list */
+.stp-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--elevated);border-radius:var(--r-sm);margin-bottom:6px;font-size:.85rem}
+.stp-bar{width:4px;align-self:stretch;border-radius:2px;flex-shrink:0}
+.stp-main{flex:1;min-width:0}
+.stp-kind{font-size:.64rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);font-weight:700}
+.stp-what{font-weight:600;margin-top:1px}
+.stp-qty{font-family:var(--font-m);font-weight:600;white-space:nowrap;text-align:right}
+.stp-pace{font-family:var(--font-m);font-size:.8rem;color:var(--emerald);white-space:nowrap;min-width:96px;text-align:right}
+.stp-block{border:1px solid var(--border-s);border-radius:var(--r-md);padding:10px 10px 4px;margin-bottom:8px;background:transparent}
+.stp-block-h{display:flex;align-items:baseline;gap:8px;margin:0 2px 8px}
+.stp-reps{font-family:var(--font-m);font-weight:800;font-size:1.05rem;color:var(--rose,#f85149)}
+.stp-block-t{font-size:.8rem;color:var(--text-2);font-weight:600}
+.stp-total{display:flex;gap:16px;margin-top:4px;padding:8px 12px;font-size:.78rem;color:var(--text-3)}
+.stp-total b{color:var(--text-2);font-family:var(--font-m)}
 
 /* ════════ TOASTS ════════ */
 #toasts{position:fixed;top:18px;right:18px;z-index:300;display:flex;flex-direction:column;gap:10px;max-width:380px}
@@ -1294,6 +1308,7 @@ async function renderToday(page) {
       <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">${escHtml(todaysWo.name || 'Workout')}</div>
       <div style="font-size:.84rem;color:var(--text-2)">${escHtml((todaysWo.workout_type || '').replace(/_/g, ' '))}${dist ? ' · ' + dist : ''}${dur ? ' · ' + dur : ''}</div>
       ${todaysWo.description ? `<div style="font-size:.85rem;color:var(--text-2);line-height:1.5;margin-top:8px">${escHtml(todaysWo.description)}</div>` : ''}
+      ${stepListHtml(todaysWo)}
       <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" id="td-open-wo">Open workout</button>
         <button class="btn btn-outline btn-sm" id="td-goto-plan">Full plan</button>
@@ -2383,7 +2398,9 @@ function workoutCardHtml(wo, wkIdx, woIdx) {
     <div class="act-info" data-open-wo="${wkIdx}:${woIdx}" style="cursor:pointer">
       <div class="act-name">${escHtml(wo.name || 'Workout')} ${complianceBadge(wo)}</div>
       <div class="act-meta">${wo.scheduled_date || ''}${dist ? ' · ' + dist : ''}${dur ? ' · ~' + dur : ''}</div>
-      ${wo.purpose ? `<div class="act-meta" style="color:var(--text-3)">${escHtml(wo.purpose.replace(/_/g,' '))}</div>` : ''}
+      ${wo.briefing && wo.briefing.structure
+        ? `<div class="act-meta" style="color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px">${escHtml(wo.briefing.structure)}</div>`
+        : (wo.purpose ? `<div class="act-meta" style="color:var(--text-3)">${escHtml(wo.purpose.replace(/_/g,' '))}</div>` : '')}
     </div>
     <button class="btn btn-sm ${wo.completed ? 'btn-ghost' : 'btn-outline'}" data-toggle-wo="${wkIdx}:${woIdx}" title="Toggle complete" style="${wo.completed ? 'color:var(--emerald)' : ''}">
       ${wo.completed ? icons.check + ' Done' : 'Mark done'}
@@ -2408,24 +2425,81 @@ function briefingHtml(b) {
   return rows ? `<div style="margin:12px 0;border-top:1px solid var(--border-s);padding-top:12px">${rows}</div>` : '';
 }
 
+// ═══ Runna-style structured step breakdown (shared: Plan modal, Calendar, Today) ═══
+const STEP_META = {
+  warmup:   { label: 'Warm up',   color: 'var(--sky)' },
+  cooldown: { label: 'Cool down', color: 'var(--sky)' },
+  interval: { label: 'Work',      color: 'var(--rose,#f85149)' },
+  active:   { label: 'Run',       color: 'var(--emerald)' },
+  recovery: { label: 'Recover',   color: 'var(--amber,#d29922)' },
+  rest:     { label: 'Rest',      color: 'var(--text-3)' },
+};
+
+function stepQtyTxt(s) {
+  if (s.distance_meters) {
+    return s.distance_meters >= 1000
+      ? (s.distance_meters / 1000).toFixed(s.distance_meters % 1000 ? 2 : 0).replace(/\.?0+$/, '') + ' km'
+      : Math.round(s.distance_meters) + ' m';
+  }
+  if (s.duration_seconds) {
+    const secs = Math.round(s.duration_seconds);
+    if (secs < 60) return secs + ' s';
+    return secs % 60 ? Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') + ' min' : (secs / 60) + ' min';
+  }
+  return '';
+}
+
+function stepTargetTxt(s) {
+  if (s.target_low == null) return '';
+  const hi = s.target_high && s.target_high !== s.target_low;
+  if (s.target_type === 'heart_rate') return Math.round(s.target_low) + (hi ? '–' + Math.round(s.target_high) : '') + ' bpm';
+  if (s.target_type === 'power') return Math.round(s.target_low) + (hi ? '–' + Math.round(s.target_high) : '') + ' W';
+  // pace targets: low = faster bound (smaller sec/km), show fast–slow
+  const a = Math.min(s.target_low, s.target_high || s.target_low);
+  const b = Math.max(s.target_low, s.target_high || s.target_low);
+  return formatPace(a) + (a !== b ? '–' + formatPace(b) : '') + '/km';
+}
+
+function stepRowHtml(s) {
+  const meta = STEP_META[s.step_type] || { label: s.step_type || 'Step', color: 'var(--text-3)' };
+  const what = s.description && s.description.trim() ? s.description : meta.label;
+  return `<div class="stp-row">
+    <div class="stp-bar" style="background:${meta.color}"></div>
+    <div class="stp-main">
+      <div class="stp-kind">${escHtml(meta.label)}</div>
+      <div class="stp-what">${escHtml(what)}</div>
+    </div>
+    <div class="stp-qty">${escHtml(stepQtyTxt(s))}</div>
+    <div class="stp-pace">${escHtml(stepTargetTxt(s))}</div>
+  </div>`;
+}
+
+function stepListHtml(wo) {
+  if (!wo.steps || !wo.steps.length) return '';
+  let html = `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Session breakdown</div>`;
+  for (const s of wo.steps) {
+    if (s.repeat_count && s.steps && s.steps.length) {
+      html += `<div class="stp-block">
+        <div class="stp-block-h"><span class="stp-reps">${s.repeat_count} ×</span>
+          <span class="stp-block-t">${escHtml((s.description || 'repeat').replace(/^Repeat x\d+$/i, 'repeat'))}</span></div>
+        ${s.steps.map(stepRowHtml).join('')}
+      </div>`;
+    } else {
+      html += stepRowHtml(s);
+    }
+  }
+  const bits = [];
+  if (wo.estimated_distance_meters) bits.push(`<span>Total <b>${(wo.estimated_distance_meters / 1000).toFixed(1)} km</b></span>`);
+  if (wo.estimated_duration_seconds) bits.push(`<span>~<b>${Math.round(wo.estimated_duration_seconds / 60)} min</b></span>`);
+  if (wo.cadence_target) bits.push(`<span>Cadence <b>${wo.cadence_target} spm</b></span>`);
+  if (bits.length) html += `<div class="stp-total">${bits.join('')}</div>`;
+  return html + '</div>';
+}
+
 function showWorkoutSheet(wo, wkIdx, woIdx) {
   const dist = wo.estimated_distance_meters ? (wo.estimated_distance_meters/1000).toFixed(1) + ' km' : '';
   const dur = wo.estimated_duration_seconds ? Math.round(wo.estimated_duration_seconds/60) + ' min' : '';
-  let stepsHtml = '';
-  if (wo.steps && wo.steps.length) {
-    stepsHtml = `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Steps</div>`;
-    for (const s of wo.steps) {
-      const paceTxt = s.target_pace || (s.target_low ? formatPace(s.target_low) + (s.target_high && s.target_high !== s.target_low ? '–' + formatPace(s.target_high) : '') + '/km' : '');
-      const durTxt = s.duration || (s.duration_seconds ? formatSeconds(s.duration_seconds) : (s.distance_meters ? (s.distance_meters/1000).toFixed(1) + ' km' : ''));
-      stepsHtml += `<div class="step-item">
-        <div style="font-weight:600">${escHtml(s.description || s.step_type || s.type || 'Step')}</div>
-        ${durTxt ? `<div style="color:var(--text-2);margin-top:3px;font-size:.8rem">${escHtml(durTxt)}</div>` : ''}
-        ${paceTxt ? `<div style="color:var(--emerald);margin-top:3px;font-size:.8rem">Pace: ${escHtml(paceTxt)}</div>` : ''}
-        ${s.target_hr ? `<div style="color:var(--sky);margin-top:3px;font-size:.8rem">HR: ${escHtml(String(s.target_hr))}</div>` : ''}
-      </div>`;
-    }
-    stepsHtml += '</div>';
-  }
+  const stepsHtml = stepListHtml(wo);
   const metricsHtml = complianceHtml(wo.completion_metrics);
   const matchedId = (wo.matched_activity_ids || [])[0];
   const rpeHtml = matchedId ? rpeSelectorHtml(matchedId, wo.user_rpe || null) : '';
@@ -3043,25 +3117,11 @@ async function openActivity(act) {
 
 // Read-only workout detail (description + steps + completion data) for the calendar panel.
 function workoutDetailBody(wo) {
-  let stepsHtml = '';
-  if (wo.steps && wo.steps.length) {
-    stepsHtml = `<div style="margin-top:16px"><div class="eyebrow" style="margin-bottom:10px">Steps</div>`;
-    for (const s of wo.steps) {
-      const paceTxt = s.target_pace || (s.target_low ? formatPace(s.target_low) + (s.target_high && s.target_high !== s.target_low ? '–' + formatPace(s.target_high) : '') + '/km' : '');
-      const durTxt = s.duration || (s.duration_seconds ? formatSeconds(s.duration_seconds) : (s.distance_meters ? (s.distance_meters / 1000).toFixed(1) + ' km' : ''));
-      stepsHtml += `<div class="step-item">
-        <div style="font-weight:600">${escHtml(s.description || s.step_type || s.type || 'Step')}</div>
-        ${durTxt ? `<div style="color:var(--text-2);margin-top:3px;font-size:.8rem">${escHtml(durTxt)}</div>` : ''}
-        ${paceTxt ? `<div style="color:var(--emerald);margin-top:3px;font-size:.8rem">Pace: ${escHtml(paceTxt)}</div>` : ''}
-        ${s.target_hr ? `<div style="color:var(--sky);margin-top:3px;font-size:.8rem">HR: ${escHtml(String(s.target_hr))}</div>` : ''}
-      </div>`;
-    }
-    stepsHtml += '</div>';
-  }
   const metricsHtml = complianceHtml(wo.completion_metrics);
   return `
     ${wo.description ? `<div style="font-size:.88rem;color:var(--text-2);line-height:1.55;margin-bottom:8px">${escHtml(wo.description)}</div>` : ''}
-    ${stepsHtml}
+    ${briefingHtml(wo.briefing)}
+    ${stepListHtml(wo)}
     ${metricsHtml}
     ${wo.notes ? `<div style="margin-top:12px;font-size:.84rem;color:var(--text-3)">${escHtml(wo.notes)}</div>` : ''}`;
 }

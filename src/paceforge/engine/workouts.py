@@ -51,7 +51,7 @@ class WorkoutFactory:
         p = self.paces
         return self._pace_step(
             WorkoutStepType.WARMUP,
-            f"{minutes:.0f} min warmup",
+            f"{minutes:.0f} min easy jog at conversational pace",
             duration_seconds=minutes * 60,
             pace_low=p.easy_low if p else None,
             pace_high=p.easy_high if p else None,
@@ -62,7 +62,7 @@ class WorkoutFactory:
         p = self.paces
         return self._pace_step(
             WorkoutStepType.COOLDOWN,
-            f"{minutes:.0f} min cooldown",
+            f"{minutes:.0f} min easy jog to finish",
             duration_seconds=minutes * 60,
             pace_low=p.easy_low if p else None,
             pace_high=p.easy_high if p else None,
@@ -93,9 +93,14 @@ class WorkoutFactory:
 
     def _recovery_step(self, duration_seconds: float) -> WorkoutStep:
         p = self.paces
+        # Runna wording: short rests are walked, longer recoveries are jogged.
+        if duration_seconds <= 120:
+            desc = f"{duration_seconds:.0f}s walking rest"
+        else:
+            desc = f"{duration_seconds / 60:.1f} min recovery jog"
         return self._pace_step(
             WorkoutStepType.RECOVERY,
-            f"{duration_seconds / 60:.1f} min recovery jog",
+            desc,
             duration_seconds=duration_seconds,
             pace_low=p.easy_low if p else None,
             pace_high=p.easy_high if p else None,
@@ -633,7 +638,7 @@ class WorkoutFactory:
                 steps=[
                     self._pace_step(
                         WorkoutStepType.INTERVAL,
-                        f"{rep_min:.1f} min at I pace",
+                        f"{rep_min:.1f} min hard — 3K-5K race effort",
                         duration_seconds=rep_min * 60,
                         pace_low=i_lo,
                         pace_high=i_hi,
@@ -647,6 +652,7 @@ class WorkoutFactory:
         return Workout(
             workout_type=WorkoutType.VO2MAX,
             name=f"{reps} x {rep_min:.1f}min VO2max Intervals",
+            cadence_target=172,
             description=(
                 "Hard intervals at VO2max intensity to raise"
                 " aerobic ceiling. Full recovery between reps."
@@ -669,12 +675,12 @@ class WorkoutFactory:
             self._warmup(10),
             WorkoutStep(
                 step_type=WorkoutStepType.INTERVAL,
-                description=f"{reps} x {rep_m}m at R pace",
+                description=f"{reps} x {rep_m}m fast reps",
                 repeat_count=reps,
                 steps=[
                     self._pace_step(
                         WorkoutStepType.INTERVAL,
-                        f"{rep_m}m at R pace",
+                        f"{rep_m}m fast & relaxed — mile race effort",
                         distance_meters=rep_m,
                         pace_low=r_lo,
                         pace_high=r_hi,
@@ -688,7 +694,8 @@ class WorkoutFactory:
         return Workout(
             workout_type=WorkoutType.SPEED,
             name=f"{reps} x {rep_m}m Speed Reps",
-            description="Short, fast repetitions developing speed and running economy at R pace.",
+            cadence_target=174,
+            description="Short, fast repetitions developing speed and running economy. Full recovery between reps.",
             purpose=TrainingPurpose.SPEED_NEUROMUSCULAR,
             estimated_distance_meters=est_dist,
             estimated_duration_seconds=dur,
