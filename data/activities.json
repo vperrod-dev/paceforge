@@ -1,5 +1,28 @@
 [
   {
+    "activity_id": 23649072841,
+    "name": "Salou Running",
+    "activity_type": "running",
+    "start_time": "2026-07-19T07:11:21",
+    "distance_meters": 6850.91015625,
+    "duration_seconds": 2048.388916015625,
+    "avg_hr": 143,
+    "max_hr": 178,
+    "avg_pace_sec_per_km": 299.0,
+    "calories": 593,
+    "training_effect_aerobic": 3.299999952316284,
+    "training_effect_anaerobic": 1.2999999523162842,
+    "vo2_max_value": 53.0,
+    "avg_running_cadence": 160.28125,
+    "avg_stride_length": 124.64000244140625,
+    "avg_ground_contact_time": 268.8999938964844,
+    "avg_vertical_oscillation": 9.80999984741211,
+    "avg_vertical_ratio": 7.880000114440918,
+    "avg_power": 460.0,
+    "elevation_gain": 85.5799999833107,
+    "avg_respiration_rate": null
+  },
+  {
     "activity_id": 23626652752,
     "name": "Salou Running",
     "activity_type": "running",
