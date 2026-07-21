@@ -176,6 +176,57 @@ def claude_step(run: Run, prompt: str, tools: str, max_turns: int = 200,
        timeout=timeout, env=env)
 
 
+# ── Garmin login, portal-driven (`paceforge login` needs a TTY; the portal
+# posts password → optional MFA code instead). Credentials live only in this
+# process for the duration of the handshake — never logged, never persisted;
+# only the resulting token lands in the token dir, same as the CLI. ──
+
+GARMIN = {"status": "idle", "error": None}
+_GARMIN_CLIENT = None
+
+
+def _garmin_finish() -> None:
+    from paceforge import store
+    store.save_token_meta({"login_date": datetime.now(UTC).date().isoformat()})
+    GARMIN.update(status="ok", error=None)
+    dispatch("sync", {})   # verify the token + backfill immediately
+
+
+def garmin_login_start(email: str, password: str) -> None:
+    GARMIN.update(status="authenticating", error=None)
+
+    def work() -> None:
+        global _GARMIN_CLIENT
+        try:
+            from paceforge.garmin.client import GarminClient
+            td = Path(os.environ.get("PACEFORGE_GARMIN_TOKEN_DIR",
+                                     Path.home() / ".garminconnect"))
+            td.mkdir(parents=True, exist_ok=True)
+            client = GarminClient(email, password, token_dir=str(td))
+            _GARMIN_CLIENT = client
+            if client.login() == "mfa_required":
+                GARMIN.update(status="pending_mfa", error=None)
+            else:
+                _garmin_finish()
+        except Exception as e:
+            GARMIN.update(status="error", error=f"{type(e).__name__}: {e}")
+    threading.Thread(target=work, daemon=True).start()
+
+
+def garmin_mfa(code: str) -> None:
+    GARMIN.update(status="authenticating", error=None)
+
+    def work() -> None:
+        try:
+            if _GARMIN_CLIENT is None:
+                raise RuntimeError("no login in progress — start again")
+            _GARMIN_CLIENT.complete_mfa(code)
+            _garmin_finish()
+        except Exception as e:
+            GARMIN.update(status="error", error=f"{type(e).__name__}: {e}")
+    threading.Thread(target=work, daemon=True).start()
+
+
 # ── ported inline-Python transforms (save-*.yml) — pure, tested ──
 
 def upsert_rpe(entry: dict, data_dir: Path) -> None:
@@ -567,6 +618,8 @@ class Handler(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(query)
         if path == "/healthz":
             return self._send(200, {"ok": True})
+        if path == "/garmin/status":
+            return self._send(200, dict(GARMIN))
         if path == "/runs":
             return self._send(200, [run_json(r) for r in RUNS[-30:][::-1]])
         m = re.fullmatch(r"/(?:gh/)?runs/(\d+)/log", path)
@@ -600,6 +653,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urllib.parse.urlparse(self.path).path
+        if path == "/garmin/login":
+            b = self._body()
+            email = str(b.get("email") or os.environ.get("PACEFORGE_GARMIN_EMAIL") or "")
+            if not b.get("password") or not email:
+                return self._send(400, {"message": "email and password required"})
+            garmin_login_start(email, str(b["password"]))
+            return self._send(202, {"status": "authenticating"})
+        if path == "/garmin/mfa":
+            code = str(self._body().get("code") or "").strip()
+            if not code:
+                return self._send(400, {"message": "code required"})
+            garmin_mfa(code)
+            return self._send(202, {"status": "authenticating"})
         m = re.fullmatch(r"/run/([a-z0-9-]+)", path)
         if m and m.group(1) in JOBS:
             return self._send(200, {"id": dispatch(m.group(1), self._body())})

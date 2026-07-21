@@ -3808,6 +3808,71 @@ _Generated from the PaceForge dashboard. Edit freely before submitting._`;
 // ═══════════════════════════════════════════════════════
 // VIEW: SETTINGS (incl. GitHub integration)
 // ═══════════════════════════════════════════════════════
+// Garmin login through the local runner (LOCAL mode only): password →
+// optional MFA code. Credentials go to this VM over HTTPS and are held in
+// the runner's memory only for the handshake; the token lands on the VM.
+function openGarminLoginModal() {
+  openModal(`
+    <div class="modal-h">
+      <div>
+        <div class="modal-title">Connect Garmin</div>
+        <div class="modal-sub">Sign in once — the token then self-maintains for ~a year.</div>
+      </div>
+      <button class="modal-close" data-close>${icons.x}</button>
+    </div>
+    <div class="field"><label for="gl-email">Garmin email</label><input id="gl-email" value="${escHtml(state.user.email || '')}" autocomplete="username"></div>
+    <div class="field"><label for="gl-pass">Garmin password</label><input type="password" id="gl-pass" autocomplete="current-password"></div>
+    <div class="field" id="gl-mfa-row" style="display:none"><label for="gl-mfa">MFA code</label><input id="gl-mfa" inputmode="numeric" autocomplete="one-time-code"></div>
+    <div class="hint" id="gl-status">Credentials go only to this VM (HTTPS) — never stored or logged; only the Garmin token is kept.</div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" data-close>Cancel</button>
+      <button class="btn btn-primary" id="gl-submit">Sign in</button>
+    </div>`);
+  let phase = 'creds';
+  const status = t => { const el = document.getElementById('gl-status'); if (el) el.textContent = t; };
+  const poll = async () => {
+    if (!document.getElementById('gl-status')) return;          // modal closed
+    let s;
+    try { s = await (await fetch('api/garmin/status')).json(); }
+    catch { setTimeout(poll, 2000); return; }
+    const btn = document.getElementById('gl-submit');
+    if (s.status === 'authenticating') {
+      status('Authenticating with Garmin… (can take 30–45 s)');
+      setTimeout(poll, 2000);
+    } else if (s.status === 'pending_mfa') {
+      phase = 'mfa';
+      document.getElementById('gl-mfa-row').style.display = '';
+      if (btn) { btn.disabled = false; btn.textContent = 'Verify code'; }
+      status('Garmin sent you an MFA code — enter it above.');
+      document.getElementById('gl-mfa')?.focus();
+    } else if (s.status === 'ok') {
+      closeModal();
+      toast('ok', 'Garmin connected', 'Token saved on the VM — a full sync is already running; data refreshes in a few minutes.');
+    } else if (s.status === 'error') {
+      if (btn) btn.disabled = false;
+      status('Failed: ' + (s.error || 'unknown error') + (phase === 'mfa' ? ' — cancel and restart the login.' : ''));
+    }
+  };
+  on('gl-submit', 'click', async () => {
+    const btn = document.getElementById('gl-submit');
+    const post = (p, body) => fetch('api/garmin/' + p, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (phase === 'mfa') {
+      const code = (val('gl-mfa') || '').trim();
+      if (!code) { status('Enter the MFA code first.'); return; }
+      btn.disabled = true;
+      await post('mfa', { code });
+    } else {
+      const password = val('gl-pass');
+      if (!password) { status('Enter your password first.'); return; }
+      btn.disabled = true;
+      await post('login', { email: (val('gl-email') || '').trim(), password });
+    }
+    setTimeout(poll, 1500);
+  });
+}
+
 // Latest sync.yml run from the Actions API (null without a token / on error).
 async function fetchLastSyncRun() {
   if (!githubToken.has()) return null;
@@ -3886,6 +3951,8 @@ async function renderSettings(page) {
         <div class="settings-row"><span class="settings-label">Last sync run</span><span class="settings-value">${syncRunHtml(lastRun)}</span></div>
         ${syncEndpointTable(syncStatus)}
         <button class="btn btn-ghost btn-block mt" id="set-sync-now">${icons.sync} Sync now</button>
+        ${LOCAL ? `<button class="btn btn-primary btn-block mt" id="garmin-connect">Connect Garmin (login)</button>
+        <div class="hint" style="margin-top:6px">Use after the token expires (~yearly) or when sync says the token is invalid.</div>` : ''}
       </div>
     </div>
 
@@ -3937,6 +4004,7 @@ async function renderSettings(page) {
   }));
   on('set-sync', 'click', e => syncFromGarmin(e.currentTarget));
   on('set-sync-now', 'click', async e => { await syncFromGarmin(e.currentTarget); setTimeout(() => renderSettings(page), 2500); });
+  on('garmin-connect', 'click', () => openGarminLoginModal());
   on('set-coach', 'click', () => openCoachModal());
   on('set-export', 'click', () => { planStore.export(); toast('ok', 'Exported', 'plan.json downloaded.'); });
   on('set-hyrox', 'click', () => goTab('hyrox'));

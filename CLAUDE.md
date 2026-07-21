@@ -18,6 +18,9 @@ rollback). Timers: `paceforge-sync` daily 06:45 Dublin, `paceforge-autosync`
 Mon 06:00 UTC, `paceforge-coach` Mon 07:19 UTC (units in `ops/`). Secrets:
 `~/.config/paceforge/env` (0600). Data commits push to `origin` as before.
 Claude steps (plan enrichment, analyses, coach) run the local `claude` CLI.
+Garmin (re)login happens in the portal — Settings → "Connect Garmin"
+(password → optional MFA; runner endpoints `/garmin/login|mfa|status`) — no
+TTY needed; on success the runner kicks a full sync automatically.
 Debug: `GET /paceforge/api/runs`, logs in `~/.local/state/paceforge-runner/`.
 Retirement steps when the flag lifts: `claude-config os/github-restore-checklist.md`.
 
