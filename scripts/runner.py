@@ -197,11 +197,19 @@ def garmin_login_start(email: str, password: str) -> None:
             td = Path(os.environ.get("PACEFORGE_GARMIN_TOKEN_DIR",
                                      Path.home() / ".garminconnect"))
             td.mkdir(parents=True, exist_ok=True)
+            # A stale tokenstore short-circuits the library's credential login
+            # (it loads the dead token, skips the password entirely, then dies
+            # on the first API call) — move it aside so this login is real.
+            for f in td.glob("garmin_tokens.json"):
+                f.replace(f.with_name(f.name + ".stale"))
             client = GarminClient(email, password, token_dir=str(td))
             _GARMIN_CLIENT = client
             if client.login() == "mfa_required":
                 GARMIN.update(status="pending_mfa", error=None)
             else:
+                # return_on_mfa mode returns before the library persists the
+                # tokens — dump them the same way complete_mfa() does.
+                client._client.client.dump(str(td))  # noqa: SLF001
                 _garmin_finish()
         except Exception as e:
             GARMIN.update(status="error", error=f"{type(e).__name__}: {e}")

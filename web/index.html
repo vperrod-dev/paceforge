@@ -3837,7 +3837,7 @@ function openGarminLoginModal() {
     catch { setTimeout(poll, 2000); return; }
     const btn = document.getElementById('gl-submit');
     if (s.status === 'authenticating') {
-      status('Authenticating with Garmin… (can take 30–45 s)');
+      status('Authenticating with Garmin… (the library tries several sign-in routes — this can take a few minutes)');
       setTimeout(poll, 2000);
     } else if (s.status === 'pending_mfa') {
       phase = 'mfa';
