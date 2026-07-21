@@ -1,188 +1,308 @@
 # Half Marathon — Intermediate
 
 **Goal:** HALF_MARATHON on **2026-09-20** — target **85:00**
-**Weeks:** 12 | **VDOT:** 54.7 (Garmin VO2 Max (54.7))
+**Weeks:** 12 | **VDOT:** 53.4 (Garmin VO2 Max (53.4))
 
-| Easy | Marathon | Threshold | Interval | Repetition |
-|---|---|---|---|---|
-| 4:30-4:58/km | 4:19/km | 4:04/km | 3:46/km | 3:33/km |
-
-## Rationale
-
-With only 3 running days/week, a single long run was dominating each week's volume
-(up to 50%+), so this pass rebalanced every week so no single session exceeds
-~37% — the two midweek sessions grew a little and the long runs came down
-slightly, without touching the event, race date, or your VDOT-derived paces.
-Quality work now rotates rep schemes and interval distances between repeat
-appearances (week 5's VO2max is 6x3min, week 9's is 7x2.5min; week 6's speed
-work is 400s, week 10's is more 400s at higher volume; race-pace blocks lengthen
-from week 8 → week 10) so no two weeks feel like a rerun of the last, and long-run
-styles vary between plain easy runs, progressive (easy→marathon→threshold) runs,
-and race-pace-embedded runs. Weeks 4 and 8 stay genuine cutback weeks (~15-20%
-down) that keep one shorter quality session rather than going fully easy.
-
-## Coaching notes
-
-- **2026-07-06 (this week's hard day) was swapped from hill reps to an easy
-  recovery run** — this morning's HRV read "Unbalanced" (49ms) and
-  training_readiness is soft (44) after a recent anaerobic-heavy stretch. Hills
-  wait until that's absorbed; re-check readiness before week 3's tempo.
-- Cadence is flagged Low (152 spm) with a long stride — the strides sessions
-  (weeks 3 and 11) and a running cue to shorten stride/increase turnover target
-  this directly.
-- Weeks 4 and 8 are intentional cutback weeks — resist the urge to make up
-  volume elsewhere; they're what let the following build phase land safely.
-- From week 7 on, the long run includes goal-pace kilometres (3km → 4km) —
-  treat these as pacing practice at a controlled, sustainable effort, not a
-  time trial.
+| Easy | Marathon | Threshold | Interval | Repetition | Race |
+|---|---|---|---|---|---|
+| 4:35/km–5:03/km | 4:16/km–4:32/km | 4:04/km–4:18/km | 3:42/km–4:00/km | 3:30/km–3:45/km | 3:58/km–4:08/km |
 
 ## Week-by-week
 
 | Wk | Phase | Focus | Total km | Sessions |
 |---|---|---|---|---|
-| 1 | Base | Aerobic base + running economy | 26.3 | **Mon 06/29** 40min Fartlek<br>**Wed 07/01** 5km Tempo Run<br>**Fri 07/03** 9km Long Run |
-| 2 | Base | Aerobic base + neuromuscular strides — hard day swapped to recovery (HRV) | 27.0 | **Mon 07/06** 9km Recovery Run<br>**Wed 07/08** 8km Progressive Run<br>**Fri 07/10** 10km Long Run |
-| 3 | Base | Aerobic endurance + strength (hills) | 27.0 | **Mon 07/13** 8km Easy + 6 Strides<br>**Wed 07/15** 6km Tempo Run<br>**Fri 07/17** 10km Progressive Long Run |
-| 4 | Base | Cutback week — maintain aerobic base | 22.5 | **Mon 07/20** 30min Fartlek<br>**Wed 07/22** 8km Progressive Run<br>**Fri 07/24** 8km Long Run |
-| 5 | Build | VO2max development + lactate threshold | 26.2 | **Mon 07/27** 6 x 3.0min VO2max Intervals<br>**Wed 07/29** 4km Tempo Run<br>**Fri 07/31** 10km Long Run |
-| 6 | Build | Speed + sustained tempo effort | 30.0 | **Mon 08/03** 11 x 400m Speed Reps<br>**Wed 08/05** 5 x 5min Cruise Intervals<br>**Fri 08/07** 11km Progressive Long Run |
-| 7 | Build | Hill power + race-pace specificity | 28.4 | **Mon 08/10** 12 x 45s Hill Reps<br>**Wed 08/12** 10km Progressive Run<br>**Fri 08/14** 10km Long Run w/ 3km Race Pace |
-| 8 | Build | Cutback week — absorb build-phase gains | 24.3 | **Mon 08/17** 32min Fartlek<br>**Wed 08/19** 4 x 1.2km Race Pace Intervals<br>**Fri 08/21** 8km Long Run |
-| 9 | Peak | VO2max sharpening + race-pace confidence | 32.4 | **Mon 08/24** 7 x 2.5min VO2max Intervals<br>**Wed 08/26** 5 x 6min Cruise Intervals<br>**Fri 08/28** 12km Progressive Long Run |
-| 10 | Peak | Speed + threshold tuning | 32.4 | **Mon 08/31** 16 x 400m Speed Reps<br>**Wed 09/02** 5 x 1.4km Race Pace Intervals<br>**Fri 09/04** 11km Long Run w/ 4km Race Pace |
-| 11 | Taper | Volume reduction — maintain intensity | 22.0 | **Mon 09/07** 7km Easy + 6 Strides<br>**Wed 09/09** 4km Tempo Run<br>**Fri 09/11** 8km Long Run |
-| 12 | Taper | Race week — trust the training | 30.1 | **Tue 09/15** Easy shakeout<br>**Thu 09/17** Short shakeout with strides<br>**Sun 09/20** RACE DAY — Half Marathon |
+| 1 | Base | Aerobic base + running economy | 16.8 | **Mon 06/29** 4km Easy + 6 Strides<br>**Wed 07/01** 4km Tempo Run<br>**Fri 07/03** 6km Long Run |
+| 2 | Base | Aerobic base + neuromuscular strides | 18.8 | **Mon 07/06** 5km Easy + 6 Strides<br>**Wed 07/08** 6km Easy Run<br>**Fri 07/10** 8km Progressive Long Run |
+| 3 | Base | Aerobic endurance + strength (hills) | 21.3 | **Mon 07/13** 5km Easy + 6 Strides<br>**Wed 07/15** 5km Steady @ Marathon Pace<br>**Fri 07/17** 7km Long Run |
+| 4 | Base | Recovery week — maintain aerobic base | 21.1 | **Mon 07/20** 5K Time Trial<br>**Wed 07/22** 5km Easy Run<br>**Fri 07/24** 6km Long Run |
+| 5 | Build | VO2max development + lactate threshold | 24.1 | **Mon 07/27** 6km Easy + 6 Strides<br>**Wed 07/29** 7km Progressive Run<br>**Fri 07/31** 11km Long Run |
+| 6 | Build | Speed + sustained tempo effort | 25.7 | **Mon 08/03** 10 x 400m Speed Reps<br>**Wed 08/05** 8km Easy Run<br>**Fri 08/07** 10km Progressive Long Run |
+| 7 | Build | Hill power + race-pace specificity | 27.3 | **Mon 08/10** 5 x 3.5min VO2max Intervals<br>**Wed 08/12** 6km Tempo Run<br>**Fri 08/14** 9km Long Run |
+| 8 | Build | Recovery week — absorb build-phase gains | 23.2 | **Mon 08/17** 5K Time Trial<br>**Wed 08/19** 6km Easy Run<br>**Fri 08/21** 7km Long Run |
+| 9 | Peak | VO2max sharpening + race-pace confidence | 28.9 | **Mon 08/24** 4 x 3.0min VO2max Intervals<br>**Wed 08/26** 9km Easy Run<br>**Fri 08/28** 13km Long Run w/ 5km Race Pace |
+| 10 | Peak | Speed + threshold tuning | 31.4 | **Mon 08/31** 12 x 200m Speed Reps<br>**Wed 09/02** 10km Easy Run<br>**Fri 09/04** 15km Long Run w/ 4km Race Pace |
+| 11 | Taper | Volume reduction — maintain intensity | 20.9 | **Mon 09/07** 5km Easy + 6 Strides<br>**Wed 09/09** 4km Tempo Run<br>**Fri 09/11** 9km Long Run |
+| 12 | Taper | Race week — trust the training | 12.8 | **Tue 09/15** Easy shakeout<br>**Thu 09/17** Short shakeout with strides<br>**Sun 09/20** RACE DAY — Half Marathon |
 
 ## Session detail
 
-### Week 1 — Base (26.3 km)
+### Week 1 — Base (16.8 km)
 
-_Aerobic base + running economy_
+_Base week 1 of 4: laying aerobic foundation and durable form — economy work now makes every later phase cheaper._
 
-- **Mon 2026-06-29 — 40min Fartlek** (9.3 km, ~40 min) — Unstructured speed play — alternate between hard surges and easy running by feel.
-  - Unstructured surges to open the block — let effort, not the watch, set the hard 2-min pushes. Recoveries should feel like a genuine reset before the next surge, not a jog-through.
-- **Wed 2026-07-01 — 5km Tempo Run** (8.0 km, ~40 min) — Sustained threshold-pace effort. Develops lactate clearance and mental focus.
-  - Controlled-uncomfortable, not a race. You should be able to speak in broken sentences, not full ones — settle into that effort by the second kilometre and hold it flat.
-- **Fri 2026-07-03 — 9km Long Run** (9.0 km, ~41 min) — Steady long run building endurance and mental toughness at easy pace.
-  - Fully conversational the whole way — this is aerobic economy and time-on-feet, not a fitness test. If you're breathing hard you're going too fast; slow down.
+- **Mon 2026-06-29 — 4km Easy + 6 Strides** (4.2 km, ~19 min)
+  - **Why:** Easy volume plus neuromuscular priming — strides teach fast, relaxed turnover without fatigue, and set up the next quality day.
+  - **Structure:** 3.6 km easy @ 4:35-5:03/km → 6× (Stride — fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)
+  - **Feel:** Easy throughout; strides are fast and springy, ~90% effort, never sprinted.
+  - **If it goes wrong:** Strides feeling forced or heavy-legged? Cut them — the easy running is the session; strides are a bonus.
+  - **Form cue:** Strides are turnover practice: quick light steps, arms driving straight back, eyes up.
+- **Wed 2026-07-01 — 4km Tempo Run** (7.0 km, ~37 min)
+  - **Why:** Lactate threshold — raises the pace you can sustain. The single biggest lever for Base-phase fitness at your distance.
+  - **Structure:** 10 min easy jog at conversational pace @ 4:35-5:03/km → 4 km tempo at threshold pace @ 4:04-4:18/km → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Comfortably hard, RPE 7. You could speak a sentence, not hold a chat.
+  - **If it goes wrong:** Too hard? Slow 5-10 s/km rather than stopping — the aerobic stimulus survives a slower tempo, not a broken one. Heat or hills: switch to effort.
+  - **Form cue:** Lock the rhythm with your breathing (e.g. 2:2) and let pace follow it.
+- **Fri 2026-07-03 — 6km Long Run** (5.6 km, ~26 min)
+  - **Why:** Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.
+  - **Structure:** 5.6 km easy @ 4:35-5:03/km
+  - **Feel:** Relaxed, conversational. The watch stays quiet today — that's the point.
+  - **If it goes wrong:** Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.
+  - **Form cue:** Check posture every ~15min: tall hips, relaxed shoulders, quiet feet.
 
-### Week 2 — Base (27.0 km)
+### Week 2 — Base (18.8 km)
 
-_Aerobic base + neuromuscular strides — hard day swapped to recovery (HRV)_
+_Base week 2 of 4: laying aerobic foundation and durable form — economy work now makes every later phase cheaper._
 
-- **Mon 2026-07-06 — 9km Recovery Run** (9.0 km, ~45 min) — Very easy effort to promote blood flow and recovery. Keep the pace comfortable.
-  - Swapped from hill reps: your HRV read 'Unbalanced' this morning and readiness is soft (44) on top of a recent anaerobic-heavy stretch. Hills wait until you've absorbed that load — keep this fully easy, the goal is blood flow, not stimulus.
-- **Wed 2026-07-08 — 8km Progressive Run** (8.5 km, ~37 min) — Start easy, finish fast. Each third gets progressively faster developing pacing discipline.
-  - Three even thirds building from easy to threshold — a smooth ladder, not a jump. Hold each third honestly and don't rush into the fast finish; let the pace climb on its own.
-- **Fri 2026-07-10 — 10km Long Run** (9.5 km, ~43 min) — Steady long run building endurance and mental toughness at easy pace.
-  - Steady and easy — check in on how the legs feel after yesterday's swap. This should feel comfortably repeatable, the kind of run you could describe as 'pleasant' afterwards.
+- **Mon 2026-07-06 — 5km Easy + 6 Strides** (4.7 km, ~22 min)
+  - **Why:** Easy volume plus neuromuscular priming — strides teach fast, relaxed turnover without fatigue, and set up the next quality day.
+  - **Structure:** 4.1 km easy @ 4:35-5:03/km → 6× (Stride — fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)
+  - **Feel:** Easy throughout; strides are fast and springy, ~90% effort, never sprinted.
+  - **If it goes wrong:** Strides feeling forced or heavy-legged? Cut them — the easy running is the session; strides are a bonus.
+  - **Form cue:** Strides are turnover practice: quick light steps, arms driving straight back, eyes up.
+- **Wed 2026-07-08 — 6km Easy Run** (5.6 km, ~26 min)
+  - **Why:** Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.
+  - **Structure:** 5.6 km easy @ 4:35-5:03/km
+  - **Feel:** Conversational, RPE 3-4. You should finish feeling like you could do it again.
+  - **If it goes wrong:** If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.
+  - **Form cue:** Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding.
+- **Fri 2026-07-10 — 8km Progressive Long Run** (8.5 km, ~38 min)
+  - **Why:** Endurance plus fatigue-resistance — running strong in the back half is exactly the race-day skill, trained under control.
+  - **Structure:** 5.1 km easy @ 4:35-5:03/km → 2.5 km at marathon pace @ 4:16-4:32/km → 0.9 km at threshold pace @ 4:04-4:18/km
+  - **Feel:** Patient early, purposeful late. The final segment is honest work, RPE 6-7.
+  - **If it goes wrong:** If the faster segments break form, back off to the slow edge of the window — finishing strong matters more than the split.
 
-### Week 3 — Base (27.0 km)
+### Week 3 — Base (21.3 km)
 
-_Aerobic endurance + strength (hills)_
+_Base week 3 of 4: laying aerobic foundation and durable form — economy work now makes every later phase cheaper._
 
-- **Mon 2026-07-13 — 8km Easy + 6 Strides** (8.5 km, ~38 min) — Easy run finishing with short strides to develop running economy and neuromuscular coordination.
-  - Easy running with 6 short strides at the end — relaxed and fast, not a sprint. Think 'smooth acceleration,' cue tall posture and quick turnover, then walk back fully recovered.
-- **Wed 2026-07-15 — 6km Tempo Run** (9.0 km, ~44 min) — Sustained threshold-pace effort. Develops lactate clearance and mental focus.
-  - Your longest tempo block yet — 6km at threshold. Go out slightly conservative through the first 2km; the goal is an even effort you can hold to the last stride, not a fade.
-- **Fri 2026-07-17 — 10km Progressive Long Run** (9.5 km, ~42 min) — Start easy, build to marathon pace, finish at threshold. Develops pacing and fatigue resistance.
-  - Start easy, ease into marathon effort, finish the last tenth at threshold. Mental-toughness work — the finish should feel purposeful, not desperate. Bank the pacing discipline for race day.
+- **Mon 2026-07-13 — 5km Easy + 6 Strides** (5.3 km, ~24 min)
+  - **Why:** Easy volume plus neuromuscular priming — strides teach fast, relaxed turnover without fatigue, and set up the next quality day.
+  - **Structure:** 4.7 km easy @ 4:35-5:03/km → 6× (Stride — fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)
+  - **Feel:** Easy throughout; strides are fast and springy, ~90% effort, never sprinted.
+  - **If it goes wrong:** Strides feeling forced or heavy-legged? Cut them — the easy running is the session; strides are a bonus.
+  - **Form cue:** Strides are turnover practice: quick light steps, arms driving straight back, eyes up.
+- **Wed 2026-07-15 — 5km Steady @ Marathon Pace** (9.0 km, ~42 min)
+  - **Why:** Race specificity — goal pace becomes automatic through repetition. Rhythm, relaxation and confidence at the pace that matters.
+  - **Structure:** 10 min easy jog at conversational pace @ 4:35-5:03/km → 5 km steady at marathon pace @ 4:16-4:32/km → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Should feel 'sustainably quick' — if it feels like a fight now, the goal needs re-examining (that's useful information, not failure).
+  - **If it goes wrong:** Consistently outside the window at honest effort: log it — the adaptive review uses exactly this signal to adjust your paces.
+- **Fri 2026-07-17 — 7km Long Run** (7.0 km, ~32 min)
+  - **Why:** Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.
+  - **Structure:** 7.0 km easy @ 4:35-5:03/km
+  - **Feel:** Relaxed, conversational. The watch stays quiet today — that's the point.
+  - **If it goes wrong:** Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.
+  - **Form cue:** Check posture every ~15min: tall hips, relaxed shoulders, quiet feet.
 
-### Week 4 — Base (22.5 km)
+### Week 4 — Base (21.1 km)
 
-_Cutback week — maintain aerobic base_
+_Cutback week (Base phase) — volume drops on purpose. Adaptation happens in the recovery, not the work; resist making up the kilometres, next week builds from a higher base because of this one._
 
-- **Mon 2026-07-20 — 30min Fartlek** (7.0 km, ~30 min) — Unstructured speed play — alternate between hard surges and easy running by feel.
-  - Cutback week — shorter fartlek, same crisp surges. This is about absorbing the last three weeks, not adding more load. Keep the hard bits genuinely hard and brief.
-- **Wed 2026-07-22 — 8km Progressive Run** (7.5 km, ~32 min) — Start easy, finish fast. Each third gets progressively faster developing pacing discipline.
-  - A shorter version of the ladder — easy, marathon, threshold. Light legs, clean form. Use it to check that recent fatigue is clearing, not to chase a number.
-- **Fri 2026-07-24 — 8km Long Run** (8.0 km, ~36 min) — Steady long run building endurance and mental toughness at easy pace.
-  - Deliberately shorter long run this week. Easy pace throughout — this is recovery volume banked for the build phase ahead, not a session to push.
+- **Mon 2026-07-20 — 5K Time Trial** (10.0 km, ~44 min)
+  - **Why:** Benchmark — an honest maximal effort measures fitness better than any formula, recalibrates your training paces, and doubles as race practice.
+  - **Structure:** 15 min easy jog at conversational pace @ 4:35-5:03/km → 5 km all-out time trial @ 3:41-3:50/km → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Should feel 'sustainably quick' — if it feels like a fight now, the goal needs re-examining (that's useful information, not failure).
+  - **If it goes wrong:** Conditions bad (heat, wind, illness)? Postpone rather than run a false benchmark — a wrong number miscalibrates every pace that follows.
+  - **Venue:** Flat, repeatable course (or parkrun/track) — same venue each time.
+  - **Warm-up:** Treat the warm-up like race day: 15min easy + drills + 3 strides, then 2min standing rest before the start.
+- **Wed 2026-07-22 — 5km Easy Run** (5.3 km, ~24 min)
+  - **Why:** Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.
+  - **Structure:** 5.3 km easy @ 4:35-5:03/km
+  - **Feel:** Conversational, RPE 3-4. You should finish feeling like you could do it again.
+  - **If it goes wrong:** If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.
+  - **Form cue:** Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding.
+- **Fri 2026-07-24 — 6km Long Run** (5.8 km, ~27 min)
+  - **Why:** Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.
+  - **Structure:** 5.8 km easy @ 4:35-5:03/km
+  - **Feel:** Relaxed, conversational. The watch stays quiet today — that's the point.
+  - **If it goes wrong:** Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.
+  - **Form cue:** Check posture every ~15min: tall hips, relaxed shoulders, quiet feet.
 
-### Week 5 — Build (26.2 km)
+### Week 5 — Build (24.1 km)
 
-_VO2max development + lactate threshold_
+_Build week 1 of 4: the engine room — threshold and VO2 work stack week over week, each session one visible step up on the last._
 
-- **Mon 2026-07-27 — 6 x 3.0min VO2max Intervals** (9.2 km, ~56 min) — Hard intervals at VO2max intensity to raise aerobic ceiling. Full recovery between reps.
-  - Hard reps at I-pace with full jog recovery between — sharper than the fartlek surges. Effort should be 'hard but repeatable' on rep 1 through rep 6: even splits, not a fast start that fades.
-- **Wed 2026-07-29 — 4km Tempo Run** (7.5 km, ~38 min) — Sustained threshold-pace effort. Develops lactate clearance and mental focus.
-  - Threshold effort — settle in by kilometre two and hold it, 'comfortably hard,' the pace you could sustain for about an hour if you had to.
-- **Fri 2026-07-31 — 10km Long Run** (9.5 km, ~43 min) — Steady long run building endurance and mental toughness at easy pace.
-  - Easy aerobic long run — first big-block long run of the build. Relaxed effort; save the legs for Thursday's intervals next week.
+- **Mon 2026-07-27 — 6km Easy + 6 Strides** (6.0 km, ~28 min)
+  - **Why:** Easy volume plus neuromuscular priming — strides teach fast, relaxed turnover without fatigue, and set up the next quality day.
+  - **Structure:** 5.4 km easy @ 4:35-5:03/km → 6× (Stride — fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)
+  - **Feel:** Easy throughout; strides are fast and springy, ~90% effort, never sprinted.
+  - **If it goes wrong:** Strides feeling forced or heavy-legged? Cut them — the easy running is the session; strides are a bonus.
+  - **Form cue:** Strides are turnover practice: quick light steps, arms driving straight back, eyes up.
+- **Wed 2026-07-29 — 7km Progressive Run** (7.2 km, ~32 min)
+  - **Why:** Pacing discipline — each third faster teaches negative splitting, the highest-percentage race strategy there is.
+  - **Structure:** 2.4 km easy @ 4:35-5:03/km → 2.4 km at marathon pace @ 4:16-4:32/km → 2.4 km at threshold pace @ 4:04-4:18/km
+  - **Feel:** First third annoyingly easy, last third honest work. Smooth gear changes.
+  - **If it goes wrong:** If the final third isn't the fastest, the start was too quick — that's the exact race-day error this session exists to fix.
+  - **Form cue:** Change gear with cadence first, stride length second.
+- **Fri 2026-07-31 — 11km Long Run** (10.9 km, ~50 min)
+  - **Why:** Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.
+  - **Structure:** 10.9 km easy @ 4:35-5:03/km
+  - **Feel:** Relaxed, conversational. The watch stays quiet today — that's the point.
+  - **If it goes wrong:** Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.
+  - **Form cue:** Check posture every ~15min: tall hips, relaxed shoulders, quiet feet.
 
-### Week 6 — Build (30.0 km)
+### Week 6 — Build (25.7 km)
 
-_Speed + sustained tempo effort_
+_Build week 2 of 4: the engine room — threshold and VO2 work stack week over week, each session one visible step up on the last._
 
-- **Mon 2026-08-03 — 11 x 400m Speed Reps** (8.4 km, ~52 min) — Short, fast repetitions developing speed and running economy at R pace.
-  - Fast 400s at R-pace with a full jog recovery — this is neuromuscular speed and form, not a lactate session. Relaxed arms, quick turnover, and stop a rep early if form breaks down.
-- **Wed 2026-08-05 — 5 x 5min Cruise Intervals** (10.6 km, ~50 min) — Broken threshold work with short recoveries. Same lactate benefit as tempo with less mental fatigue.
-  - Broken threshold — same lactate-clearance benefit as a tempo run with less mental grind thanks to the short jog recoveries. Hold each 5-min rep dead even; don't let the first one be the fastest.
-- **Fri 2026-08-07 — 11km Progressive Long Run** (11.0 km, ~48 min) — Start easy, build to marathon pace, finish at threshold. Develops pacing and fatigue resistance.
-  - Building block — easy into marathon effort into threshold to close. Practice staying relaxed as the pace rises; tension in the shoulders is the first sign you're overreaching.
+- **Mon 2026-08-03 — 10 x 400m Speed Reps** (8.0 km, ~49 min)
+  - **Why:** Speed and running economy — short, fast reps recruit fast-twitch fibres and sharpen form, making every slower pace cheaper.
+  - **Structure:** 10 min easy jog at conversational pace @ 4:35-5:03/km → 10× (400m fast & relaxed — mile race effort @ 3:30-3:45/km / 90s walking rest @ 4:35-5:03/km) → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Fast, springy and light — ~95%, never an all-out sprint. Full recovery is part of the design; R work only counts when you're fresh for each rep.
+  - **If it goes wrong:** Form breaking (shoulders up, overstriding)? Stop the set — junk reps train junk form. These reps are about quality, never volume.
+  - **Form cue:** Think 'fast feet on hot coals' — ground contact short, heels never settling.
+  - **Venue:** Track or a measured flat stretch — GPS pace lies over 200-400m, so run these by effort and check splits after.
+  - **Warm-up:** After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides — fast reps on a cold engine is how calves tear.
+- **Wed 2026-08-05 — 8km Easy Run** (7.7 km, ~35 min)
+  - **Why:** Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.
+  - **Structure:** 7.7 km easy @ 4:35-5:03/km
+  - **Feel:** Conversational, RPE 3-4. You should finish feeling like you could do it again.
+  - **If it goes wrong:** If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.
+  - **Form cue:** Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding.
+- **Fri 2026-08-07 — 10km Progressive Long Run** (10.0 km, ~45 min)
+  - **Why:** Endurance plus fatigue-resistance — running strong in the back half is exactly the race-day skill, trained under control.
+  - **Structure:** 6.0 km easy @ 4:35-5:03/km → 3.0 km at marathon pace @ 4:16-4:32/km → 1.0 km at threshold pace @ 4:04-4:18/km
+  - **Feel:** Patient early, purposeful late. The final segment is honest work, RPE 6-7.
+  - **If it goes wrong:** If the faster segments break form, back off to the slow edge of the window — finishing strong matters more than the split.
 
-### Week 7 — Build (28.4 km)
+### Week 7 — Build (27.3 km)
 
-_Hill power + race-pace specificity_
+_Build week 3 of 4: the engine room — threshold and VO2 work stack week over week, each session one visible step up on the last._
 
-- **Mon 2026-08-10 — 12 x 45s Hill Reps** (8.4 km, ~47 min) — Hill repetitions build strength, power, and running economy. Effort should be hard but controlled.
-  - Shorter, punchier hill reps than week 2's — power and running economy. Drive the arms and knees on the way up, then float back down easy; the recovery jog is part of the session.
-- **Wed 2026-08-12 — 10km Progressive Run** (10.0 km, ~43 min) — Start easy, finish fast. Each third gets progressively faster developing pacing discipline.
-  - Easy, marathon, threshold thirds — a rehearsal for controlling effort as fatigue builds, which is exactly what race day asks of you.
-- **Fri 2026-08-14 — 10km Long Run w/ 3km Race Pace** (10.0 km, ~44 min) — Long run with a sustained race-pace block to build specificity and confidence.
-  - First taste of goal race effort inside a long run — settle into the 3km block only once you're warm, and resist the urge to push it faster than that effort.
+- **Mon 2026-08-10 — 5 x 3.5min VO2max Intervals** (8.9 km, ~55 min)
+  - **Why:** Aerobic ceiling — short hard reps at ~3K-5K effort push maximal oxygen uptake, which everything below it hangs from.
+  - **Structure:** 10 min easy jog at conversational pace @ 4:35-5:03/km → 5× (3.5 min hard — 3K-5K race effort @ 3:42-4:00/km / 3.5 min recovery jog @ 4:35-5:03/km) → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Hard, RPE 8-9. Controlled discomfort — the last rep matches the first.
+  - **If it goes wrong:** Fading before the final rep: slow 5 s/km or take 30s more recovery. In heat or wind run by RPE 8 — the pace window assumes calm, flat ground.
+  - **Form cue:** Relax the face and hands on the back half of each rep — tension is free speed lost.
+  - **Warm-up:** After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides — fast reps on a cold engine is how calves tear.
+- **Wed 2026-08-12 — 6km Tempo Run** (9.0 km, ~45 min)
+  - **Why:** Lactate threshold — raises the pace you can sustain. The single biggest lever for Build-phase fitness at your distance.
+  - **Structure:** 10 min easy jog at conversational pace @ 4:35-5:03/km → 6 km tempo at threshold pace @ 4:04-4:18/km → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Comfortably hard, RPE 7. You could speak a sentence, not hold a chat.
+  - **If it goes wrong:** Too hard? Slow 5-10 s/km rather than stopping — the aerobic stimulus survives a slower tempo, not a broken one. Heat or hills: switch to effort.
+  - **Form cue:** Lock the rhythm with your breathing (e.g. 2:2) and let pace follow it.
+- **Fri 2026-08-14 — 9km Long Run** (9.4 km, ~43 min)
+  - **Why:** Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.
+  - **Structure:** 9.4 km easy @ 4:35-5:03/km
+  - **Feel:** Relaxed, conversational. The watch stays quiet today — that's the point.
+  - **If it goes wrong:** Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.
+  - **Form cue:** Check posture every ~15min: tall hips, relaxed shoulders, quiet feet.
 
-### Week 8 — Build (24.3 km)
+### Week 8 — Build (23.2 km)
 
-_Cutback week — absorb build-phase gains_
+_Cutback week (Build phase) — volume drops on purpose. Adaptation happens in the recovery, not the work; resist making up the kilometres, next week builds from a higher base because of this one._
 
-- **Mon 2026-08-17 — 32min Fartlek** (7.5 km, ~32 min) — Unstructured speed play — alternate between hard surges and easy running by feel.
-  - Cutback week — same fartlek shape as week 4, a touch longer. Trust the taper-down; the fitness from the last three weeks needs this week to actually stick.
-- **Wed 2026-08-19 — 4 x 1.2km Race Pace Intervals** (8.8 km, ~46 min) — Race-specific intervals at marathon pace. Builds confidence and specificity.
-  - A shorter, easier version of the race-pace intervals to come — 4 x 1.2km at goal effort with a jog rest. Smooth and even, not a test.
-- **Fri 2026-08-21 — 8km Long Run** (8.0 km, ~36 min) — Steady long run building endurance and mental toughness at easy pace.
-  - Easy, shorter long run to close the cutback. Full recovery effort — the legs should feel fresher by Sunday evening than they did Friday.
+- **Mon 2026-08-17 — 5K Time Trial** (10.0 km, ~44 min)
+  - **Why:** Benchmark — an honest maximal effort measures fitness better than any formula, recalibrates your training paces, and doubles as race practice.
+  - **Structure:** 15 min easy jog at conversational pace @ 4:35-5:03/km → 5 km all-out time trial @ 3:41-3:50/km → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Should feel 'sustainably quick' — if it feels like a fight now, the goal needs re-examining (that's useful information, not failure).
+  - **If it goes wrong:** Conditions bad (heat, wind, illness)? Postpone rather than run a false benchmark — a wrong number miscalibrates every pace that follows.
+  - **Venue:** Flat, repeatable course (or parkrun/track) — same venue each time.
+  - **Warm-up:** Treat the warm-up like race day: 15min easy + drills + 3 strides, then 2min standing rest before the start.
+- **Wed 2026-08-19 — 6km Easy Run** (6.3 km, ~29 min)
+  - **Why:** Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.
+  - **Structure:** 6.3 km easy @ 4:35-5:03/km
+  - **Feel:** Conversational, RPE 3-4. You should finish feeling like you could do it again.
+  - **If it goes wrong:** If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.
+  - **Form cue:** Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding.
+- **Fri 2026-08-21 — 7km Long Run** (6.9 km, ~32 min)
+  - **Why:** Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.
+  - **Structure:** 6.9 km easy @ 4:35-5:03/km
+  - **Feel:** Relaxed, conversational. The watch stays quiet today — that's the point.
+  - **If it goes wrong:** Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.
+  - **Form cue:** Check posture every ~15min: tall hips, relaxed shoulders, quiet feet.
 
-### Week 9 — Peak (32.4 km)
+### Week 9 — Peak (28.9 km)
 
-_VO2max sharpening + race-pace confidence_
+_Peak week 1 of 2: converting fitness to race-readiness — race-pace work dominates and sessions look like the race. 3 weeks to race day._
 
-- **Mon 2026-08-24 — 7 x 2.5min VO2max Intervals** (9.1 km, ~55 min) — Hard intervals at VO2max intensity to raise aerobic ceiling. Full recovery between reps.
-  - More, shorter reps than week 5's — quicker turnover at the same I-pace. These should feel sharp, almost fast-feeling by the last two reps once you're warmed into it.
-- **Wed 2026-08-26 — 5 x 6min Cruise Intervals** (11.8 km, ~55 min) — Broken threshold work with short recoveries. Same lactate benefit as tempo with less mental fatigue.
-  - Longer reps than week 6's cruise intervals — 6-minute blocks that ask for patience. Same threshold effort, just a longer time to hold your composure inside each rep.
-- **Fri 2026-08-28 — 12km Progressive Long Run** (11.5 km, ~51 min) — Start easy, build to marathon pace, finish at threshold. Develops pacing and fatigue resistance.
-  - Peak-phase progressive long run — the biggest one yet. Be patient through the easy portion; the marathon- and threshold-pace finish will feel earned, not forced, if you are.
+- **Mon 2026-08-24 — 4 x 3.0min VO2max Intervals** (7.5 km, ~44 min)
+  - **Why:** Aerobic ceiling — short hard reps at ~3K-5K effort push maximal oxygen uptake, which everything below it hangs from.
+  - **Structure:** 10 min easy jog at conversational pace @ 4:35-5:03/km → 4× (3.0 min hard — 3K-5K race effort @ 3:42-4:00/km / 3.0 min recovery jog @ 4:35-5:03/km) → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Hard, RPE 8-9. Controlled discomfort — the last rep matches the first.
+  - **If it goes wrong:** Fading before the final rep: slow 5 s/km or take 30s more recovery. In heat or wind run by RPE 8 — the pace window assumes calm, flat ground.
+  - **Form cue:** Relax the face and hands on the back half of each rep — tension is free speed lost.
+  - **Warm-up:** After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides — fast reps on a cold engine is how calves tear.
+- **Wed 2026-08-26 — 9km Easy Run** (8.7 km, ~40 min)
+  - **Why:** Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.
+  - **Structure:** 8.7 km easy @ 4:35-5:03/km
+  - **Feel:** Conversational, RPE 3-4. You should finish feeling like you could do it again.
+  - **If it goes wrong:** If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.
+  - **Form cue:** Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding.
+- **Fri 2026-08-28 — 13km Long Run w/ 5km Race Pace** (12.7 km, ~57 min)
+  - **Why:** Race specificity — goal pace on tired legs, plus a dress rehearsal for pacing, fueling and kit.
+  - **Structure:** 15 min easy jog at conversational pace @ 4:35-5:03/km → 2.6 km easy @ 4:35-5:03/km → 5 km at race pace @ 3:58-4:08/km → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Race-pace block should feel controlled and rhythmic, not desperate — lock in after 1km and relax into it.
+  - **If it goes wrong:** Can't hold the window without straining? Shorten the block rather than slowing the whole run — quality of pace beats quantity today.
+  - **Fueling:** Fuel it: carbs beforehand, then practice race-day intake — a gel every ~25-30min and sips of fluid. The gut is trainable; race day is not the day to find out.
 
-### Week 10 — Peak (32.4 km)
+### Week 10 — Peak (31.4 km)
 
-_Speed + threshold tuning_
+_Peak week 2 of 2: converting fitness to race-readiness — race-pace work dominates and sessions look like the race. 2 weeks to race day._
 
-- **Mon 2026-08-31 — 16 x 400m Speed Reps** (10.4 km, ~67 min) — Short, fast repetitions developing speed and running economy at R pace.
-  - More reps than week 6's — same sharp 400s at R-pace, deeper into the session. Quality over the first 10 matters more than gutting out the last 6; drop a rep if form goes.
-- **Wed 2026-09-02 — 5 x 1.4km Race Pace Intervals** (11.0 km, ~57 min) — Race-specific intervals at marathon pace. Builds confidence and specificity.
-  - Longer race-pace blocks than week 8's — 1.4km at goal effort. This is the closest rehearsal yet to holding half-marathon effort for real; even splits across all five reps is the win.
-- **Fri 2026-09-04 — 11km Long Run w/ 4km Race Pace** (11.0 km, ~49 min) — Long run with a sustained race-pace block to build specificity and confidence.
-  - The peak long run — a 4km race-effort block inside it, longer than week 7's. Treat that block like the middle of the actual race: locked in, not laboured.
+- **Mon 2026-08-31 — 12 x 200m Speed Reps** (6.4 km, ~41 min)
+  - **Why:** Speed and running economy — short, fast reps recruit fast-twitch fibres and sharpen form, making every slower pace cheaper.
+  - **Structure:** 10 min easy jog at conversational pace @ 4:35-5:03/km → 12× (200m fast & relaxed — mile race effort @ 3:30-3:45/km / 60s walking rest @ 4:35-5:03/km) → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Fast, springy and light — ~95%, never an all-out sprint. Full recovery is part of the design; R work only counts when you're fresh for each rep.
+  - **If it goes wrong:** Form breaking (shoulders up, overstriding)? Stop the set — junk reps train junk form. These reps are about quality, never volume.
+  - **Form cue:** Think 'fast feet on hot coals' — ground contact short, heels never settling.
+  - **Venue:** Track or a measured flat stretch — GPS pace lies over 200-400m, so run these by effort and check splits after.
+  - **Warm-up:** After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides — fast reps on a cold engine is how calves tear.
+- **Wed 2026-09-02 — 10km Easy Run** (9.6 km, ~44 min)
+  - **Why:** Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.
+  - **Structure:** 9.6 km easy @ 4:35-5:03/km
+  - **Feel:** Conversational, RPE 3-4. You should finish feeling like you could do it again.
+  - **If it goes wrong:** If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.
+  - **Form cue:** Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding.
+- **Fri 2026-09-04 — 15km Long Run w/ 4km Race Pace** (15.4 km, ~70 min)
+  - **Why:** Race specificity — goal pace on tired legs, plus a dress rehearsal for pacing, fueling and kit.
+  - **Structure:** 15 min easy jog at conversational pace @ 4:35-5:03/km → 6.6 km easy @ 4:35-5:03/km → 4 km at race pace @ 3:58-4:08/km → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Race-pace block should feel controlled and rhythmic, not desperate — lock in after 1km and relax into it.
+  - **If it goes wrong:** Can't hold the window without straining? Shorten the block rather than slowing the whole run — quality of pace beats quantity today.
+  - **Fueling:** Fuel it: carbs beforehand, then practice race-day intake — a gel every ~25-30min and sips of fluid. The gut is trainable; race day is not the day to find out.
 
-### Week 11 — Taper (22.0 km)
+### Week 11 — Taper (20.9 km)
 
-_Volume reduction — maintain intensity_
+_Cutback week (Taper phase) — volume drops on purpose. Adaptation happens in the recovery, not the work; resist making up the kilometres, next week builds from a higher base because of this one._
 
-- **Mon 2026-09-07 — 7km Easy + 6 Strides** (7.0 km, ~32 min) — Easy run finishing with short strides to develop running economy and neuromuscular coordination.
-  - Easy running with a handful of relaxed strides to keep the legs sharp as volume drops. Effort stays low — this is about feeling fast for a few seconds, not training.
-- **Wed 2026-09-09 — 4km Tempo Run** (7.0 km, ~36 min) — Sustained threshold-pace effort. Develops lactate clearance and mental focus.
-  - Short, crisp reminder of threshold effort — shorter than week 3's or week 5's tempo. Legs should feel noticeably fresher than they did mid-block.
-- **Fri 2026-09-11 — 8km Long Run** (8.0 km, ~36 min) — Steady long run building endurance and mental toughness at easy pace.
-  - Easy taper long run — comfortably under peak distance. The fitness is banked; this is about staying loose, not building anything new.
+- **Mon 2026-09-07 — 5km Easy + 6 Strides** (5.2 km, ~24 min)
+  - **Why:** Easy volume plus neuromuscular priming — strides teach fast, relaxed turnover without fatigue, and set up the next quality day.
+  - **Structure:** 4.6 km easy @ 4:35-5:03/km → 6× (Stride — fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)
+  - **Feel:** Easy throughout; strides are fast and springy, ~90% effort, never sprinted.
+  - **If it goes wrong:** Strides feeling forced or heavy-legged? Cut them — the easy running is the session; strides are a bonus.
+  - **Form cue:** Strides are turnover practice: quick light steps, arms driving straight back, eyes up.
+- **Wed 2026-09-09 — 4km Tempo Run** (7.0 km, ~37 min)
+  - **Why:** Lactate threshold — raises the pace you can sustain. The single biggest lever for Taper-phase fitness at your distance.
+  - **Structure:** 10 min easy jog at conversational pace @ 4:35-5:03/km → 4 km tempo at threshold pace @ 4:04-4:18/km → 10 min easy jog to finish @ 4:35-5:03/km
+  - **Feel:** Comfortably hard, RPE 7. You could speak a sentence, not hold a chat.
+  - **If it goes wrong:** Too hard? Slow 5-10 s/km rather than stopping — the aerobic stimulus survives a slower tempo, not a broken one. Heat or hills: switch to effort.
+  - **Form cue:** Lock the rhythm with your breathing (e.g. 2:2) and let pace follow it.
+- **Fri 2026-09-11 — 9km Long Run** (8.7 km, ~40 min)
+  - **Why:** Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.
+  - **Structure:** 8.7 km easy @ 4:35-5:03/km
+  - **Feel:** Relaxed, conversational. The watch stays quiet today — that's the point.
+  - **If it goes wrong:** Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.
+  - **Form cue:** Check posture every ~15min: tall hips, relaxed shoulders, quiet feet.
 
-### Week 12 — Taper (30.1 km)
+### Week 12 — Taper (12.8 km)
 
-_Race week — trust the training_
+_Race week. The work is banked — nothing you do now makes you fitter, plenty can make you tired. Short, sharp, rested._
 
-- **Tue 2026-09-15 — Easy shakeout** (5.0 km, ~23 min) — Easy shakeout
-  - Easy shakeout, nothing more. Effort should feel almost too easy — that's the point with the race five days out.
-- **Thu 2026-09-17 — Short shakeout with strides** (4.0 km, ~18 min) — Short shakeout with strides
-  - Short and easy with a few strides to wake the legs up. Resist any urge to test race pace this close to the start.
-- **Sun 2026-09-20 — RACE DAY — Half Marathon** (21.1 km, ~95 min) — RACE DAY — Half Marathon
-  - Race day. Trust the training — start controlled through the first 5km, settle into goal effort, and save something for the last 3km. You've done the work.
+- **Tue 2026-09-15 — Easy shakeout** (5.0 km, ~23 min)
+  - **Why:** Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.
+  - **Structure:** Easy shakeout
+  - **Feel:** Conversational, RPE 3-4. You should finish feeling like you could do it again.
+  - **If it goes wrong:** If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.
+  - **Form cue:** Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding.
+- **Thu 2026-09-17 — Short shakeout with strides** (4.0 km, ~18 min)
+  - **Why:** Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.
+  - **Structure:** warmup → 4× (interval @ 3:30-3:45/km / recovery @ 4:35-5:03/km) → cooldown
+  - **Feel:** Conversational, RPE 3-4. You should finish feeling like you could do it again.
+  - **If it goes wrong:** If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.
+  - **Form cue:** Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding.
+- **Sun 2026-09-20 — RACE DAY — Half Marathon** (21.1 km, ~97 min)
+  - **Why:** The day it was all for. Nothing new today — the kit, fueling and pacing you rehearsed are the plan.
+  - **Structure:** RACE DAY — Half Marathon
+  - **Feel:** First third controlled (it should feel too easy), middle third rhythmic, final third everything you have left.
+  - **If it goes wrong:** Bad patch mid-race? They pass — ease 5 s/km for 2 minutes, take fuel, rebuild. Never surge to 'make up' time.
+  - **Fueling:** Race-day intake exactly as rehearsed on the long runs.
