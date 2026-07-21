@@ -608,14 +608,18 @@ def _new_session() -> str:
 
 
 def check_login(user: str, password: str) -> bool:
-    """scrypt hash + constant-time compares; PF_WEB_PASS_SCRYPT = '<salt_hex>$<hash_hex>'."""
+    """scrypt hash + constant-time compares; PF_WEB_PASS_SCRYPT = '<salt_hex>$<hash_hex>'.
+    Browsers autofill the email in the username box — accept both spellings."""
     conf = os.environ.get("PF_WEB_PASS_SCRYPT", "")
-    want_user = os.environ.get("PF_WEB_USER", "")
+    want_user = os.environ.get("PF_WEB_USER", "").lower()
+    email = os.environ.get("PACEFORGE_GARMIN_EMAIL", "").lower()
     if "$" not in conf or not want_user:
         return False
     salt, want = conf.split("$", 1)
     got = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**14, r=8, p=1).hex()
-    return hmac.compare_digest(user, want_user) & hmac.compare_digest(got, want)
+    u = user.strip().lower()
+    user_ok = hmac.compare_digest(u, want_user) | (bool(email) & hmac.compare_digest(u, email))
+    return bool(user_ok & hmac.compare_digest(got, want))
 
 
 LOGIN_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
