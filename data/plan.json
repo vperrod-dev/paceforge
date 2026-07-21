@@ -1927,7 +1927,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": null,
+          "garmin_workout_id": 1639483265,
           "user_rpe": null,
           "user_notes": null
         },
@@ -1970,7 +1970,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": null,
+          "garmin_workout_id": 1639483274,
           "user_rpe": null,
           "user_notes": null
         },
@@ -2049,7 +2049,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": null,
+          "garmin_workout_id": 1639483279,
           "user_rpe": null,
           "user_notes": null
         }
