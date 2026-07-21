@@ -3839,6 +3839,10 @@ function openGarminLoginModal() {
     if (s.status === 'authenticating') {
       status('Authenticating with Garmin… (the library tries several sign-in routes — this can take a few minutes)');
       setTimeout(poll, 2000);
+    } else if (s.status === 'waiting_retry') {
+      status('Garmin is rate-limiting this server (429). The runner keeps retrying by itself — '
+        + (s.detail || '') + '. You can close this window: a Telegram message arrives when it connects or needs an MFA code.');
+      setTimeout(poll, 15000);
     } else if (s.status === 'pending_mfa') {
       phase = 'mfa';
       document.getElementById('gl-mfa-row').style.display = '';

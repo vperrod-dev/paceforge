@@ -176,7 +176,7 @@ def claude_step(run: Run, prompt: str, tools: str, max_turns: int = 200,
 # process for the duration of the handshake — never logged, never persisted;
 # only the resulting token lands in the token dir, same as the CLI. ──
 
-GARMIN = {"status": "idle", "error": None}
+GARMIN = {"status": "idle", "error": None, "detail": None}
 _GARMIN_CLIENT = None
 
 
@@ -187,32 +187,56 @@ def _garmin_finish() -> None:
     dispatch("sync", {})   # verify the token + backfill immediately
 
 
+RETRY_EVERY = 45 * 60
+MAX_ATTEMPTS = 10
+
+
 def garmin_login_start(email: str, password: str) -> None:
-    GARMIN.update(status="authenticating", error=None)
+    """One credential entry, then the runner outlasts Garmin's per-IP 429 by
+    itself: retry every 45 min, Telegram when it connects or needs MFA."""
+    GARMIN.update(status="authenticating", error=None, detail=None)
 
     def work() -> None:
         global _GARMIN_CLIENT
-        try:
-            from paceforge.garmin.client import GarminClient
-            td = Path(os.environ.get("PACEFORGE_GARMIN_TOKEN_DIR",
-                                     Path.home() / ".garminconnect"))
-            td.mkdir(parents=True, exist_ok=True)
-            # A stale tokenstore short-circuits the library's credential login
-            # (it loads the dead token, skips the password entirely, then dies
-            # on the first API call) — move it aside so this login is real.
-            for f in td.glob("garmin_tokens.json"):
-                f.replace(f.with_name(f.name + ".stale"))
-            client = GarminClient(email, password, token_dir=str(td))
-            _GARMIN_CLIENT = client
-            if client.login() == "mfa_required":
-                GARMIN.update(status="pending_mfa", error=None)
-            else:
-                # return_on_mfa mode returns before the library persists the
-                # tokens — dump them the same way complete_mfa() does.
-                client._client.client.dump(str(td))  # noqa: SLF001
-                _garmin_finish()
-        except Exception as e:
-            GARMIN.update(status="error", error=f"{type(e).__name__}: {e}")
+        from paceforge.garmin.client import GarminClient
+        td = Path(os.environ.get("PACEFORGE_GARMIN_TOKEN_DIR",
+                                 Path.home() / ".garminconnect"))
+        td.mkdir(parents=True, exist_ok=True)
+        # A stale tokenstore short-circuits the library's credential login
+        # (it loads the dead token, skips the password entirely, then dies
+        # on the first API call) — move it aside so this login is real.
+        for f in td.glob("garmin_tokens.json"):
+            f.replace(f.with_name(f.name + ".stale"))
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                client = GarminClient(email, password, token_dir=str(td))
+                _GARMIN_CLIENT = client
+                if client.login() == "mfa_required":
+                    GARMIN.update(status="pending_mfa", error=None, detail=None)
+                    telegram("🏃 PaceForge: Garmin sign-in needs your MFA code — "
+                             "portal → Settings → Connect Garmin.")
+                else:
+                    # return_on_mfa mode returns before the library persists
+                    # the tokens — dump them the same way complete_mfa() does.
+                    client._client.client.dump(str(td))  # noqa: SLF001
+                    _garmin_finish()
+                    telegram("🏃 PaceForge: Garmin connected — full sync is running.")
+                return
+            except Exception as e:
+                msg = f"{type(e).__name__}: {e}"
+                if "429" not in msg and "rate limit" not in msg.lower():
+                    GARMIN.update(status="error", error=msg, detail=None)
+                    telegram(f"🏃 PaceForge: Garmin sign-in failed — {msg}")
+                    return
+                nxt = datetime.now(UTC).timestamp() + RETRY_EVERY
+                GARMIN.update(status="waiting_retry", error=msg,
+                              detail=f"attempt {attempt}/{MAX_ATTEMPTS}, next retry "
+                                     f"{datetime.fromtimestamp(nxt, UTC).strftime('%H:%M')} UTC")
+                time.sleep(RETRY_EVERY)
+        GARMIN.update(status="error", detail=None,
+                      error=f"Still rate-limited after {MAX_ATTEMPTS} spaced attempts "
+                            "(~7h) — Garmin may be blocking this IP for longer; tell Claude.")
+        telegram("🏃 PaceForge: Garmin sign-in still rate-limited after ~7h of retries.")
     threading.Thread(target=work, daemon=True).start()
 
 
