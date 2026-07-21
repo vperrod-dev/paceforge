@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "last_attempt": "2026-07-21T20:55:33+00:00",
+  "last_attempt": "2026-07-21T21:58:15+00:00",
   "last_success": "2026-07-18T07:19:38+00:00",
   "result": "failed",
   "error": "RuntimeError: No valid Garmin token \u2014 run `paceforge login` once to create one.",
