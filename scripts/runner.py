@@ -189,6 +189,29 @@ def _garmin_finish() -> None:
 
 RETRY_EVERY = 45 * 60
 MAX_ATTEMPTS = 10
+# Garmin rate-limits per IP and this VM's IP burns fast; the handshake goes out
+# through Cloudflare WARP (socks5 on localhost) for a clean egress identity.
+GARMIN_PROXY = os.environ.get("PF_GARMIN_PROXY", "")
+
+
+class _GarminProxy:
+    """Route the Garmin handshake through PF_GARMIN_PROXY via proxy env vars.
+    ponytail: process-global env for the login window — a job that fires
+    mid-handshake would also ride the proxy, which is harmless."""
+
+    KEYS = ("https_proxy", "http_proxy", "all_proxy")
+
+    def __enter__(self):
+        self.old = {k: os.environ.get(k) for k in self.KEYS}
+        if GARMIN_PROXY:
+            for k in self.KEYS:
+                os.environ[k] = GARMIN_PROXY
+        return self
+
+    def __exit__(self, *exc):
+        for k, v in self.old.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+        return False
 
 
 def garmin_login_start(email: str, password: str) -> None:
@@ -211,7 +234,9 @@ def garmin_login_start(email: str, password: str) -> None:
             try:
                 client = GarminClient(email, password, token_dir=str(td))
                 _GARMIN_CLIENT = client
-                if client.login() == "mfa_required":
+                with _GarminProxy():
+                    result = client.login()
+                if result == "mfa_required":
                     GARMIN.update(status="pending_mfa", error=None, detail=None)
                     telegram("🏃 PaceForge: Garmin sign-in needs your MFA code — "
                              "portal → Settings → Connect Garmin.")
@@ -247,7 +272,8 @@ def garmin_mfa(code: str) -> None:
         try:
             if _GARMIN_CLIENT is None:
                 raise RuntimeError("no login in progress — start again")
-            _GARMIN_CLIENT.complete_mfa(code)
+            with _GarminProxy():
+                _GARMIN_CLIENT.complete_mfa(code)
             _garmin_finish()
         except Exception as e:
             GARMIN.update(status="error", error=f"{type(e).__name__}: {e}")

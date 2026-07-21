@@ -24,7 +24,11 @@ Caddy-forwarded requests need a session). Secrets: `~/.config/paceforge/env`
 Claude steps (plan enrichment, analyses, coach) run the local `claude` CLI.
 Garmin (re)login happens in the portal — Settings → "Connect Garmin"
 (password → optional MFA; runner endpoints `/garmin/login|mfa|status`) — no
-TTY needed; on success the runner kicks a full sync automatically.
+TTY needed; on success the runner kicks a full sync automatically. The
+handshake egresses through Cloudflare WARP (`warp-svc`, socks5 proxy mode on
+127.0.0.1:40000, `PF_GARMIN_PROXY` in the env file) because Garmin's SSO
+rate-limits per IP and the VM's own IP burns fast; if a login 429s anyway,
+the runner retries every 45 min and Telegrams on connect/MFA/failure.
 Debug: `GET /paceforge/api/runs`, logs in `~/.local/state/paceforge-runner/`.
 Retirement steps when the flag lifts: `claude-config os/github-restore-checklist.md`.
 
