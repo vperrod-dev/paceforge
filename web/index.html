@@ -3820,8 +3820,9 @@ function openGarminLoginModal() {
       </div>
       <button class="modal-close" data-close>${icons.x}</button>
     </div>
-    <div class="field"><label for="gl-email">Garmin email</label><input id="gl-email" value="${escHtml(state.user.email || '')}" autocomplete="username"></div>
-    <div class="field"><label for="gl-pass">Garmin password</label><input type="password" id="gl-pass" autocomplete="current-password"></div>
+    <div class="field"><label for="gl-email">Garmin email</label><input id="gl-email" value="${escHtml(state.user.email || '')}" autocomplete="off"></div>
+    <div class="field"><label for="gl-pass">Garmin password</label><input type="password" id="gl-pass" autocomplete="new-password">
+      <div class="hint" style="color:var(--amber)">Your <b>Garmin</b> account password — NOT the password you used to open this site. If the browser auto-filled this field, clear it and type the Garmin one.</div></div>
     <div class="field" id="gl-mfa-row" style="display:none"><label for="gl-mfa">MFA code</label><input id="gl-mfa" inputmode="numeric" autocomplete="one-time-code"></div>
     <div class="hint" id="gl-status">Credentials go only to this VM (HTTPS) — never stored or logged; only the Garmin token is kept.</div>
     <div class="modal-foot">
@@ -3829,6 +3830,10 @@ function openGarminLoginModal() {
       <button class="btn btn-primary" id="gl-submit">Sign in</button>
     </div>`);
   let phase = 'creds';
+  // Browsers autofill the saved PORTAL password into any password box on this
+  // site — that sends the wrong secret to Garmin. Blank it just after render.
+  setTimeout(() => { const p = document.getElementById('gl-pass'); if (p && !p.dataset.touched) p.value = ''; }, 400);
+  document.getElementById('gl-pass')?.addEventListener('input', e => { e.target.dataset.touched = '1'; });
   const status = t => { const el = document.getElementById('gl-status'); if (el) el.textContent = t; };
   const poll = async () => {
     if (!document.getElementById('gl-status')) return;          // modal closed
