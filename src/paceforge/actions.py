@@ -868,20 +868,24 @@ def push(week: int | None = None, dry_run: bool = False) -> dict:
             "uploads": result["pushed"]}
 
 
-def autosync(client: GarminClient | None = None) -> dict:
-    """Weekly self-push: drop stale completed Garmin copies, push current + next week.
+def garmin_reconcile(client: GarminClient | None = None) -> dict:
+    """Make the Garmin calendar from today forward exactly mirror the accepted plan.
 
-    Idempotent — push_plan_week deletes by stored ``garmin_workout_id`` before
-    re-uploading, and cleaned-up ids are set to None so they aren't re-deleted.
+    Three passes: (a) delete stale scheduled copies of completed past workouts,
+    (b) push/refresh current + next 2 weeks (idempotent — push_plan_week deletes
+    by stored ``garmin_workout_id`` before re-uploading), (c) delete orphans:
+    scheduled entries >= today whose id no plan workout owns. Same no-sport-filter
+    sweep as garmin_clear_calendar — we push running AND bike workouts, so every
+    scheduled workout the plan doesn't own is fair game.
     """
     plan = store.load_plan()
     if plan is None or not plan.weeks:
         raise RuntimeError("No plan at data/plan.json.")
     if not plan.accepted:
-        raise RuntimeError("Plan not accepted — refusing to autosync.")
+        raise RuntimeError("Plan not accepted — refusing to reconcile.")
     client = client or garmin_connect()
 
-    # Completed past workouts no longer need their scheduled Garmin copy.
+    # (a) Completed past workouts no longer need their scheduled Garmin copy.
     today = date.today()
     stale_deleted = 0
     for wk in plan.weeks:
@@ -892,7 +896,8 @@ def autosync(client: GarminClient | None = None) -> dict:
                 w.garmin_workout_id = None
                 stale_deleted += 1
 
-    weeks = _upcoming_weeks(plan)[:2]  # current + next
+    # (b) Push/refresh the upcoming window.
+    weeks = _upcoming_weeks(plan)[:3]  # current + next 2
     pushed = 0
     failed: list[dict] = []
     for wk in weeks:
@@ -902,9 +907,31 @@ def autosync(client: GarminClient | None = None) -> dict:
         pushed += len(result["pushed"])
         failed += result["failed"]
 
+    # (c) Orphans: anything scheduled >= today that the plan doesn't own now.
+    owned = {int(w.garmin_workout_id) for wk in plan.weeks for w in wk.workouts
+             if w.garmin_workout_id}
+    orphans_deleted = 0
+    seen: set[int] = set()
+    for s in client.get_scheduled_workouts(days_ahead=400):
+        wid = s.get("workout_id")
+        when = str(s.get("scheduled_date", ""))[:10]
+        if not wid or when < today.isoformat() or int(wid) in seen:
+            continue
+        seen.add(int(wid))
+        if int(wid) in owned:
+            continue
+        client.delete_workout(int(wid))
+        orphans_deleted += 1
+
     store.save_plan(plan)  # persist garmin_workout_id changes
-    return {"weeks": [wk.week_number for wk in weeks], "stale_deleted": stale_deleted,
-            "pushed": pushed, "failed": failed}
+    return {"weeks": [wk.week_number for wk in weeks], "pushed": pushed,
+            "stale_deleted": stale_deleted, "orphans_deleted": orphans_deleted,
+            "failed": failed}
+
+
+def autosync(client: GarminClient | None = None) -> dict:
+    """Daily cron entrypoint — the plan owns the calendar; alias for garmin_reconcile."""
+    return garmin_reconcile(client=client)
 
 
 def garmin_delete(client: GarminClient | None = None) -> dict:

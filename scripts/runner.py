@@ -386,6 +386,32 @@ def pending_analyses(data_dir: Path) -> list[str]:
     return ids
 
 
+def reconcile_garmin(run: Run) -> None:
+    """After a plan-mutating job: make the Garmin calendar mirror the plan.
+
+    Garmin auth/network failure is logged + Telegrammed but never fails the
+    parent job — the plan change itself already succeeded and is committed.
+    """
+    run.step("Reconcile Garmin calendar")
+    p = subprocess.run(pf("autosync"), cwd=REPO_DIR, capture_output=True, text=True, timeout=900)
+    run.log(p.stdout + p.stderr)
+    if p.returncode != 0:
+        msg = (p.stderr or p.stdout).strip().splitlines()[-1:] or ["unknown error"]
+        run.log("Garmin reconcile failed (non-fatal)")
+        telegram(f"PaceForge: Garmin reconcile failed after plan change — {msg[0][:300]}")
+        return
+    commit_push(run, ["data/plan.json"], "data: Garmin reconcile after plan change")
+    try:
+        r = json.loads(p.stdout)
+    except ValueError:
+        return
+    failed = len(r.get("failed") or [])
+    counts = (r.get("pushed", 0), r.get("stale_deleted", 0), r.get("orphans_deleted", 0), failed)
+    if any(counts):
+        telegram(f"🗓 Garmin calendar synced: {counts[0]} pushed, {counts[1]} stale removed, "
+                 f"{counts[2]} orphans removed" + (f", {failed} FAILED" if failed else ""))
+
+
 # ── jobs (1:1 with .github/workflows) ──
 
 def job_sync(run: Run, inputs: dict) -> None:
@@ -472,6 +498,7 @@ def job_plan(run: Run, inputs: dict) -> None:
         except Exception as e:       # continue-on-error: scaffold is already committed
             run.log(f"enrichment failed (non-fatal): {e}")
         publish(run)
+    reconcile_garmin(run)
     run.step("Complete job")
 
 
@@ -528,6 +555,7 @@ def job_recalibrate(run: Run, inputs: dict) -> None:
     run.step("Commit updated plan")
     commit_push(run, ["data/plan.json", "plan.md"], f"plan: pace recalibration {inputs['delta']} VDOT")
     publish(run)
+    reconcile_garmin(run)
 
 
 def job_calendar_edit(run: Run, inputs: dict) -> None:
@@ -540,6 +568,7 @@ def job_calendar_edit(run: Run, inputs: dict) -> None:
     run.step("Commit updated plan")
     commit_push(run, ["data/plan.json"], f"calendar: {action} session {sid}")
     publish(run)
+    reconcile_garmin(run)
 
 
 def job_garmin_delete(run: Run, inputs: dict) -> None:

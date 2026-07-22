@@ -50,7 +50,8 @@ def main(argv: list[str] | None = None) -> int:
     p_push.add_argument("--dry-run", action="store_true")
 
     sub.add_parser("autosync",
-                   help="weekly self-push: clean stale copies, push current + next week")
+                   help="reconcile Garmin with the plan: clean stale copies + orphans, "
+                        "push current + next 2 weeks")
 
     p_adapt = sub.add_parser("adapt", help="reflow missed sessions + readiness-gate hard work")
     p_adapt.add_argument("--dry-run", action="store_true")

@@ -1,4 +1,4 @@
-"""autosync() cleans stale completed Garmin copies and pushes the 2 upcoming weeks."""
+"""autosync() delegates to garmin_reconcile(): stale cleanup + current & next 2 weeks."""
 
 from __future__ import annotations
 
@@ -31,6 +31,9 @@ class _FakeClient:
             w.garmin_workout_id = self._next_id
         return {"pushed": [{"name": w.name} for w in workouts], "failed": []}
 
+    def get_scheduled_workouts(self, days_ahead=30):  # noqa: ANN001
+        return []
+
 
 def _workout(name: str, day_offset: int, **kwargs) -> Workout:
     return Workout(workout_type=WorkoutType.EASY_RUN, name=name,
@@ -60,12 +63,12 @@ def _plan(accepted: bool = True) -> TrainingPlan:
     )
 
 
-def test_pushes_exactly_the_two_upcoming_weeks():
+def test_pushes_exactly_the_three_upcoming_weeks():
     store.save_plan(_plan())
     fake = _FakeClient()
     result = actions.autosync(client=fake)
-    assert result["weeks"] == [2, 3]
-    assert fake.pushed_weeks == [["current tue", "current sat"], ["next tue"]]
+    assert result["weeks"] == [2, 3, 4]
+    assert fake.pushed_weeks == [["current tue", "current sat"], ["next tue"], ["later tue"]]
 
 
 def test_deletes_stale_completed_ids_and_clears_them():
@@ -84,8 +87,8 @@ def test_second_run_is_idempotent():
     fake2 = _FakeClient()
     result = actions.autosync(client=fake2)
     assert result["stale_deleted"] == 0  # stale id already cleared on run 1
-    assert result["weeks"] == [2, 3]
-    assert fake2.pushed_weeks == [["current tue", "current sat"], ["next tue"]]
+    assert result["weeks"] == [2, 3, 4]
+    assert fake2.pushed_weeks == [["current tue", "current sat"], ["next tue"], ["later tue"]]
 
 
 def test_unaccepted_plan_refuses():

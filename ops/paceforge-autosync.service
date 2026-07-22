@@ -1,5 +1,5 @@
 [Unit]
-Description=PaceForge weekly Garmin autosync (via local runner)
+Description=PaceForge daily Garmin calendar reconcile (via local runner)
 After=paceforge-runner.service
 
 [Service]

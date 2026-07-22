@@ -1,9 +1,10 @@
-# autosync.yml cron replacement: Monday 06:00 UTC — push next 2 plan weeks to Garmin.
+# autosync.yml cron replacement: daily 06:20 UTC — reconcile Garmin calendar with the plan
+# (before the 06:45 Dublin sync).
 [Unit]
-Description=PaceForge weekly Garmin autosync Mon 06:00 UTC
+Description=PaceForge daily Garmin calendar reconcile 06:20 UTC
 
 [Timer]
-OnCalendar=Mon *-*-* 06:00:00 UTC
+OnCalendar=*-*-* 06:20:00 UTC
 Persistent=true
 
 [Install]
