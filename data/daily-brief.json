@@ -1,0 +1,12 @@
+{
+  "date": "2026-07-22",
+  "headline": "Red recovery day — the run is done, so the rest of today is about sleep, not training.",
+  "body_state": "The composite says **37.7 — low band, red verdict**, and the driver is sleep: **5.7 h last night (score 59)** on top of a **23 h sleep debt over 14 days**. HRV came in at **34 ms, below your 7-day band**, respiration was elevated overnight (the 'illness signals' flag), and Body Battery started the day at **38**. Garmin's own readiness (64) is friendlier, but the composite sees the sleep debt it doesn't. Load-wise you're fresh — TSB +7, acute:chronic 0.60 — so this is a recovery problem, not a fatigue problem. Nothing hard until the overnight signals clear.",
+  "session": "Today's 5.3 km easy run is **already in the books**: 5.51 km at 4:28/km, avg HR 134 — volume green (104%), but only the first kilometre sat in the 4:35–5:03 easy window, and you closed at 77% max HR on a day the verdict said protect. Done is done; the cost was moderate (aerobic TE 2.7). For the rest of today: no second session, no strength, and take the advice literally — **bed ~60 min earlier**, tonight and for the next two weeks. Thursday's 6 km long run stays on only if HRV is back in range tomorrow.",
+  "recent": "Three runs, one pattern: every 'easy' run turns into a squeeze. Salou Jul 17 was the honest one (5:23/km, HR 135). Salou Jul 19 finished with three hill kms at HR 160–178 — a hard second half on a holiday easy day. Today's treadmill run progressed 4:40 → 4:20/km, 64% of it in Zone 3. That's the grey-zone limiter live: **17.5% easy vs the ~80% target**. Sunday's 5K time trial was missed (red), so the cutback week has volume but no benchmark — and the recovery it was designed to deliver is being eroded from both ends: pace above, sleep below.",
+  "focus": [
+    "Sleep is the workout: in bed ~60 min earlier tonight — clear the 23 h debt before any quality returns.",
+    "Thursday's 6 km long run at true easy (4:35–5:03/km, HR under ~145) — the whole run in the window, not just km 1.",
+    "No intensity until HRV is back in your normal band and the respiration flag clears."
+  ]
+}
