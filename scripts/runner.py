@@ -439,6 +439,18 @@ def job_sync(run: Run, inputs: dict) -> None:
                  "If the token expired (~yearly), run `paceforge login` on the VM.")
         raise RuntimeError("paceforge sync failed")
     dispatch("analyze", {})   # workflow_run: analyze after sync
+    if datetime.now(ZoneInfo("Europe/Dublin")).hour < 10:
+        dispatch("daily", {})  # coach's morning read for the landing page
+
+
+def job_daily(run: Run, inputs: dict) -> None:
+    run.step("Coach's morning read")
+    claude_step(run, (
+        'Use the coach skill in .claude/skills/coach/ — the "Daily brief" section. '
+        "Write data/daily-brief.json for today per that section's contract, then commit "
+        "it and push to master."
+    ), tools="Bash(git:*),Read,Write,Glob,Grep,TodoWrite")
+    publish(run)
 
 
 def job_analyze(run: Run, inputs: dict) -> None:
@@ -644,6 +656,7 @@ def _save_job(transform, commit_path: str, msg: str):
 JOBS = {
     "sync": job_sync,
     "analyze": job_analyze,
+    "daily": job_daily,
     "plan": job_plan,
     "coach": job_coach,
     "push": job_push,

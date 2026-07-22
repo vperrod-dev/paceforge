@@ -113,8 +113,12 @@ personalise notes, re-validate, regenerate the human view with
 (athlete-accepted, guarded), never hand-edits.
 
 ## Scheduled workflows (beyond sync)
-`sync.yml` runs ~06:45 Dublin (DST-split crons) and ends by pushing
-`paceforge brief` to Telegram (`TG_TOKEN` + `TG_CHAT_ID` secrets; skipped when unset).
+`sync.yml` runs **3×/day (06:45 / 13:00 / 21:00 Dublin)** so runs are matched and
+coach-analysed the same day; the morning pass (and only that one) pushes
+`paceforge brief --telegram` (`TG_TOKEN` + `TG_CHAT_ID` secrets; skipped when unset)
+and dispatches `daily.yml` — the coach's morning read → `data/daily-brief.json`,
+rendered as the lead card on the Today page. Every sync dispatches `analyze.yml`
+(per-activity coach analyses).
 `autosync.yml` (daily 06:20 UTC) reconciles the Garmin calendar with the accepted
 plan — pushes current + next 2 weeks, deletes stale completed copies and orphaned
 scheduled entries (the runner also reconciles after every plan-mutating job); `recalibrate.yml` applies portal-accepted pace shifts;

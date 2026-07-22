@@ -1256,7 +1256,7 @@ function _seriesDelta(series, key, days) {
 }
 
 async function renderToday(page) {
-  const [fitness, plan, events, weekly, syncStatus, activities, rpeData, profile, analytics] = await Promise.all([
+  const [fitness, plan, events, weekly, syncStatus, activities, rpeData, profile, analytics, dailyBrief] = await Promise.all([
     cached('fitness', () => loadJSON('fitness.json').catch(() => null)),
     planStore.get().catch(() => null),
     loadJSON('events.json').catch(() => []),
@@ -1266,6 +1266,7 @@ async function renderToday(page) {
     loadJSON('rpe.json').catch(() => ({ entries: [] })),
     loadJSON('profile.json').catch(() => ({})),
     cached('analytics', () => apiJson('/profile/analytics').catch(() => null)),
+    loadJSON('daily-brief.json').catch(() => null),
   ]);
 
   setTopbar('Today', new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
@@ -1408,10 +1409,32 @@ async function renderToday(page) {
     { label:'VO₂max', value: p.vo2_max ?? '—', unit:'', sub: snap.vdot != null ? 'VDOT ' + snap.vdot.toFixed(1) : '', accent:'var(--violet)', accentD:'var(--violet-d)' },
   ];
 
+  // ── Coach's morning read (daily-brief.json, written by the daily job) ──
+  let briefCard = '';
+  if (dailyBrief && dailyBrief.headline) {
+    const isToday = dailyBrief.date === todayISO;
+    const section = (title, md) => md ? `
+      <div class="eyebrow" style="margin:12px 0 4px">${title}</div>
+      <div style="font-size:.87rem;line-height:1.55;color:var(--text-2)">${formatMarkdown(md)}</div>` : '';
+    briefCard = `<div class="card" style="${isToday ? '' : 'opacity:.7'}">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Coach's morning read</div>
+        ${isToday ? '' : `<span class="chip" style="color:var(--text-3)">from ${escHtml(dailyBrief.date || '')}</span>`}</div>
+      <div style="font-size:.98rem;font-weight:700;line-height:1.45">${escHtml(dailyBrief.headline)}</div>
+      ${section('Your body today', dailyBrief.body_state)}
+      ${section("Today's session", dailyBrief.session)}
+      ${section('The last few days', dailyBrief.recent)}
+      ${(dailyBrief.focus || []).length ? `
+        <div class="eyebrow" style="margin:12px 0 4px">Focus</div>
+        <ul style="margin:0 0 0 18px;font-size:.87rem;color:var(--text-2)">
+          ${dailyBrief.focus.map(f => `<li style="margin-bottom:4px">${escHtml(f)}</li>`).join('')}</ul>` : ''}
+    </div>`;
+  }
+
   const rp = (analytics || {}).race_predictions || {};
   page.innerHTML = `<div class="fade-in">
     <div class="grid stat-row">${vitals.map(statCard).join('')}</div>
     <div class="dash-grid mt">
+    ${briefCard ? `<div class="span-12">${briefCard}</div>` : ''}
     <div class="span-7">${sessionCard}</div>
     <div class="span-5">${readinessCard}</div>
     <div class="span-7">${trendCard}</div>

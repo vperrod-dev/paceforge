@@ -165,3 +165,19 @@ meaningful sessions already have one:
    typical, watch over-striding = low cadence + long stride) and **stride length** (and how
    both drift late in the session = fatigue), plus GCT and vertical ratio. Tie them to economy
    and give a concrete cue (e.g. "lift cadence ~5% to cut over-striding"). Skip for non-runs.
+
+## Daily brief → `data/daily-brief.json`
+Every morning (runner `daily` job, after the sync) write the athlete's landing-page
+morning read. Read `data/profile.json`, `data/fitness.json` (its `insights` block is the
+deterministic verdict — cite it, never contradict it without saying why), `data/plan.json`
+(today's workout + its briefing, plus the current week), the last ~4 days of
+`data/activities.json` and their `data/analyses/{id}.md`, and `week-review.md` for the
+block theme. Write `data/daily-brief.json`:
+`{"date": "<YYYY-MM-DD>", "headline": "<one sentence — the day in plain language>",
+  "body_state": "<md — what readiness/sleep/HRV/battery actually say, with numbers>",
+  "session": "<md — today's session and exactly how to run it given the body state>",
+  "recent": "<md — last few days synthesized: patterns, not a log; cite the analyses>",
+  "focus": ["<2-3 sharp focus points for today/this week>"]}`
+Voice: direct, specific, numbers over adjectives, ≤120 words per section. The deterministic
+"Today's call" already gives the verdict — the brief adds the WHY and the week's narrative
+arc. Commit + push the file.
