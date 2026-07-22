@@ -17,7 +17,7 @@ repo AND replaces every workflow 1:1 — the portal talks to it through the same
 GitHub-API shapes at `/paceforge/api/gh/*` (`GH_API` const in `web/index.html`;
 on github.io it still targets the real GitHub API, so Pages remains the
 rollback). Timers: `paceforge-sync` daily 06:45 Dublin, `paceforge-autosync`
-Mon 06:00 UTC, `paceforge-coach` Mon 07:19 UTC (units in `ops/`; they call
+daily 06:20 UTC (Garmin reconcile), `paceforge-coach` Mon 07:19 UTC (units in `ops/`; they call
 127.0.0.1:8123 directly, which bypasses the session check by design — only
 Caddy-forwarded requests need a session). Secrets: `~/.config/paceforge/env`
 (0600). Data commits push to `origin` as before.
@@ -53,7 +53,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
 .venv/bin/paceforge brief [--date YYYY-MM-DD]  # morning-brief text (readiness/sleep/today)
 
 .venv/bin/paceforge push [--week N] [--dry-run]   # upload a plan week to Garmin
-.venv/bin/paceforge autosync            # Monday cron: push next 2 weeks, delete stale copies
+.venv/bin/paceforge autosync            # daily cron: reconcile Garmin with the plan (push 3 weeks, delete stale + orphans)
 .venv/bin/paceforge-mcp                 # stdio MCP server (Claude desktop app)
 ```
 
@@ -115,8 +115,9 @@ personalise notes, re-validate, regenerate the human view with
 ## Scheduled workflows (beyond sync)
 `sync.yml` runs ~06:45 Dublin (DST-split crons) and ends by pushing
 `paceforge brief` to Telegram (`TG_TOKEN` + `TG_CHAT_ID` secrets; skipped when unset).
-`autosync.yml` (Mon 06:00 UTC) pushes the next 2 accepted-plan weeks to Garmin
-and cleans stale copies; `recalibrate.yml` applies portal-accepted pace shifts;
+`autosync.yml` (daily 06:20 UTC) reconciles the Garmin calendar with the accepted
+plan — pushes current + next 2 weeks, deletes stale completed copies and orphaned
+scheduled entries (the runner also reconciles after every plan-mutating job); `recalibrate.yml` applies portal-accepted pace shifts;
 `plan.yml` scaffolds deterministically, then Claude enriches notes; `coach.yml`
 (Mon 07:19 UTC) writes week-review.md and pushes its headline to Telegram
 (same `TG_TOKEN` + `TG_CHAT_ID` secrets). push.yml and autosync.yml **commit plan.json

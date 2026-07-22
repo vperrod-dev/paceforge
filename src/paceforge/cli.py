@@ -50,7 +50,8 @@ def main(argv: list[str] | None = None) -> int:
     p_push.add_argument("--dry-run", action="store_true")
 
     sub.add_parser("autosync",
-                   help="weekly self-push: clean stale copies, push current + next week")
+                   help="reconcile Garmin with the plan: clean stale copies + orphans, "
+                        "push current + next 2 weeks")
 
     p_adapt = sub.add_parser("adapt", help="reflow missed sessions + readiness-gate hard work")
     p_adapt.add_argument("--dry-run", action="store_true")
@@ -95,6 +96,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p_brief = sub.add_parser("brief", help="print the morning brief (readiness/sleep/today)")
     p_brief.add_argument("--date", default=None, help="YYYY-MM-DD (default today)")
+    p_brief.add_argument("--telegram", action="store_true",
+                         help="emit Telegram-HTML (bold headers, emoji, pace band)")
 
     sub.add_parser("export-token", help="print current on-disk token as a GARMIN_TOKEN blob")
 
@@ -150,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
             _emit(actions.log_rpe(args.activity_id, args.date, rpe=args.rpe,
                                   duration_min=args.duration_min, notes=args.notes))
         elif args.cmd == "brief":
-            print(actions.brief(args.date))
+            print(actions.brief(args.date, fmt="telegram" if args.telegram else "text"))
         elif args.cmd == "link":
             _emit(actions.link_activity(args.activity_id, session_id=args.session_id,
                                         when=args.date))
