@@ -728,7 +728,7 @@
             "status": "red",
             "reason": "missed"
           },
-          "garmin_workout_id": 1639781445,
+          "garmin_workout_id": 1639788653,
           "user_rpe": null,
           "user_notes": null
         },
@@ -781,7 +781,7 @@
             "actual_min": 24.7,
             "activity_id": 23686932813
           },
-          "garmin_workout_id": 1639781446,
+          "garmin_workout_id": 1639788654,
           "user_rpe": null,
           "user_notes": null
         },
@@ -824,7 +824,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1639781449,
+          "garmin_workout_id": 1639788658,
           "user_rpe": null,
           "user_notes": null
         }
@@ -913,7 +913,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1639781411,
+          "garmin_workout_id": 1639788664,
           "user_rpe": null,
           "user_notes": null
         },
@@ -980,7 +980,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1639781418,
+          "garmin_workout_id": 1639788669,
           "user_rpe": null,
           "user_notes": null
         },
@@ -1023,7 +1023,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1639781419,
+          "garmin_workout_id": 1639788673,
           "user_rpe": null,
           "user_notes": null
         }
@@ -1126,7 +1126,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1639483016,
+          "garmin_workout_id": 1639788688,
           "user_rpe": null,
           "user_notes": null
         },
@@ -1169,7 +1169,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1639483023,
+          "garmin_workout_id": 1639788690,
           "user_rpe": null,
           "user_notes": null
         },
@@ -1235,7 +1235,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1639483030,
+          "garmin_workout_id": 1639788697,
           "user_rpe": null,
           "user_notes": null
         }
