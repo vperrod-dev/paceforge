@@ -1,10 +1,14 @@
-# sync.yml cron replacement: ~06:45 Dublin daily (systemd handles DST properly —
-# the old GH cron was month-split and off by 1h around the switches).
+# sync.yml cron replacement (systemd handles DST properly — the old GH cron was
+# month-split and off by 1h around the switches). Three passes: morning brief,
+# midday and evening so a run is matched + coach-analysed the same day, not the
+# next morning.
 [Unit]
-Description=PaceForge daily Garmin sync at 06:45 Dublin
+Description=PaceForge Garmin sync (06:45 / 13:00 / 21:00 Dublin)
 
 [Timer]
 OnCalendar=*-*-* 06:45:00 Europe/Dublin
+OnCalendar=*-*-* 13:00:00 Europe/Dublin
+OnCalendar=*-*-* 21:00:00 Europe/Dublin
 Persistent=true
 
 [Install]

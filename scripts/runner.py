@@ -50,6 +50,7 @@ import urllib.request
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 VENV_BIN = REPO_DIR / ".venv" / "bin"
@@ -424,11 +425,14 @@ def job_sync(run: Run, inputs: dict) -> None:
     run.step("Commit data if changed")   # always — sync-status.json honesty
     commit_push(run, ["data/"], "data: daily Garmin sync")
     publish(run)
-    run.step("Morning brief → Telegram")
-    p = subprocess.run(pf("brief", "--telegram"), cwd=REPO_DIR, capture_output=True, text=True,
-                       timeout=300)
-    if p.returncode == 0:
-        telegram(p.stdout.strip(), html=True, title="🏃 PaceForge morning brief")
+    # Brief only on the morning pass — the midday/evening syncs exist to match +
+    # analyse the day's run, not to ping the phone three times.
+    if datetime.now(ZoneInfo("Europe/Dublin")).hour < 10:
+        run.step("Morning brief → Telegram")
+        p = subprocess.run(pf("brief", "--telegram"), cwd=REPO_DIR, capture_output=True,
+                           text=True, timeout=300)
+        if p.returncode == 0:
+            telegram(p.stdout.strip(), html=True, title="🏃 PaceForge morning brief")
     if rc != 0:
         # replaces the sync-failure GitHub issue
         telegram("PaceForge Garmin sync FAILED — check data/sync-status.json. "
