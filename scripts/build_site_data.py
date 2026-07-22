@@ -1,12 +1,12 @@
 """Precompute the derived JSON the static web UI reads.
 
-The site is static (GitHub Pages), so anything the old FastAPI backend computed on
+The portal is a static page, so anything the old FastAPI backend computed on
 request must be baked into files at build time:
 
     data/analytics.json       — engine analytics over the stored profile
     data/hyrox_analysis.json  — per-race HYROX breakdown vs field benchmarks
 
-Run from the repo root (CI does this in the Pages workflow before deploying):
+Run from the repo root (the runner does this after every data change):
 
     python scripts/build_site_data.py
 """

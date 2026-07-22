@@ -43,8 +43,10 @@ src/paceforge/
 │                     # with running fallback, delete-by-id dedup)
 └── hyrox/            # hyresult.py (per-race ranks+splits via hyresult.com),
                       # analyzer.py + benchmarks.py (cohort gender/division/age tables)
-web/index.html        # the GitHub Pages dashboard (reads committed data/*.json)
-scripts/build_site_data.py  # precomputes analytics/fitness/hyrox_analysis.json for the web (CI)
+web/index.html        # the dashboard (reads data/*.json, dispatches runner jobs)
+scripts/build_site_data.py  # precomputes analytics/fitness/hyrox_analysis.json for the web
+scripts/runner.py           # the backend: serves the portal, runs every job, owns the timers
+scripts/users.py            # per-athlete instances (see CLAUDE.md §Multi-user)
 data/                 # profile.json, plan.json, activities.json, history.jsonl,
                       # details/{id}.json (splits + time-series), analyses/{id}.md +
                       # analyses/hyrox-{id}.md, hyrox.json, hyrox_analysis.json,
@@ -53,26 +55,26 @@ data/                 # profile.json, plan.json, activities.json, history.jsonl,
                       # weekly.json, fitness.json, analytics.json
 ```
 
-## HYROX + events flow (serverless writes)
-The browser dispatches a GitHub Action with the user's PAT → the Action runs a CLI command
-that writes `data/*.json` + commits → `pages.yml` (which reacts to those workflows in its
-`workflow_run` list) rebuilds and redeploys. Mirror this for any new browser-driven write:
-- `hyrox.yml` (mode `profile`) → `paceforge hyrox-import-profile <slug>` → `data/hyrox.json`
+## Browser-driven writes (HYROX + events + everything else)
+The page never writes files. It dispatches a **job** to the local runner
+(`scripts/runner.py`), which runs a CLI command or a pure transform, commits `data/`,
+rebuilds the derived JSON and serves it back. Mirror this for any new write:
+- `hyrox` (mode `profile`) → `paceforge hyrox-import-profile <slug>` → `data/hyrox.json`
   from a hyresult.com athlete profile. Dispatched from Settings → HYROX races (paste profile
-  URL/slug); the UI polls raw `data/hyrox.json` for the slug. hyresult is the source of truth:
+  URL/slug); the UI polls `data/hyrox.json` for the slug. hyresult is the source of truth:
   results.hyrox.com's season-overall ranking drops races and reports season-cumulative ranks,
   whereas hyresult has every race with per-race Overall + Age-group ranks and full splits.
-  (The legacy `search`/`import` results.hyrox.com modes still exist in `hyrox.yml`.)
-- `save-events.yml` → `data/events.json`.
-- `save-benchmarks.yml` → `data/benchmarks.json` (Strength-tab form).
-- `save-rpe.yml` → upserts one entry into `data/rpe.json` (the RPE pills on activity
+  (The legacy `search`/`import` results.hyrox.com modes still exist in the job.)
+- `save-events` → `data/events.json`.
+- `save-benchmarks` → `data/benchmarks.json` (Strength-tab form).
+- `save-rpe` → upserts one entry into `data/rpe.json` (the RPE pills on activity
   detail / workout sheet / Today's check-in).
 - `build_site_data.py` derives `data/hyrox_analysis.json` (`{races, priorities, progression}`)
-  from `hyrox.json` at deploy time.
+  from `hyrox.json` after every data change.
 
-Sync trust: `sync.yml` refreshes the `GARMIN_TOKEN` secret and commits `data/` even on
-failure, and opens/auto-closes a `sync-failure` issue; `data/sync-status.json` is the
-UI's freshness signal — never infer freshness from `profile.json` existing.
+Sync trust: `sync` re-dumps the refreshed Garmin token and commits `data/` even on
+failure (Telegram alert when configured); `data/sync-status.json` is the UI's freshness
+signal — never infer freshness from `profile.json` existing.
 
 ## The AI / validation split
 Deterministic facts (paces, plan structure) stay in code. Claude **proposes** a plan

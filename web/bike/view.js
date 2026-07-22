@@ -16,8 +16,8 @@ import { NS } from './ns.js';
 const PROFILE_KEY = 'pf-bike-profile' + NS;
 const PENDING_KEY = 'pf-bike-rides-pending' + NS;
 const IMPORTS_KEY = 'pf-bike-imports' + NS;
-// Upload tokens live ONLY in sessionStorage — same threat model as the GitHub
-// PAT in index.html: cleared when the browser session ends, never disk-backed.
+// Upload tokens live ONLY in sessionStorage: cleared when the browser session
+// ends, never disk-backed.
 const INTERVALS_KEY = 'pf-bike-intervals-key' + NS;
 const STRAVA_KEY = 'pf-bike-strava-token' + NS;
 // purge tokens persisted by older versions
@@ -386,14 +386,13 @@ function bindHome(recovered) {
 async function saveProfilePatch(patch, btn) {
   S.profile = { ...S.profile, ...patch };
   lsSet(PROFILE_KEY, { ftp: S.profile.ftp, wprime_j: S.profile.wprime_j });
-  if (!H.requireToken()) return;
   await H.withBusy(btn, 'Saving…', async () => {
-    const res = await fetch(`${H.GH_API}/repos/${H.REPO}/actions/workflows/save-bike-profile.yml/dispatches`, {
-      method: 'POST', headers: H.ghHeaders(),
-      body: JSON.stringify({ ref: H.REF, inputs: { data: JSON.stringify(patch) } }),
+    const res = await fetch(`${H.API}/repos/${H.REPO}/actions/workflows/save-bike-profile.yml/dispatches`, {
+      method: 'POST', headers: H.JSON_HDR,
+      body: JSON.stringify({ inputs: { data: JSON.stringify(patch) } }),
     });
-    if (res.status !== 204) throw new Error(`GitHub error ${res.status}`);
-    H.toast('ok', 'Profile saved', `FTP ${patch.ftp} W dispatched — live after the next site build.`);
+    if (res.status !== 204) throw new Error(`Runner error ${res.status}`);
+    H.toast('ok', 'Profile saved', `FTP ${patch.ftp} W saved.`);
   });
 }
 
@@ -824,7 +823,6 @@ function renderPost() {
   });
 
   document.getElementById('bk-save').addEventListener('click', function () {
-    if (!H.requireToken()) return;
     const entry = {
       date: new Date(r.startTimeMs).toISOString().slice(0, 19),
       workout: r.workoutName,
@@ -834,11 +832,11 @@ function renderPost() {
       notes: document.getElementById('bk-notes').value.trim() || null,
     };
     H.withBusy(this, 'Saving…', async () => {
-      const res = await fetch(`${H.GH_API}/repos/${H.REPO}/actions/workflows/save-ride.yml/dispatches`, {
-        method: 'POST', headers: H.ghHeaders(),
-        body: JSON.stringify({ ref: H.REF, inputs: { data: JSON.stringify(entry) } }),
+      const res = await fetch(`${H.API}/repos/${H.REPO}/actions/workflows/save-ride.yml/dispatches`, {
+        method: 'POST', headers: H.JSON_HDR,
+        body: JSON.stringify({ inputs: { data: JSON.stringify(entry) } }),
       });
-      if (res.status !== 204) throw new Error(`GitHub error ${res.status}`);
+      if (res.status !== 204) throw new Error(`Runner error ${res.status}`);
       const pending = ls(PENDING_KEY, []);
       pending.unshift(entry);
       lsSet(PENDING_KEY, pending.slice(0, 10));

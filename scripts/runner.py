@@ -1,33 +1,31 @@
-"""Local job runner — replaces GitHub Actions while the account is flagged (ticket 4583559).
+"""The job runner: this app's whole backend. Serves the portal and runs its jobs.
 
-The portal (web/index.html + web/bike/view.js) talks to `GH_API`, which is
-`https://api.github.com` on GitHub Pages and `api/gh` when served off the VM.
-This runner speaks the minimal GitHub-API subset the portal actually uses, so
-the frontend needed only a base-URL swap and the Pages path stays intact as
-rollback:
+It began (2026-07-21) as a stand-in for GitHub Actions while the account was
+flagged, and became the only backend when that path was dropped for good
+(2026-07-22 — no Actions, no Pages). The URL shapes below still speak the
+GitHub-API subset the portal used to call, because that contract works and both
+sides already agree on it; owner and repo in the paths are ignored:
 
     POST /run/<job>                                        systemd timers / curl
     GET  /runs                                             recent runs (debug)
     GET  /runs/<id>/log                                    plain-text run log
-    POST /gh/repos/<o>/<r>/actions/workflows/<wf>/dispatches
-    GET  /gh/repos/<o>/<r>/actions/workflows/<wf>/runs
-    GET  /gh/repos/<o>/<r>/actions/runs/<id>/jobs
+    POST /gh/repos/<o>/<r>/actions/workflows/<wf>/dispatches   start job <wf>
+    GET  /gh/repos/<o>/<r>/actions/workflows/<wf>/runs          job history
+    GET  /gh/repos/<o>/<r>/actions/runs/<id>/jobs               live step list
     POST /gh/repos/<o>/<r>/issues                          coach request
     GET  /gh/repos/<o>/<r>/issues                          [] (nothing pending)
     GET  /gh/repos/<o>/<r>/contents/data/<path>            analysis polling
-    GET  /gh/repos/<o>/<r>                                 token "test" → 200
+    GET  /auth/whoami                                      this instance's athlete
     GET  /healthz
 
-Binds 127.0.0.1 only; Caddy fronts it at /paceforge/api/* with basic_auth.
-Jobs mirror .github/workflows/*.yml step-for-step (same commands, same commit
-paths, same messages); the two claude-code-action steps run the local `claude`
-CLI instead. Every job holds one global lock — the workflows'
-`concurrency: group: paceforge-data` — because concurrent data/ writes corrupt
-the JSON. After any data change the site is republished to /srv/paceforge
-(build_site_data.py + rsync), which replaces pages.yml.
+Binds 127.0.0.1 only; Caddy fronts it at /paceforge/api/* (and /pf/<name>/api/*
+for other athletes' instances — see scripts/users.py). The coach/analysis steps
+run the local `claude` CLI. Every job holds one global lock, because concurrent
+data/ writes corrupt the JSON; after any data change the derived JSON is rebuilt
+(build_site_data.py) and served straight from this checkout.
 
 Usage:  python scripts/runner.py            # serve (systemd: paceforge-runner)
-        python scripts/runner.py --publish  # one-shot build + rsync to /srv
+        python scripts/runner.py --publish  # one-shot rebuild of derived data
 """
 
 from __future__ import annotations
@@ -59,7 +57,7 @@ CLAUDE_BIN = os.environ.get("CLAUDE_BIN", str(Path.home() / ".local/bin/claude")
 PORT = int(os.environ.get("PACEFORGE_RUNNER_PORT", "8123"))
 BOT = ["-c", "user.name=paceforge-bot", "-c", "user.email=bot@paceforge.local"]
 
-JOB_LOCK = threading.Lock()   # ponytail: one global lock = the workflows' paceforge-data group
+JOB_LOCK = threading.Lock()   # ponytail: one global lock — concurrent data/ writes corrupt JSON
 RUNS_LOCK = threading.Lock()
 RUNS: list[dict] = []
 _NEXT_ID = 1
@@ -69,7 +67,7 @@ def now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-# ── run records (GitHub Actions "runs" vocabulary, so the portal maps 1:1) ──
+# ── run records (the portal's "runs" vocabulary — see the module docstring) ──
 
 class Run:
     def __init__(self, name: str):
@@ -122,11 +120,18 @@ def pf(*args: str) -> list[str]:
 
 
 def commit_push(run: Run, paths: list[str], msg: str) -> None:
+    """Commit exactly `paths` — never whatever else happens to be in the index.
+
+    A job can fire while someone is mid-`git add` in this checkout; without the
+    pathspec, that half-staged work rides along in a "data:" commit and gets
+    pushed. Both the emptiness check and the commit are scoped for that reason.
+    """
     sh(run, ["git", "add", *paths])
-    if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=REPO_DIR).returncode == 0:
+    if subprocess.run(["git", "diff", "--cached", "--quiet", "--", *paths],
+                      cwd=REPO_DIR).returncode == 0:
         run.log("nothing to commit")
         return
-    sh(run, ["git", *BOT, "commit", "-m", msg])
+    sh(run, ["git", *BOT, "commit", "-m", msg, "--", *paths])
     # ponytail: a per-user instance has no origin — its data history lives in the
     # local clone on this VM. Add a remote per user if off-VM backup ever matters.
     remotes = subprocess.run(["git", "remote"], cwd=REPO_DIR, capture_output=True,
@@ -134,15 +139,15 @@ def commit_push(run: Run, paths: list[str], msg: str) -> None:
     if "origin" not in remotes:
         run.log("no origin remote — committed locally only")
         return
-    # GitHub first (Victor's token works); Forgejo fallback — the relay reconciles.
+    # Victor's own checkout still mirrors to GitHub (private repo) + Forgejo.
     if sh(run, ["git", "push", "origin"], check=False) != 0:
         run.log("origin push failed — pushing forgejo (relay will reconcile)")
         sh(run, ["git", "push", "forgejo"])
 
 
 def publish(run: Run | None = None) -> None:
-    """pages.yml replacement: bake derived JSON. The runner serves web/ + data/
-    straight from the repo, so there is nothing to copy anywhere."""
+    """Bake the derived JSON (analytics, fitness, hyrox). The runner serves web/
+    + data/ straight from this checkout, so there is nothing to copy anywhere."""
     def _log(t: str) -> None:
         run.log(t) if run else print(t)
     p = subprocess.run([str(VENV_BIN / "python"), "scripts/build_site_data.py"],
@@ -170,7 +175,7 @@ def telegram(text: str, pre: bool = False, title: str = "", html: bool = False) 
                 return b'"ok":true' in r.read()
         except Exception:
             return False
-    # HTML-rejection must not drop the message: resend plain (ported from sync.yml).
+    # HTML-rejection must not drop the message: resend plain.
     if not send({"chat_id": chat, "text": payload, "parse_mode": "HTML", "disable_web_page_preview": "true"}):
         plain = re.sub(r"<[^>]+>", "", text) if html else text
         send({"chat_id": chat, "text": f"{title}\n{plain}"[:3900], "disable_web_page_preview": "true"})
@@ -295,7 +300,7 @@ def garmin_mfa(code: str) -> None:
     threading.Thread(target=work, daemon=True).start()
 
 
-# ── ported inline-Python transforms (save-*.yml) — pure, tested ──
+# ── data transforms behind the save-* jobs — pure, tested ──
 
 def upsert_rpe(entry: dict, data_dir: Path) -> None:
     rpe = int(entry["rpe"])
@@ -427,7 +432,7 @@ def reconcile_garmin(run: Run) -> None:
                  f"{counts[2]} orphans removed" + (f", {failed} FAILED" if failed else ""))
 
 
-# ── jobs (1:1 with .github/workflows) ──
+# ── jobs ──
 
 def job_sync(run: Run, inputs: dict) -> None:
     run.step("Sync from Garmin")
@@ -444,11 +449,10 @@ def job_sync(run: Run, inputs: dict) -> None:
         if p.returncode == 0:
             telegram(p.stdout.strip(), html=True, title="🏃 PaceForge morning brief")
     if rc != 0:
-        # replaces the sync-failure GitHub issue
         telegram("PaceForge Garmin sync FAILED — check data/sync-status.json. "
                  "If the token expired (~yearly), run `paceforge login` on the VM.")
         raise RuntimeError("paceforge sync failed")
-    dispatch("analyze", {})   # workflow_run: analyze after sync
+    dispatch("analyze", {})   # analyse the day's activities right after a sync
     if datetime.now(ZoneInfo("Europe/Dublin")).hour < 10:
         dispatch("daily", {})  # coach's morning read for the landing page
 

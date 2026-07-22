@@ -7,24 +7,28 @@ LLM API key — **Claude is the coach** (see `.claude/skills/coach/`), the
 running several instances of it, not by the app growing accounts — see
 §Multi-user below, and never assume this checkout is the only one running.
 
-## VM runner (ACTIVE since 2026-07-21 — GitHub account flagged, ticket 4583559)
+## VM runner — the backend (ACTIVE since 2026-07-21, the only path since 2026-07-22)
 
-While GitHub Actions/Pages are dead, the app runs entirely on the claude-dev VM:
+The app runs entirely on the claude-dev VM:
 `https://claude-dev-vperrod.westeurope.cloudapp.azure.com/paceforge/`.
+GitHub Actions and Pages are **gone** (Victor 2026-07-22: never going back, and
+the repo stays private) — `.github/workflows/` is deleted, there is no fallback
+backend, and nothing may reintroduce a dependency on either.
 Auth is a cookie-session login page served by the runner (user `vperrod`;
 scrypt hash in the env file — no Caddy basic auth, Caddy only proxies
 `/paceforge/*` to the runner). `scripts/runner.py` (systemd user unit
 `paceforge-runner`, 127.0.0.1:8123) serves `web/` + `data/` straight from this
-repo AND replaces every workflow 1:1 — the portal talks to it through the same
-GitHub-API shapes at `/paceforge/api/gh/*` (`GH_API` const in `web/index.html`;
-on github.io it still targets the real GitHub API, so Pages remains the
-rollback). Timers: `paceforge-sync` 3×/day 06:45/13:00/21:00 Dublin (morning pass
+checkout and runs every job. The portal reaches it at `/paceforge/api/*` (`API`
+const in `web/index.html`); the `/gh/repos/<o>/<r>/…` URL shapes are inherited
+from the Actions era and kept because both sides agree on them — owner and repo
+are ignored, and no token is involved (the session cookie is the auth). Timers: `paceforge-sync` 3×/day 06:45/13:00/21:00 Dublin (morning pass
 sends the Telegram brief + dispatches the `daily` coach read; every pass dispatches
 `analyze`), `paceforge-autosync`
 daily 06:20 UTC (Garmin reconcile), `paceforge-coach` Mon 07:19 UTC (units in `ops/`; they call
 127.0.0.1:8123 directly, which bypasses the session check by design — only
 Caddy-forwarded requests need a session). Secrets: `~/.config/paceforge/env`
-(0600). Data commits push to `origin` as before.
+(0600). Victor's own checkout still pushes data commits to `origin` (private
+repo) with Forgejo as fallback; per-athlete instances have no remote at all.
 Claude steps (plan enrichment, analyses, coach) run the local `claude` CLI.
 Garmin (re)login happens in the portal — Settings → "Connect Garmin"
 (password → optional MFA; runner endpoints `/garmin/login|mfa|status`) — no
@@ -34,7 +38,8 @@ handshake egresses through Cloudflare WARP (`warp-svc`, socks5 proxy mode on
 rate-limits per IP and the VM's own IP burns fast; if a login 429s anyway,
 the runner retries every 45 min and Telegrams on connect/MFA/failure.
 Debug: `GET /paceforge/api/runs`, logs in `~/.local/state/paceforge-runner/`.
-Retirement steps when the flag lifts: `claude-config os/github-restore-checklist.md`.
+The runner is permanent: `claude-config os/github-restore-checklist.md` §0c is
+now a keep-it note, not a retirement plan.
 
 ## Multi-user (sharing the portal with friends)
 
@@ -141,7 +146,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
   (crash-safe recording → valid .FIT, fitdecode-verified), `upload.js`
   (intervals.icu + Strava). Node selftests: `node web/bike/selftest-*.mjs`.
   State: `data/bike/` (profile with FTP history, workout library, rides.json)
-  written via `save-ride.yml` / `save-bike-profile.yml`. Python side: POWER
+  written via the `save-ride` / `save-bike-profile` jobs. Python side: POWER
   intensity targets (watts), `sport="bike"` workouts, Garmin `power.zone` push.
 
 ## The AI / validation split
@@ -155,20 +160,22 @@ personalise notes, re-validate, regenerate the human view with
 `paceforge plan-md`. Pace changes go through `paceforge recalibrate`
 (athlete-accepted, guarded), never hand-edits.
 
-## Scheduled workflows (beyond sync)
-`sync.yml` runs **3×/day (06:45 / 13:00 / 21:00 Dublin)** so runs are matched and
+## Jobs (the runner's `JOBS` map; portal buttons and timers dispatch these)
+`sync` runs **3×/day (06:45 / 13:00 / 21:00 Dublin)** so runs are matched and
 coach-analysed the same day; the morning pass (and only that one) pushes
-`paceforge brief --telegram` (`TG_TOKEN` + `TG_CHAT_ID` secrets; skipped when unset)
-and dispatches `daily.yml` — the coach's morning read → `data/daily-brief.json`,
-rendered as the lead card on the Today page. Every sync dispatches `analyze.yml`
+`paceforge brief --telegram` (`TG_TOKEN` + `TG_CHAT_ID`; skipped when unset)
+and dispatches `daily` — the coach's morning read → `data/daily-brief.json`,
+rendered as the lead card on the Today page. Every sync dispatches `analyze`
 (per-activity coach analyses).
-`autosync.yml` (daily 06:20 UTC) reconciles the Garmin calendar with the accepted
+`autosync` (daily 06:20 UTC) reconciles the Garmin calendar with the accepted
 plan — pushes current + next 2 weeks, deletes stale completed copies and orphaned
-scheduled entries (the runner also reconciles after every plan-mutating job); `recalibrate.yml` applies portal-accepted pace shifts;
-`plan.yml` scaffolds deterministically, then Claude enriches notes; `coach.yml`
-(Mon 07:19 UTC) writes week-review.md and pushes its headline to Telegram
-(same `TG_TOKEN` + `TG_CHAT_ID` secrets). push.yml and autosync.yml **commit plan.json
-back** (garmin_workout_id persistence — required for dedup).
+scheduled entries (the runner also reconciles after every plan-mutating job);
+`recalibrate` applies portal-accepted pace shifts; `plan` scaffolds
+deterministically, then Claude enriches notes; `coach`
+(Mon 07:19 UTC) writes week-review.md and pushes its headline to Telegram.
+`push` and `autosync` **commit plan.json back** (garmin_workout_id persistence —
+required for dedup). Job names still carry a `.yml` suffix on the wire (the
+portal's dispatch URLs) — the runner strips it; the workflows themselves are gone.
 
 ## Auth & secrets (env)
 `PACEFORGE_GARMIN_EMAIL`, `GARMIN_TOKEN` (base64 token from `paceforge login`),
@@ -189,11 +196,11 @@ purpose: the runner persists the address from the portal login into
 global `.env.*` guard.)
 
 `paceforge login` is interactive (password + MFA) — it can't run in a non-interactive shell
-(piped/CI/agent `!` → `EOFError`); use a real terminal. The OAuth2 token is short-lived, so
-`sync.yml` refreshes it and writes it back to the `GARMIN_TOKEN` secret each run when the
-`ACTIONS_PAT` secret (fine-grained PAT, Secrets R/W) is set; without it, re-set the token by
-hand. After a successful login the token is on disk — recover it without re-logging-in via
-`paceforge export-token`.
+(piped/agent `!` → `EOFError`); use a real terminal, or just use the portal's Connect Garmin.
+The OAuth2 token is short-lived but every sync re-dumps the refreshed one, so a running
+instance maintains itself; the OAuth1 token behind it expires ~yearly. `GARMIN_TOKEN` +
+`paceforge export-token` are the portable backup/restore path for a token dir (moving an
+athlete to another machine), not a CI mechanism.
 
 ## Style
 - Ruff, 100-char lines (see `pyproject.toml`). `from __future__ import annotations` at top.

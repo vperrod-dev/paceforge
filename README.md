@@ -9,11 +9,14 @@ database, and no LLM API bill**.
 One copy serves one athlete by design — a second athlete gets a second copy, not
 an account (see [Sharing it with other athletes](#sharing-it-with-other-athletes)).
 
-It runs four ways, all free beyond a Claude subscription:
-- a **web dashboard** on GitHub Pages — **[vperrod.github.io/paceforge](https://vperrod.github.io/paceforge/)** (single-user, static, reads the committed `data/*.json`),
+It runs three ways, all free beyond a Claude subscription:
+- a **web dashboard**, served with its job runner (`scripts/runner.py`) from a small
+  VM — every button (sync, plan, push to Garmin, ask the coach) runs a job there,
 - **Claude Code** in this repo (run the CLI directly),
-- the **Claude desktop app** via a local MCP server,
-- **GitHub Actions** — a daily Garmin sync, an auto-analysis of completed workouts, and a weekly auto-review.
+- the **Claude desktop app** via a local MCP server.
+
+The runner also owns the schedule: a Garmin sync three times a day, an auto-analysis
+of each completed workout, a daily calendar reconcile and a weekly review.
 
 ## How it works
 
@@ -39,8 +42,8 @@ future weeks only, rate-limited, frozen near race day.
 
 ## Web dashboard
 
-A desktop-first static dashboard ([vperrod.github.io/paceforge](https://vperrod.github.io/paceforge/)),
-deployed by `pages.yml` and re-deployed automatically after each sync:
+A desktop-first dashboard, served by the job runner and refreshed automatically
+after each sync:
 
 - **Today** (the home tab — the everything dashboard) — a daily-vitals strip (sleep
   score + duration + deep-sleep %, HRV, Body Battery, resting HR, VO₂max/VDOT), the
@@ -107,17 +110,17 @@ deployed by `pages.yml` and re-deployed automatically after each sync:
   library is built in, and whatsonzwift.com's ~3,100 workouts import directly).
   Rides record **crash-safe** and export as standard **.FIT** — download, or upload
   to **intervals.icu / Strava** with one click; summaries persist to `data/bike/`
-  via the `save-ride` workflow and feed the ride history + a rule-based
+  via the `save-ride` job and feed the ride history + a rule-based
   *suggested next ride*. A **Demo mode** (simulated trainer) runs the whole flow
   with no hardware. Plan & build log: `tasks/bike-section-plan-2026-07-13.md`. (Settings → Upcoming events); they show as a
   countdown on Today and on the Calendar, and the coach rebalances your plan around
   them (taper into races, build between them) gated by your health metrics.
 - **Fitness** — the full assessment (below).
 - **Settings** — Garmin sync health (last successful sync, failed endpoints, token
-  age with an expiry warning), the GitHub token, strength benchmarks, and events.
+  age with an expiry warning), strength benchmarks, and events.
 - Edit the plan, trigger a Sync / Push-to-Garmin, rate a session's effort (RPE 1–10),
-  or request a coach analysis straight from the browser via a GitHub fine-grained
-  token (stored only in your browser).
+  or request a coach analysis straight from the browser — each one dispatches a job
+  and shows its live progress.
 
 ## What it measures — Fitness 2.0
 
@@ -166,39 +169,29 @@ Run `login` in a **real interactive terminal** — it prompts for your password 
 an MFA code, so it can't run in a non-interactive shell (a piped CI step or an agent's
 `!`-prefixed shell fails with `EOFError`/`No valid Garmin token`).
 
-To enable headless sync, set these GitHub Actions secrets:
+On the VM you never need a terminal for this: the portal's **Settings → Connect
+Garmin** does the same password + MFA handshake and stores the token for you.
 
-| Secret | Purpose |
-|--------|---------|
-| `PACEFORGE_GARMIN_EMAIL` | Garmin login email |
-| `GARMIN_TOKEN` | base64 token printed by `paceforge login` |
-| `ACTIONS_PAT` | *(recommended)* fine-grained PAT — repo `paceforge`, **Secrets: Read & Write** |
-
-```bash
-.venv/bin/paceforge login | gh secret set GARMIN_TOKEN --repo <owner>/paceforge   # one line
-```
-
-**Token self-refresh:** Garmin's OAuth2 token is short-lived, so a stored `GARMIN_TOKEN`
-goes stale within days and the daily sync starts failing with `No valid Garmin token`. With
-`ACTIONS_PAT` set, `sync.yml` writes the freshly-refreshed token back into the `GARMIN_TOKEN`
-secret after every run — **even a failed one**, so one bad sync can't start a stale-token
-spiral. Without `ACTIONS_PAT` the refresh step is skipped cleanly and you must re-set
-`GARMIN_TOKEN` by hand. The underlying OAuth1 token still expires roughly yearly — when it
-does, run `paceforge login` again (login records the date in `data/token-meta.json`, so the
-dashboard warns you before the cliff).
+**Token upkeep:** Garmin's OAuth2 token is short-lived, but every sync re-dumps the
+refreshed one, so a running instance keeps itself alive. The underlying OAuth1 token
+expires roughly yearly — when it does, connect again from the portal (or run
+`paceforge login`); the login date is recorded in `data/token-meta.json`, so the
+dashboard warns you before the cliff. `paceforge export-token` packs the current
+session into a portable blob (`GARMIN_TOKEN`) if you ever need to move it to another
+machine without re-authenticating.
 
 **Sync you can trust:** every sync writes `data/sync-status.json` — ok / partial / failed,
 which Garmin endpoints failed and why, activity counters, and token age. That file drives the
 dashboard's freshness chip and the Settings health panel, so stale numbers never masquerade as
-fresh ones. If the scheduled sync fails outright, the workflow opens a `sync-failure` GitHub
-issue (which emails you) and closes it automatically on recovery.
+fresh ones. If a scheduled sync fails outright, the runner sends a Telegram alert (when
+`TG_TOKEN`/`TG_CHAT_ID` are set) and the failure is visible in Settings either way.
 
 See `.env.example` for all variables.
 
 ## Sharing it with other athletes
 
-PaceForge is single-user by design — so a second athlete gets a second copy of it
-rather than an account inside yours:
+PaceForge serves one athlete per copy — so a second athlete gets a second copy of
+it rather than an account inside yours:
 
 ```bash
 scripts/users.py add alice      # own checkout, own data, own port, own login; prints the password

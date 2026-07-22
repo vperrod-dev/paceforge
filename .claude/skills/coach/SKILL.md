@@ -51,7 +51,7 @@ Commands are shown as `paceforge ...`. Locally, run them through the venv
    anything it flags — paces must stay ordered, no back-to-back intense days, ramps
    ≤15% outside cutback rebounds.
 6. **Write the human view.** Regenerate `plan.md` from `data/plan.json` — a scannable
-   week-by-week markdown table that renders on github.com.
+   week-by-week markdown table.
 7. **Push to Garmin.** `paceforge push --dry-run` to preview, then `paceforge push`
    to upload the current/next week's structured workouts (it validates first).
 

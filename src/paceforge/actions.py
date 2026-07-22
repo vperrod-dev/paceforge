@@ -3,10 +3,11 @@
 One module, two entrypoints — ``cli.py`` and ``mcp_server.py`` are thin wrappers
 over these functions. All state lives in ``data/*.json`` via :mod:`paceforge.store`.
 
-Garmin auth: a one-time interactive ``login()`` dumps a ~1-year token to
-``PACEFORGE_GARMIN_TOKEN_DIR`` and returns a base64 blob to store as the
-``GARMIN_TOKEN`` secret. Headless runs (CI) rematerialize that blob and reconnect
-with no password and no MFA.
+Garmin auth: a one-time login (interactive ``login()``, or the portal's Connect
+Garmin) dumps a ~1-year token to ``PACEFORGE_GARMIN_TOKEN_DIR``; every sync
+re-dumps the refreshed one. ``export_token()`` packs that dir into a base64 blob
+and ``GARMIN_TOKEN`` unpacks it again — the backup/restore path for moving an
+athlete's session to another machine without a new password + MFA round.
 """
 
 from __future__ import annotations
@@ -49,7 +50,7 @@ def _has_token(token_dir: Path) -> bool:
 
 
 def _materialize_token(token_dir: Path) -> None:
-    """Unpack the GARMIN_TOKEN secret into the token dir for headless runs."""
+    """Unpack a GARMIN_TOKEN blob into an empty token dir (see module docstring)."""
     blob = os.getenv("GARMIN_TOKEN")
     if not blob or _has_token(token_dir):
         return
@@ -94,7 +95,7 @@ def _ask(prompt: str) -> str:
 
 
 def login() -> str:
-    """Interactive first-time login (handles MFA). Returns the GARMIN_TOKEN blob."""
+    """Interactive first-time login (handles MFA). Returns a GARMIN_TOKEN blob."""
     email = os.environ.get("PACEFORGE_GARMIN_EMAIL") or _ask("Garmin email: ")
     password = os.environ.get("PACEFORGE_GARMIN_PASSWORD") or getpass.getpass("Garmin password: ")
     token_dir = _token_dir()
@@ -121,7 +122,7 @@ def _token_age_days() -> int | None:
 
 
 def export_token() -> str:
-    """Return the current on-disk token as a GARMIN_TOKEN blob (no network)."""
+    """Return the current on-disk token as a portable blob (no network)."""
     token_dir = _token_dir()
     if not _has_token(token_dir):
         raise RuntimeError("No token on disk to export — run `paceforge sync` (or `login`) first.")
@@ -158,8 +159,8 @@ def sync(lookback_days: int = 90, details_limit: int = 40) -> dict:
         store.save_activities(profile.recent_activities)
         new_details, detail_failures = _sync_details(client, limit=details_limit)
         matched = _match_plan()
-        # Write the refreshed token back to disk so the workflow can persist it to
-        # the GARMIN_TOKEN secret — keeps the headless token from going stale.
+        # Write the refreshed token back to disk so the next run reuses it — this is
+        # what keeps the token alive between the ~yearly interactive logins.
         try:
             client.dump_tokens(str(_token_dir()))
             status["token"]["refreshed"] = True

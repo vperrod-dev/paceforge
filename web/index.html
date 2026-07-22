@@ -490,7 +490,7 @@ a{color:var(--emerald);text-decoration:none}
 // ═══════════════════════════════════════════════════════
 // PaceForge — single-user static training dashboard
 // Data layer (apiJson / loadJSON) reads ./data/*.json only.
-// Actions reach GitHub directly using a user-supplied PAT.
+// Actions post to the local job runner (scripts/runner.py) on this origin.
 // ═══════════════════════════════════════════════════════
 
 // ── State ──────────────────────────────────────────────
@@ -499,13 +499,13 @@ const state = {
   user: { name: 'Athlete', email: '', role: 'user' },
   tab: 'today',
 };
-const REPO = 'vperrod/paceforge';     // owner/repo for GitHub actions
-const REF  = 'master';
-// Served off the VM (Caddy basic_auth) → actions go to the local runner, which
-// speaks the same GitHub-API shapes at api/gh (scripts/runner.py). On GitHub
-// Pages → the real GitHub API with the user's PAT (rollback path, unchanged).
-const LOCAL = !location.hostname.endsWith('github.io');
-const GH_API = LOCAL ? 'api/gh' : 'https://api.github.com';
+// The job runner serves this page, so its API is same-origin and needs no auth
+// beyond the portal session cookie. The /repos/<owner>/<repo>/… URL shapes are
+// inherited from the GitHub Actions era it replaced — the runner ignores owner
+// and repo, hence the placeholder.
+const REPO = 'local/paceforge';
+const API = 'api/gh';
+const JSON_HDR = { 'Content-Type': 'application/json' };
 // Browser storage is per-ORIGIN, and every instance is served from the same host
 // under a different base path (/paceforge, /pf/<name>, …). Suffix every storage
 // key with that base so two portals open in one browser never mix state.
@@ -592,11 +592,11 @@ function syncChipHtml(ss) {
 
 // Identity comes from this instance itself — the portal account it is running for
 // and the address its Garmin login was made with — so every portal shows its own
-// athlete. On GitHub Pages (no runner) the placeholder in `state` stands.
+// athlete.
 async function profileMeta() {
   const pr = await loadJSON('profile.json').catch(() => ({}));
   const tm = await loadJSON('token-meta.json').catch(() => ({}));
-  const who = LOCAL ? await fetch('api/auth/whoami').then(r => r.json()).catch(() => ({})) : {};
+  const who = await fetch('api/auth/whoami').then(r => r.json()).catch(() => ({}));
   const name = who.user ? who.user.charAt(0).toUpperCase() + who.user.slice(1) : state.user.name;
   const email = tm.email || who.email || state.user.email;
   return { name, email, role: 'user', status: 'active',
@@ -722,74 +722,46 @@ const planStore = {
 function exportPlan() { planStore.export(); }
 
 // ═══════════════════════════════════════════════════════
-// GITHUB INTEGRATION  — real actions from a static page
-// Token lives ONLY in sessionStorage (pf_gh_token) — cleared when the
-// browser session ends, never persisted to disk-backed localStorage.
+// JOB ACTIONS  — dispatched to the local runner, which does the work,
+// commits the result and republishes the derived data.
 // ═══════════════════════════════════════════════════════
-const GH_TOKEN_KEY = 'pf_gh_token' + NS;
-try { localStorage.removeItem(GH_TOKEN_KEY); } catch {} // purge tokens persisted by older versions
-const githubToken = {
-  get() { return (sessionStorage.getItem(GH_TOKEN_KEY) || '').trim(); },
-  set(t) { sessionStorage.setItem(GH_TOKEN_KEY, (t || '').trim()); },
-  clear() { sessionStorage.removeItem(GH_TOKEN_KEY); },
-  has() { return LOCAL || !!this.get(); },   // local runner needs no PAT
-};
-
-function ghHeaders() {
-  return {
-    'Authorization': 'Bearer ' + githubToken.get(),
-    'Accept': 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'Content-Type': 'application/json',
-  };
-}
-
-function requireToken() {
-  if (githubToken.has()) return true;
-  toast('err', 'GitHub not connected', 'Add a Personal Access Token in Settings → GitHub to enable this action.');
-  return false;
-}
-
-// ── ACTION 1: Sync from Garmin (workflow_dispatch sync.yml) ──
+// ── ACTION 1: Sync from Garmin (runner job: sync) ──
 async function syncFromGarmin(btn) {
-  if (!requireToken()) return;
   withBusy(btn, 'Dispatching…', async () => {
-    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/sync.yml/dispatches`, {
-      method: 'POST', headers: ghHeaders(), body: JSON.stringify({ ref: REF }),
+    const res = await fetch(`${API}/repos/${REPO}/actions/workflows/sync.yml/dispatches`, {
+      method: 'POST', headers: JSON_HDR,
     });
     if (res.status === 204) {
       toast('ok', 'Garmin sync started', 'The sync workflow is running. Data refreshes in a few minutes — reload then.');
     } else {
-      throw new Error(await ghError(res));
+      throw new Error(await jobError(res));
     }
   });
 }
 
-// ── ACTION 2: Push a plan week to Garmin (workflow_dispatch push.yml) ──
+// ── ACTION 2: Push a plan week to Garmin (runner job: push) ──
 async function pushWeekToGarmin(weekNumber, btn) {
-  if (!requireToken()) return;
   withBusy(btn, 'Pushing…', async () => {
-    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/push.yml/dispatches`, {
-      method: 'POST', headers: ghHeaders(),
-      body: JSON.stringify({ ref: REF, inputs: { week: String(weekNumber) } }),
+    const res = await fetch(`${API}/repos/${REPO}/actions/workflows/push.yml/dispatches`, {
+      method: 'POST', headers: JSON_HDR,
+      body: JSON.stringify({ inputs: { week: String(weekNumber) } }),
     });
     if (res.status === 204) {
       toast('ok', `Week ${weekNumber} → Garmin`, 'Push workflow dispatched. Workouts will appear on your Garmin calendar shortly.');
     } else {
-      throw new Error(await ghError(res));
+      throw new Error(await jobError(res));
     }
   });
 }
 
-// ── ACTION 2b: Log session RPE (workflow_dispatch save-rpe.yml) ──
+// ── ACTION 2b: Log session RPE (runner job: save-rpe) ──
 // HR-less strength/HYROX sessions only count toward training load via these.
 async function saveRpe(entry) {
-  if (!requireToken()) throw new Error('GitHub token required');
-  const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/save-rpe.yml/dispatches`, {
-    method: 'POST', headers: ghHeaders(),
-    body: JSON.stringify({ ref: REF, inputs: { data: JSON.stringify(entry) } }),
+  const res = await fetch(`${API}/repos/${REPO}/actions/workflows/save-rpe.yml/dispatches`, {
+    method: 'POST', headers: JSON_HDR,
+    body: JSON.stringify({ inputs: { data: JSON.stringify(entry) } }),
   });
-  if (res.status !== 204) throw new Error(await ghError(res));
+  if (res.status !== 204) throw new Error(await jobError(res));
   // Optimistic local cache so the pills stay lit until the next data deploy.
   try {
     const pending = JSON.parse(localStorage.getItem(RPE_PENDING_KEY) || '{}');
@@ -833,9 +805,8 @@ function bindRpeSelector(root, meta) {
   });
 }
 
-// ── ACTION 3: Generate / adapt plan (opens a GitHub issue → Claude coach) ──
+// ── ACTION 3: Generate / adapt plan (runner job: coach) ──
 function openCoachModal(prefillWeek) {
-  if (!requireToken()) return;
   const defaultBody =
 `**Goal:** HYROX — Intermediate (target ${'2026-11-15'})
 
@@ -854,20 +825,19 @@ ${prefillWeek ? `**Focus week:** ${prefillWeek}\n` : ''}_Generated from the Pace
   openCoachIssueModal('Coach: build/adapt my plan', defaultBody);
 }
 
-// Shared coach-issue modal: a title + Markdown body the user can edit, posted as a
-// `coach`-labelled GitHub issue that triggers the coach workflow.
+// Shared coach-request modal: a title + Markdown body the user can edit, sent to
+// the runner's coach job (Claude, with this athlete's data).
 function openCoachIssueModal(title, body) {
-  if (!requireToken()) return;
   openModal(`
     <div class="modal-h">
       <div>
         <div class="modal-title">Ask the Coach</div>
-        <div class="modal-sub">Opens a GitHub issue that triggers Claude's coaching workflow.</div>
+        <div class="modal-sub">Sends the request to Claude, your coach.</div>
       </div>
       <button class="modal-close" data-close>${icons.x}</button>
     </div>
     <div class="field">
-      <label for="coach-title">Issue title</label>
+      <label for="coach-title">Request</label>
       <input id="coach-title" value="${escHtml(title)}">
     </div>
     <div class="field">
@@ -877,7 +847,7 @@ function openCoachIssueModal(title, body) {
     </div>
     <div class="modal-foot">
       <button class="btn btn-outline" data-close>Cancel</button>
-      <button class="btn btn-primary" id="coach-submit">${icons.spark} Create issue</button>
+      <button class="btn btn-primary" id="coach-submit">${icons.spark} Ask the coach</button>
     </div>
   `);
   on('coach-submit', 'click', () => submitCoachIssue());
@@ -888,44 +858,42 @@ async function submitCoachIssue() {
   const body = document.getElementById('coach-body')?.value || '';
   const btn = document.getElementById('coach-submit');
   withBusy(btn, 'Creating…', async () => {
-    const res = await fetch(`${GH_API}/repos/${REPO}/issues`, {
-      method: 'POST', headers: ghHeaders(),
+    const res = await fetch(`${API}/repos/${REPO}/issues`, {
+      method: 'POST', headers: JSON_HDR,
       body: JSON.stringify({ title, body, labels: ['coach'] }),
     });
     if (res.ok) {
       const issue = await res.json();
       closeModal();
-      toast('ok', 'Issue created', `<a href="${issue.html_url}" target="_blank" rel="noopener">#${issue.number} — view on GitHub</a>`);
+      toast('ok', 'Sent to the coach', `<a href="${issue.html_url}" target="_blank" rel="noopener">Watch the coach work →</a>`);
     } else {
-      throw new Error(await ghError(res));
+      throw new Error(await jobError(res));
     }
   });
 }
 
-// ── Generic workflow dispatcher (Create/Reassess/Delete/Calendar) ──
+// ── Generic job dispatcher (Create/Reassess/Delete/Calendar) ──
 async function dispatchWorkflow(name, inputs, okTitle, okBody, btn) {
-  if (!requireToken()) return;
   await withBusy(btn, 'Dispatching…', async () => {
-    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/${name}/dispatches`, {
-      method: 'POST', headers: ghHeaders(),
-      body: JSON.stringify({ ref: REF, inputs: inputs || {} }),
+    const res = await fetch(`${API}/repos/${REPO}/actions/workflows/${name}/dispatches`, {
+      method: 'POST', headers: JSON_HDR,
+      body: JSON.stringify({ inputs: inputs || {} }),
     });
-    if (res.status !== 204) throw new Error(await ghError(res));
+    if (res.status !== 204) throw new Error(await jobError(res));
     toast('ok', okTitle, okBody);
   });
 }
 
 // Latest plan.yml run + its live steps (for the "Building your plan…" banner).
 async function planBuildStatus() {
-  if (!githubToken.has()) return null;
   try {
-    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/plan.yml/runs?per_page=1`, { headers: ghHeaders() });
+    const res = await fetch(`${API}/repos/${REPO}/actions/workflows/plan.yml/runs?per_page=1`, { headers: JSON_HDR });
     if (!res.ok) return null;
     const run = (await res.json()).workflow_runs?.[0];
     if (!run) return null;
     let steps = [];
     try {
-      const jr = await fetch(`${GH_API}/repos/${REPO}/actions/runs/${run.id}/jobs`, { headers: ghHeaders() });
+      const jr = await fetch(`${API}/repos/${REPO}/actions/runs/${run.id}/jobs`, { headers: JSON_HDR });
       if (jr.ok) steps = (await jr.json()).jobs?.[0]?.steps || [];
     } catch {}
     return { status: run.status, conclusion: run.conclusion, created: run.created_at, url: run.html_url, steps };
@@ -952,7 +920,6 @@ function planStageList(steps) {
 
 // Create a running plan (plan.yml → running-plan coaching-panel skill).
 function openCreatePlanModal() {
-  if (!requireToken()) return;
   openModal(`
     <div class="modal-h">
       <div>
@@ -1013,13 +980,13 @@ function openCreatePlanModal() {
       days: val('cp-days'), level: val('cp-level'), goal_time: goalSecs,
     }, 'Plan build started',
        'Watch it build below — this page tracks each stage live.');
-    if (githubToken.has()) { planDispatchedAt = Date.now(); goTab('plan'); }
+    planDispatchedAt = Date.now(); goTab('plan');
   });
 }
 
 function reassessPlan(btn) {
   dispatchWorkflow('plan.yml', { mode: 'reassess' }, 'Reassess started', 'Watch it below — tracked live.', btn);
-  if (githubToken.has()) { planDispatchedAt = Date.now(); goTab('plan'); }
+  planDispatchedAt = Date.now(); goTab('plan');
 }
 
 function deleteFromGarmin(btn) {
@@ -1041,14 +1008,13 @@ function calendarSyncSession(sessionId, action, newDate) {
     'Garmin syncs shortly; the calendar updates after the next build.');
 }
 
-async function ghError(res) {
+async function jobError(res) {
   let detail = '';
   try { const j = await res.json(); detail = j.message || ''; } catch {}
-  if (res.status === 401) return 'Token rejected (401). Check your PAT in Settings.';
-  if (res.status === 403) return 'Forbidden (403). Token needs Actions/Issues write on this repo.';
-  if (res.status === 404) return 'Not found (404). Workflow/repo missing or token lacks access.';
+  if (res.status === 401) return 'Session expired (401). Reload the page and sign in again.';
+  if (res.status === 404) return 'Unknown job (404). ' + detail;
   if (res.status === 422) return 'Invalid request (422). ' + detail;
-  return `GitHub error ${res.status}. ${detail}`;
+  return `Runner error ${res.status}. ${detail}`;
 }
 
 // Run an async action with a busy button + error toast.
@@ -1105,7 +1071,6 @@ const icons = {
   sync:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/></svg>`,
   push:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>`,
   spark:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8a4 4 0 0 0 4 4 4 4 0 0 0-4 4 4 4 0 0 0-4-4 4 4 0 0 0 4-4z"/></svg>`,
-  github:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.5 2 2 6.6 2 12.2c0 4.5 2.9 8.3 6.8 9.6.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.3 9.3 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10.2 10.2 0 0 0 22 12.2C22 6.6 17.5 2 12 2z"/></svg>`,
   check:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>`,
   alert:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>`,
   info:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>`,
@@ -1140,7 +1105,7 @@ const NAV = [
   ['calendar', 'Calendar', icons.calendar, 'Planned workouts & completed activities'],
   ['hyrox', 'HYROX', icons.hyrox, 'Race results & station splits'],
   ['bike', 'Bike', icons.bike, 'Indoor trainer — workouts, ERG & rides'],
-  ['settings', 'Settings', icons.settings, 'Connections & GitHub integration'],
+  ['settings', 'Settings', icons.settings, 'Connections & data'],
 ];
 
 function render() {
@@ -1243,7 +1208,7 @@ function emptyState(title, sub, icon) {
 // bottom); this glue hands it the page node plus the host helpers it needs.
 function renderBikeTab(page) {
   return window.PF_BIKE && window.PF_BIKE.renderBikeTab
-    ? window.PF_BIKE.renderBikeTab(page, { escHtml, toast, withBusy, emptyState, loadJSON, ghHeaders, requireToken, REPO, REF, GH_API, githubToken, setTopbar })
+    ? window.PF_BIKE.renderBikeTab(page, { escHtml, toast, withBusy, emptyState, loadJSON, JSON_HDR, REPO, API, setTopbar })
     : page.innerHTML = emptyState('Bike module not loaded', 'Serve over http(s) — ES modules do not run from file://');
 }
 
@@ -1927,13 +1892,10 @@ function bindBenchmarkForm(container, redraw) {
     fields.forEach(id => { const v = container.querySelector('#bm-' + id)?.value; if (v !== '' && v != null) bm[id] = Number(v); });
     try { localStorage.setItem(BENCHMARKS_KEY, JSON.stringify(bm)); } catch {}
     const status = container.querySelector('#bm-status');
-    if (!githubToken.has()) { status.innerHTML = 'Saved locally. Add a GitHub token in Settings to sync and unlock the full strength assessment.'; return; }
     status.textContent = 'Saving…';
-    // Dispatch a workflow (same mechanism as Sync) — it commits benchmarks.json with
-    // GITHUB_TOKEN, so the user's token only needs the actions:write it already has.
-    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/save-benchmarks.yml/dispatches`,
-      { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ ref: REF, inputs: { data: JSON.stringify(bm) } }) });
-    if (!res.ok && res.status !== 204) throw new Error(await ghError(res));
+    const res = await fetch(`${API}/repos/${REPO}/actions/workflows/save-benchmarks.yml/dispatches`,
+      { method: 'POST', headers: JSON_HDR, body: JSON.stringify({ inputs: { data: JSON.stringify(bm) } }) });
+    if (!res.ok && res.status !== 204) throw new Error(await jobError(res));
     status.innerHTML = 'Saved — building your strength assessment (~1–2 min). Reload the page after that to see it.';
   }));
 }
@@ -2190,7 +2152,7 @@ async function renderPlan(page) {
       <div style="font-weight:700;font-size:1.05rem">Building your plan${mins ? ` — ${mins} min in` : '…'}</div>
       ${planStageList((bs && bs.steps) || [])}
       <div class="hint" style="margin-top:12px">Live — this updates itself as each stage finishes. Takes a few minutes.</div>
-      ${bs ? `<a class="btn-link" href="${bs.url}" target="_blank" rel="noopener">Watch the full log on GitHub →</a>` : ''}
+      ${bs ? `<a class="btn-link" href="${bs.url}" target="_blank" rel="noopener">Watch the full log →</a>` : ''}
     </div></div>`;
     setTimeout(async () => {
       if (state.tab !== 'plan') return;
@@ -2211,15 +2173,12 @@ async function renderPlan(page) {
         <div style="font-weight:600">Building your plan — ${mins} min in</div>
         ${planStageList(st.steps || [])}
         <div class="hint" style="margin-top:10px">Live progress; this page updates itself as each stage completes.</div>
-        <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">Watch the full log on GitHub →</a></div>`;
+        <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">Watch the full log →</a></div>`;
     } else if (st && st.conclusion === 'failure') {
       banner = `<div class="card card-pad" style="margin-top:18px;text-align:center;color:var(--rose,#e11d48)">
         <div style="font-weight:600">Last plan build failed</div>
-        <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">See the error on GitHub →</a></div>`;
+        <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">See the error →</a></div>`;
     }
-    if (!githubToken.has()) banner = `<div class="card card-pad" style="margin-top:18px;text-align:center">
-      <div style="font-weight:600">Connect GitHub to create a plan</div>
-      <div class="hint" style="margin-top:6px">Create Plan runs a GitHub Action — add a Personal Access Token in Settings → GitHub, then click Create running plan.</div></div>` + banner;
     page.innerHTML = `<div class="fade-in">${emptyState('No training plan yet', 'Create a running plan for your event — Claude\'s coaching panel builds it.', icons.plan)}
       <div style="text-align:center;margin-top:18px"><button class="btn btn-primary" id="plan-create">${icons.spark} Create running plan</button></div>
       ${banner}</div>`;
@@ -2913,13 +2872,12 @@ function deterministicInsights(detail, act, match) {
 }
 
 function analyzeActivityWithCoach(act, btn) {
-  if (!requireToken()) return;
   const id = act.activity_id;
   withBusy(btn, 'Requesting…', async () => {
     const title = `Coach: analyze activity ${id} (${act.name || 'activity'})`;
     const body = `Analyze Garmin activity **${id}** — "${act.name || ''}" on ${act.start_time || ''}.\n\nWrite the analysis to \`data/analyses/${id}.md\`: what was done, how it compares to the planned workout (if one matched), how it affects my athlete profile, and what I should improve.`;
-    const res = await fetch(`${GH_API}/repos/${REPO}/issues`, { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ title, body, labels: ['coach'] }) });
-    if (!res.ok) throw new Error(await ghError(res));
+    const res = await fetch(`${API}/repos/${REPO}/issues`, { method: 'POST', headers: JSON_HDR, body: JSON.stringify({ title, body, labels: ['coach'] }) });
+    if (!res.ok) throw new Error(await jobError(res));
     const issue = await res.json();
     toast('ok', 'Analysis requested', `<a href="${issue.html_url}" target="_blank" rel="noopener">#${issue.number}</a> — tracking progress below.`);
     pollForAnalysis(id, issue.html_url);
@@ -2934,22 +2892,22 @@ function coachProgressHtml(elapsedS, statusLine, issueUrl) {
       <b style="color:var(--text)">Coach is analyzing this session…</b>
     </div>
     <div class="hint">${escHtml(statusLine)} · elapsed ${m}:${String(s).padStart(2, '0')}</div>
-    <div class="hint">Claude writes the analysis via GitHub Actions — usually 2–5 min. You can leave this page; the result lands here automatically.${issueUrl ? ` <a href="${issueUrl}" target="_blank" rel="noopener">View request</a>` : ''}</div>
+    <div class="hint">Claude writes the analysis on the VM — usually 2–5 min. You can leave this page; the result lands here automatically.${issueUrl ? ` <a href="${issueUrl}" target="_blank" rel="noopener">View request</a>` : ''}</div>
   </div>`;
 }
 
 // After requesting an analysis, poll until the markdown file lands, then render it
-// in place. The file check is authoritative; workflow status is just reassurance.
+// in place. The file check is authoritative; job status is just reassurance.
 async function pollForAnalysis(id, issueUrl) {
   const slot = document.getElementById('coach-analysis-slot');
   if (!slot) return;
   const start = Date.now(), TIMEOUT = 15 * 60 * 1000, EVERY = 12000;
-  let statusLine = 'Waiting for the coach workflow to start…';
+  let statusLine = 'Waiting for the coach job to start…';
   const tick = async () => {
     if (!document.body.contains(slot)) return;  // user navigated away — stop polling
     slot.innerHTML = coachProgressHtml(Math.floor((Date.now() - start) / 1000), statusLine, issueUrl);
     try {
-      const r = await fetch(`${GH_API}/repos/${REPO}/contents/data/analyses/${id}.md?ref=master&t=${Date.now()}`, { headers: ghHeaders() });
+      const r = await fetch(`${API}/repos/${REPO}/contents/data/analyses/${id}.md?ref=master&t=${Date.now()}`, { headers: JSON_HDR });
       if (r.ok) {
         const j = await r.json();
         const md = decodeURIComponent(escape(atob((j.content || '').replace(/\s/g, ''))));
@@ -2959,20 +2917,20 @@ async function pollForAnalysis(id, issueUrl) {
       }
     } catch {}
     try {
-      const wr = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/coach.yml/runs?per_page=1&t=${Date.now()}`, { headers: ghHeaders() });
+      const wr = await fetch(`${API}/repos/${REPO}/actions/workflows/coach.yml/runs?per_page=1&t=${Date.now()}`, { headers: JSON_HDR });
       if (wr.ok) {
         const run = (await wr.json()).workflow_runs?.[0];
         // Only trust a run started around/after this request, not a stale prior one.
         if (run && new Date(run.created_at).getTime() >= start - 120000) {
           statusLine = run.status === 'completed'
-            ? (run.conclusion === 'success' ? 'Workflow finished — fetching the analysis…'
-               : `Workflow ${run.conclusion}. Check the run on GitHub.`)
-            : run.status === 'in_progress' ? 'Coach workflow running…' : 'Coach workflow queued…';
+            ? (run.conclusion === 'success' ? 'Job finished — fetching the analysis…'
+               : `Job ${run.conclusion}. Check the run log.`)
+            : run.status === 'in_progress' ? 'Coach job running…' : 'Coach job queued…';
         }
       }
     } catch {}
     if (Date.now() - start > TIMEOUT) {
-      slot.innerHTML = `<div class="act-analysis"><div class="hint">This is taking longer than usual. It'll appear here once the coach finishes — reload in a few minutes${issueUrl ? `, or <a href="${issueUrl}" target="_blank" rel="noopener">check the request on GitHub</a>` : ''}.</div></div>`;
+      slot.innerHTML = `<div class="act-analysis"><div class="hint">This is taking longer than usual. It'll appear here once the coach finishes — reload in a few minutes${issueUrl ? `, or <a href="${issueUrl}" target="_blank" rel="noopener">check the job log</a>` : ''}.</div></div>`;
       return;
     }
     setTimeout(tick, EVERY);
@@ -3051,7 +3009,7 @@ function activityDetailBody(act, detail, analysisMd, match) {
     ? `<div class="act-analysis">${formatMarkdown(analysisMd)}</div>`
     : `<div>${insights || '<div style="color:var(--text-3);font-size:.85rem">No AI analysis yet.</div>'}
         <button class="btn btn-primary btn-sm" id="act-analyze" style="margin-top:12px">${icons.spark} Analyze with Coach</button>
-        <div class="hint" style="margin-top:6px">Asks Claude (via GitHub) to write a full coaching analysis of this session.</div></div>`;
+        <div class="hint" style="margin-top:6px">Asks Claude to write a full coaching analysis of this session.</div></div>`;
 
   return `
     <div class="detail-grid">
@@ -3871,9 +3829,9 @@ _Generated from the PaceForge dashboard. Edit freely before submitting._`;
 }
 
 // ═══════════════════════════════════════════════════════
-// VIEW: SETTINGS (incl. GitHub integration)
+// VIEW: SETTINGS
 // ═══════════════════════════════════════════════════════
-// Garmin login through the local runner (LOCAL mode only): password →
+// Garmin login through the local runner: password →
 // optional MFA code. Credentials go to this VM over HTTPS and are held in
 // the runner's memory only for the handshake; the token lands on the VM.
 function openGarminLoginModal() {
@@ -3947,11 +3905,10 @@ function openGarminLoginModal() {
   });
 }
 
-// Latest sync.yml run from the Actions API (null without a token / on error).
+// The runner's record of the last sync job (null on error).
 async function fetchLastSyncRun() {
-  if (!githubToken.has()) return null;
   try {
-    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/sync.yml/runs?per_page=1`, { headers: ghHeaders() });
+    const res = await fetch(`${API}/repos/${REPO}/actions/workflows/sync.yml/runs?per_page=1`, { headers: JSON_HDR });
     if (!res.ok) return null;
     const j = await res.json();
     return (j.workflow_runs || [])[0] || null;
@@ -3971,7 +3928,6 @@ function syncEndpointTable(ss) {
 }
 
 function syncRunHtml(run) {
-  if (!githubToken.has()) return '<span style="color:var(--text-3)">add a token to see live runs</span>';
   if (!run) return '<span style="color:var(--text-3)">no runs yet</span>';
   const when = formatTimeAgo(run.run_started_at || run.created_at);
   let label = 'running…', color = 'var(--sky)';
@@ -3994,7 +3950,6 @@ async function renderSettings(page) {
     garminStatus = gs.connected ? 'Connected' : 'Not connected';
     syncStatus = gs.sync;
   } catch {}
-  const tokenSet = githubToken.has();
   const lastRun = await fetchLastSyncRun();
   const events = await loadJSON('events.json').catch(() => []);
   // Last *successful* sync — profile.created_at survives failed syncs, so it
@@ -4025,31 +3980,14 @@ async function renderSettings(page) {
         <div class="settings-row"><span class="settings-label">Last sync run</span><span class="settings-value">${syncRunHtml(lastRun)}</span></div>
         ${syncEndpointTable(syncStatus)}
         <button class="btn btn-ghost btn-block mt" id="set-sync-now">${icons.sync} Sync now</button>
-        ${LOCAL ? `<button class="btn btn-primary btn-block mt" id="garmin-connect">Connect Garmin (login)</button>
-        <div class="hint" style="margin-top:6px">Use after the token expires (~yearly) or when sync says the token is invalid.</div>` : ''}
+        <button class="btn btn-primary btn-block mt" id="garmin-connect">Connect Garmin (login)</button>
+        <div class="hint" style="margin-top:6px">Use after the token expires (~yearly) or when sync says the token is invalid.</div>
       </div>
     </div>
 
     <div class="span-6">
       <div class="card">
-        <div class="card-h">
-          <div class="card-title"><span class="ico">${icons.github}</span>GitHub Integration</div>
-          <span class="conn-status ${tokenSet?'conn-on':'conn-off'}"><span class="dotmark"></span>${tokenSet?'Connected':'Not connected'}</span>
-        </div>
-        <div class="field">
-          <label for="gh-token">Fine-grained Personal Access Token</label>
-          <input type="password" id="gh-token" class="mono-input" placeholder="${tokenSet ? '•••••••••••••••• (stored)' : 'github_pat_…'}" autocomplete="off">
-          <div class="hint">Needs <b>Actions: write</b> and <b>Issues: write</b> on <b>${REPO}</b>. Kept only in this browser session (<code>sessionStorage</code>) — gone when you close the browser, never sent anywhere but api.github.com, never committed.</div>
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" id="gh-save">Save token</button>
-          ${tokenSet ? `<button class="btn btn-outline btn-sm" id="gh-test">Test connection</button><button class="btn btn-danger btn-sm" id="gh-clear">Remove</button>` : ''}
-        </div>
-      </div>
-
-      <div class="card mt">
         <div class="card-h"><div class="card-title"><span class="ico">${icons.sync}</span>Actions</div></div>
-        ${!tokenSet ? `<div class="banner warn" style="margin-bottom:14px"><span class="b-ico">${icons.alert}</span><div>Add a GitHub token above to enable these actions.</div></div>` : ''}
         <div style="display:flex;flex-direction:column;gap:10px">
           <button class="btn btn-ghost btn-block" id="set-sync">${icons.sync} Sync latest from Garmin</button>
           <button class="btn btn-ghost btn-block" id="set-coach">${icons.spark} Generate / adapt plan (ask Coach)</button>
@@ -4063,19 +4001,6 @@ async function renderSettings(page) {
     <div class="span-12">${eventsCard(events)}</div>
   </div></div>`;
 
-  on('gh-save', 'click', () => {
-    const v = val('gh-token');
-    if (!v) { toast('err', 'Empty token', 'Paste a token before saving.'); return; }
-    githubToken.set(v);
-    toast('ok', 'Token saved', 'GitHub actions are now enabled.');
-    renderSettings(page);
-  });
-  on('gh-clear', 'click', () => { githubToken.clear(); toast('info', 'Token removed', 'GitHub actions disabled.'); renderSettings(page); });
-  on('gh-test', 'click', e => withBusy(e.currentTarget, 'Testing…', async () => {
-    const res = await fetch(`${GH_API}/repos/${REPO}`, { headers: ghHeaders() });
-    if (res.ok) { const j = await res.json(); toast('ok', 'Connected', `Authenticated for ${escHtml(j.full_name || REPO)}.`); }
-    else throw new Error(await ghError(res));
-  }));
   on('set-sync', 'click', e => syncFromGarmin(e.currentTarget));
   on('set-sync-now', 'click', async e => { await syncFromGarmin(e.currentTarget); setTimeout(() => renderSettings(page), 2500); });
   on('garmin-connect', 'click', () => openGarminLoginModal());
@@ -4090,7 +4015,7 @@ async function renderSettings(page) {
 function hyroxImportCard() {
   return `<div class="card">
     <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>HYROX races</div></div>
-    <div class="hint" style="margin-bottom:12px">Import every race from your <a href="https://www.hyresult.com" target="_blank" rel="noopener">hyresult.com</a> profile — per-race Overall + Age-group placing and full splits. Paste your profile URL or slug. Needs a GitHub token (above).</div>
+    <div class="hint" style="margin-bottom:12px">Import every race from your <a href="https://www.hyresult.com" target="_blank" rel="noopener">hyresult.com</a> profile — per-race Overall + Age-group placing and full splits. Paste your profile URL or slug.</div>
     <div style="display:grid;grid-template-columns:1fr 90px auto;gap:10px;align-items:end">
       <div class="field" style="margin:0"><label for="hx-slug">Profile URL or slug</label><input id="hx-slug" placeholder="victor-perez-rodriguez"></div>
       <div class="field" style="margin:0"><label for="hx-gender">Gender</label><select id="hx-gender"><option value="M">M</option><option value="F">F</option></select></div>
@@ -4101,15 +4026,15 @@ function hyroxImportCard() {
 }
 
 async function dispatchHyrox(inputs) {
-  const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/hyrox.yml/dispatches`,
-    { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ ref: REF, inputs }) });
-  if (!res.ok && res.status !== 204) throw new Error(await ghError(res));
+  const res = await fetch(`${API}/repos/${REPO}/actions/workflows/hyrox.yml/dispatches`,
+    { method: 'POST', headers: JSON_HDR, body: JSON.stringify({ inputs }) });
+  if (!res.ok && res.status !== 204) throw new Error(await jobError(res));
 }
 
 // Poll the committed hyrox.json on raw (public, no Pages-deploy wait) until the
 // import workflow overwrites it for this profile slug; returns the race count.
 async function pollHyrox(slug, prevName, { tries = 25, delay = 6000 } = {}) {
-  const url = `https://raw.githubusercontent.com/${REPO}/${REF}/data/hyrox.json`;
+  const url = './data/hyrox.json';
   for (let i = 0; i < tries; i++) {
     await new Promise(r => setTimeout(r, delay));
     try {
@@ -4126,18 +4051,17 @@ async function pollHyrox(slug, prevName, { tries = 25, delay = 6000 } = {}) {
 function bindHyroxImport(page) {
   const status = page.querySelector('#hx-status');
   on('hx-import', 'click', e => withBusy(e.currentTarget, 'Importing…', async () => {
-    if (!requireToken()) return;
-    let slug = val('hx-slug').trim();
+      let slug = val('hx-slug').trim();
     const m = slug.match(/\/athlete\/([a-z0-9-]+)/i);   // accept a full profile URL too
     if (m) slug = m[1];
     slug = slug.replace(/^\/+|\/+$/g, '');
     if (!slug) { toast('err', 'Slug required', 'Paste your hyresult profile URL or slug.'); return; }
     let prevName = null;
-    try { const r0 = await fetch(`https://raw.githubusercontent.com/${REPO}/${REF}/data/hyrox.json?t=${Date.now()}`, { cache: 'no-store' }); if (r0.ok) prevName = (await r0.json()).search_name; } catch {}
+    try { const r0 = await fetch(`./data/hyrox.json?t=${Date.now()}`, { cache: 'no-store' }); if (r0.ok) prevName = (await r0.json()).search_name; } catch {}
     await dispatchHyrox({ mode: 'profile', slug, gender: val('hx-gender') || 'M' });
     status.textContent = 'Importing from hyresult.com… ~30–60s, then the dashboard redeploys.';
     const count = await pollHyrox(slug, prevName);
-    if (count == null) { status.innerHTML = 'Dispatched. Track the <a href="https://github.com/' + REPO + '/actions/workflows/hyrox.yml" target="_blank" rel="noopener">workflow run</a>; your races refresh after it redeploys.'; return; }
+    if (count == null) { status.textContent = 'Import started — your races appear here once it finishes (~1 min).'; return; }
     status.textContent = `Imported ${count} race(s). The dashboard refreshes on the next redeploy (~1 min).`;
   }));
 }
@@ -4173,14 +4097,13 @@ function bindEventsCard(page) {
   bindRemoves();
   on('ev-add', 'click', () => { rows.insertAdjacentHTML('beforeend', eventRow()); bindRemoves(); });
   on('ev-save', 'click', e => withBusy(e.currentTarget, 'Saving…', async () => {
-    if (!requireToken()) return;
-    const list = [...rows.querySelectorAll('.ev-row')].map(r => {
+      const list = [...rows.querySelectorAll('.ev-row')].map(r => {
       const g = k => (r.querySelector(`[data-ev="${k}"]`)?.value || '').trim();
       return { date: g('date'), name: g('name'), type: g('type'), goal_time: g('goal_time') };
     }).filter(ev => ev.date || ev.name).sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    const res = await fetch(`${GH_API}/repos/${REPO}/actions/workflows/save-events.yml/dispatches`,
-      { method: 'POST', headers: ghHeaders(), body: JSON.stringify({ ref: REF, inputs: { data: JSON.stringify(list) } }) });
-    if (!res.ok && res.status !== 204) throw new Error(await ghError(res));
+    const res = await fetch(`${API}/repos/${REPO}/actions/workflows/save-events.yml/dispatches`,
+      { method: 'POST', headers: JSON_HDR, body: JSON.stringify({ inputs: { data: JSON.stringify(list) } }) });
+    if (!res.ok && res.status !== 204) throw new Error(await jobError(res));
     toast('ok', 'Events saved', 'Rebuilding (~1–2 min). Ask the coach to rebalance your plan around them.');
   }));
 }
@@ -4225,10 +4148,11 @@ function formatTimeAgo(iso) {
 }
 
 // ── Boot ───────────────────────────────────────────────
+try { sessionStorage.removeItem('pf_gh_token' + NS); } catch {}   // pre-runner PAT, no longer used
 try { const u = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); if (u && u.name) state.user = u; } catch {}
 render();
 // Name the athlete this instance belongs to, before Settings is ever opened.
-if (LOCAL) profileMeta().then(p => {
+profileMeta().then(p => {
   if (p.name === state.user.name && p.email === state.user.email) return;
   state.user = { name: p.name, email: p.email, role: p.role };
   try { localStorage.setItem(USER_KEY, JSON.stringify(state.user)); } catch {}

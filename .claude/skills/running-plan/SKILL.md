@@ -12,7 +12,7 @@ the **judgement**. State is files in `data/`. Run `paceforge` via the venv local
 (`.venv/bin/paceforge ...`); in CI it is on `PATH`.
 
 ## Inputs
-From the workflow (env vars or the prompt): `mode` (create|reassess), `event_type`
+From the runner job (env vars or the prompt): `mode` (create|reassess), `event_type`
 (5K/10K/HALF_MARATHON/MARATHON/HYROX), `target_date`, `days`, `level`, optional
 `goal_time`. Missing value → sensible default, and say so.
 
