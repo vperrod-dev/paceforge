@@ -1,8 +1,13 @@
 # PaceForge — Agent Instructions
 
-Single-user, serverless running coach. No backend, no database, no LLM API key.
-**Claude is the coach** (`.claude/skills/coach/`); the `paceforge` package does the
-deterministic maths + Garmin I/O; `data/*.json` (git-tracked) is the state.
+Serverless running coach, one athlete per copy. No backend, no database, no LLM
+API key. **Claude is the coach** (`.claude/skills/coach/`); the `paceforge` package
+does the deterministic maths + Garmin I/O; `data/*.json` (git-tracked) is the state.
+
+Other athletes get their own instance (own checkout, `data/`, Garmin token, port,
+login) via `scripts/users.py` — see CLAUDE.md §Multi-user before touching paths,
+storage keys or `commit_push`. Assume "single-user" means *per process*, never
+"there is only one copy running".
 
 Full orientation is in [CLAUDE.md](CLAUDE.md) — read it. Key points:
 
@@ -79,7 +84,11 @@ Never invent paces — the engine derives them.
 .venv/bin/ruff check src/ tests/    # lint (must pass before commit)
 .venv/bin/pytest tests/ -q          # tests (must pass before push)
 .venv/bin/paceforge sync|analyze|plan|validate|adapt|rpe|push|status|hyrox-import-profile
+scripts/users.py add|list|update|remove   # per-athlete instances (CLAUDE.md §Multi-user)
 ```
+
+After changing `web/`, `scripts/` or `.claude/`, run `scripts/users.py update` —
+other athletes' instances run their own copy of those directories.
 
 ## Conventions
 - Python 3.11+, ruff 100-char lines, `from __future__ import annotations` at top.

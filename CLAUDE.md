@@ -1,9 +1,11 @@
 # PaceForge
 
-A single-user, serverless running coach. No backend, no database, no LLM API
-key — **Claude is the coach** (see `.claude/skills/coach/`), the `paceforge`
-Python package does the deterministic maths and the Garmin I/O, and
-`data/*.json` (git-tracked) is the only state.
+A serverless running coach, one athlete per copy. No backend, no database, no
+LLM API key — **Claude is the coach** (see `.claude/skills/coach/`), the
+`paceforge` Python package does the deterministic maths and the Garmin I/O, and
+`data/*.json` (git-tracked) is the only state. Several athletes share the app by
+running several instances of it, not by the app growing accounts — see
+§Multi-user below, and never assume this checkout is the only one running.
 
 ## VM runner (ACTIVE since 2026-07-21 — GitHub account flagged, ticket 4583559)
 
@@ -171,6 +173,20 @@ back** (garmin_workout_id persistence — required for dedup).
 ## Auth & secrets (env)
 `PACEFORGE_GARMIN_EMAIL`, `GARMIN_TOKEN` (base64 token from `paceforge login`),
 `PACEFORGE_GARMIN_TOKEN_DIR` (default `~/.garminconnect`). None are committed.
+
+The VM runner reads its own set from `~/.config/paceforge/env` (Victor) or
+`~/.config/paceforge/<name>.env` (an instance, written by `scripts/users.py`):
+`PF_WEB_USER` + `PF_WEB_PASS_SCRYPT` (`'<salt_hex>$<hash_hex>'`, scrypt
+n=2¹⁴/r=8/p=1 — mint one with `scripts/users.py`'s `scrypt_conf`), `PF_COOKIE_PATH`
+(scopes the session cookie to that portal), `PACEFORGE_RUNNER_PORT`,
+`PACEFORGE_RUNNER_STATE`, `PACEFORGE_GARMIN_TOKEN_DIR`, `PF_GARMIN_PROXY` (WARP
+socks5 for the Garmin handshake), and `TG_TOKEN`/`TG_CHAT_ID` — **Victor's file
+only**; `telegram()` no-ops without them, which is exactly how friends get no
+notifications. `PACEFORGE_GARMIN_EMAIL` is absent from an instance's file on
+purpose: the runner persists the address from the portal login into
+`data/token-meta.json` and `actions._garmin_email()` reads it back.
+(`.env.example` covers only the CLI variables — editing it is blocked by the
+global `.env.*` guard.)
 
 `paceforge login` is interactive (password + MFA) — it can't run in a non-interactive shell
 (piped/CI/agent `!` → `EOFError`); use a real terminal. The OAuth2 token is short-lived, so

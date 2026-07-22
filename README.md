@@ -6,6 +6,9 @@ adapts training plans, pushes structured workouts to your watch, drives a smart
 trainer over Web Bluetooth, and reviews your training — with **no backend, no
 database, and no LLM API bill**.
 
+One copy serves one athlete by design — a second athlete gets a second copy, not
+an account (see [Sharing it with other athletes](#sharing-it-with-other-athletes)).
+
 It runs four ways, all free beyond a Claude subscription:
 - a **web dashboard** on GitHub Pages — **[vperrod.github.io/paceforge](https://vperrod.github.io/paceforge/)** (single-user, static, reads the committed `data/*.json`),
 - **Claude Code** in this repo (run the CLI directly),
