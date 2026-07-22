@@ -144,13 +144,16 @@ def publish(run: Run | None = None) -> None:
         raise RuntimeError("build_site_data.py failed")
 
 
-def telegram(text: str, pre: bool = False, title: str = "") -> None:
+def telegram(text: str, pre: bool = False, title: str = "", html: bool = False) -> None:
     tok, chat = os.environ.get("TG_TOKEN"), os.environ.get("TG_CHAT_ID")
     if not tok or not chat:
         return
     api = f"https://api.telegram.org/bot{tok}/sendMessage"
-    esc = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")[:3900]
-    html = f"<b>{title}</b>\n<pre>{esc}</pre>" if pre else esc
+    if html:   # text is already Telegram-HTML — send as-is
+        payload = (f"<b>{title}</b>\n{text}" if title else text)[:3900]
+    else:
+        esc = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")[:3900]
+        payload = f"<b>{title}</b>\n<pre>{esc}</pre>" if pre else esc
 
     def send(body: dict) -> bool:
         data = urllib.parse.urlencode(body).encode()
@@ -160,8 +163,9 @@ def telegram(text: str, pre: bool = False, title: str = "") -> None:
         except Exception:
             return False
     # HTML-rejection must not drop the message: resend plain (ported from sync.yml).
-    if not send({"chat_id": chat, "text": html, "parse_mode": "HTML", "disable_web_page_preview": "true"}):
-        send({"chat_id": chat, "text": f"{title}\n{text}"[:3900], "disable_web_page_preview": "true"})
+    if not send({"chat_id": chat, "text": payload, "parse_mode": "HTML", "disable_web_page_preview": "true"}):
+        plain = re.sub(r"<[^>]+>", "", text) if html else text
+        send({"chat_id": chat, "text": f"{title}\n{plain}"[:3900], "disable_web_page_preview": "true"})
 
 
 def claude_step(run: Run, prompt: str, tools: str, max_turns: int = 200,
@@ -421,9 +425,10 @@ def job_sync(run: Run, inputs: dict) -> None:
     commit_push(run, ["data/"], "data: daily Garmin sync")
     publish(run)
     run.step("Morning brief → Telegram")
-    p = subprocess.run(pf("brief"), cwd=REPO_DIR, capture_output=True, text=True, timeout=300)
+    p = subprocess.run(pf("brief", "--telegram"), cwd=REPO_DIR, capture_output=True, text=True,
+                       timeout=300)
     if p.returncode == 0:
-        telegram(p.stdout, pre=True, title="🏃 PaceForge morning brief")
+        telegram(p.stdout.strip(), html=True, title="🏃 PaceForge morning brief")
     if rc != 0:
         # replaces the sync-failure GitHub issue
         telegram("PaceForge Garmin sync FAILED — check data/sync-status.json. "
@@ -521,7 +526,11 @@ def job_coach(run: Run, inputs: dict) -> None:
         run.step("Notify weekly review")
         wr = REPO_DIR / "week-review.md"
         if wr.exists():
-            telegram(wr.read_text()[:600], pre=True, title="📊 PaceForge weekly review")
+            esc = (wr.read_text()[:600].replace("&", "&amp;")
+                   .replace("<", "&lt;").replace(">", "&gt;"))
+            head, _, rest = esc.partition("\n")
+            styled = f"<b>{head.lstrip('# ').strip()}</b>\n{rest.strip()}"
+            telegram(styled, html=True, title="📊 PaceForge weekly review")
 
 
 def job_push(run: Run, inputs: dict) -> None:

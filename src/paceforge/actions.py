@@ -14,6 +14,7 @@ from __future__ import annotations
 import base64
 import getpass
 import io
+import json
 import logging
 import os
 import sys
@@ -26,7 +27,13 @@ from paceforge import store
 from paceforge.engine.analytics import compute_all
 from paceforge.engine.validate import validate_plan
 from paceforge.garmin.client import GarminClient
-from paceforge.models.plan import TrainingPlan, TrainingWeek, Workout
+from paceforge.models.plan import (
+    IntensityTarget,
+    TrainingPlan,
+    TrainingWeek,
+    Workout,
+    WorkoutStepType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -274,12 +281,15 @@ def _find_workout(plan, *, session_id: str | None, when: str | None):
     return hits[0]
 
 
-def brief(when: str | None = None) -> str:
-    """Plain-text morning brief: readiness, sleep, HRV, body battery + today's
-    scheduled session(s). Composed for a phone push notification (Telegram)."""
+def brief(when: str | None = None, fmt: str = "text") -> str:
+    """Morning brief: readiness, sleep, HRV, body battery + today's scheduled
+    session(s). Composed for a phone push notification (Telegram).
+    ``fmt="telegram"`` returns Telegram-HTML (bold headers, emoji, pace band)."""
     from datetime import date as _date
 
     day = _date.fromisoformat(when) if when else _date.today()
+    if fmt == "telegram":
+        return _brief_telegram(day)
     p = store.load_profile()
     lines = []
     if p:
@@ -315,6 +325,99 @@ def brief(when: str | None = None) -> str:
             lines.append(line)
     else:
         lines.append("Today: rest day." if todays else "Today: nothing scheduled.")
+    return "\n".join(lines) or "No data synced yet."
+
+
+def _esc_html(s: object) -> str:
+    return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _fmt_mss(sec: float) -> str:
+    m, s = divmod(int(sec), 60)
+    return f"{m}:{s:02d}"
+
+
+def _step_pace_band(workout: Workout) -> tuple[float, float] | None:
+    """The workout's headline pace band (sec/km): first pace-targeted work step,
+    falling back to any pace-targeted step (warmup/cooldown/recovery)."""
+    def walk(steps):  # noqa: ANN001
+        for st in steps or []:
+            yield st
+            yield from walk(st.steps)
+
+    fringe = (WorkoutStepType.WARMUP, WorkoutStepType.COOLDOWN,
+              WorkoutStepType.RECOVERY, WorkoutStepType.REST)
+    paced = [st for st in walk(workout.steps)
+             if st.target_type == IntensityTarget.PACE and st.target_low and st.target_high]
+    work = [st for st in paced if st.step_type not in fringe]
+    st = (work or paced or [None])[0]
+    return (st.target_low, st.target_high) if st else None
+
+
+def _readiness_verdict() -> str | None:
+    """Green/amber/red verdict line from data/fitness.json load.readiness_composite."""
+    path = store.DATA_DIR / "fitness.json"
+    if not path.exists():
+        return None
+    try:
+        rc = json.loads(path.read_text()).get("load", {}).get("readiness_composite") or {}
+    except (ValueError, AttributeError):
+        return None
+    band, score = rc.get("band"), rc.get("score")
+    if not band:
+        return None
+    dot = {"green": "🟢", "moderate": "🟡", "low": "🔴"}.get(band, "⚪")
+    score_txt = f" {score:.0f}" if isinstance(score, (int, float)) else ""
+    return f"📈 <b>Trend</b> {dot}{score_txt} ({_esc_html(band)})"
+
+
+def _brief_telegram(day: date) -> str:
+    """Telegram-HTML morning brief (parse_mode=HTML; the runner prepends the title)."""
+    p = store.load_profile()
+    lines: list[str] = []
+    if p:
+        vitals = []
+        if p.training_readiness is not None:
+            vitals.append(f"❤️ <b>Readiness</b> {p.training_readiness:.0f}")
+        if p.sleep_score is not None:
+            sleep = f"😴 <b>Sleep</b> {p.sleep_score}"
+            if p.sleep_duration_seconds:
+                h, m = divmod(int(p.sleep_duration_seconds // 60), 60)
+                sleep += f" ({h}h{m:02d})"
+            vitals.append(sleep)
+        if p.hrv_status:
+            vitals.append(f"HRV {_esc_html(p.hrv_status)}")
+        if p.body_battery_current is not None:
+            vitals.append(f"🔋 <b>Battery</b> {p.body_battery_current}")
+        if vitals:
+            lines.append(" · ".join(vitals))
+    verdict = _readiness_verdict()
+    if verdict:
+        lines.append(verdict)
+
+    plan = store.load_plan()
+    todays = [wo for wk in plan.weeks for wo in wk.workouts
+              if wo.scheduled_date == day] if plan else []
+    sessions = [wo for wo in todays if str(wo.workout_type) != "rest"]
+    if sessions:
+        for wo in sessions:
+            emoji = "🚴" if wo.sport == "bike" else "🏃"
+            parts = []
+            if wo.estimated_distance_meters:
+                parts.append(f"{wo.estimated_distance_meters / 1000:.1f} km")
+            elif wo.estimated_duration_seconds:
+                parts.append(f"{wo.estimated_duration_seconds / 60:.0f} min")
+            band = _step_pace_band(wo)
+            if band:
+                parts.append(f"@ {_fmt_mss(band[0])}–{_fmt_mss(band[1])}/km")
+            line = f"{emoji} <b>{_esc_html(wo.name)}</b>"
+            if parts:
+                line += " — " + " ".join(parts)
+            lines.append(line)
+            if wo.briefing and wo.briefing.get("purpose"):
+                lines.append(_esc_html(wo.briefing["purpose"]))
+    else:
+        lines.append("🏃 Rest day." if todays else "🏃 Nothing scheduled.")
     return "\n".join(lines) or "No data synced yet."
 
 

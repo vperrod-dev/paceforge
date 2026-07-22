@@ -29,6 +29,9 @@ class _FakeClient:
             w.garmin_workout_id = self._next_id
         return {"pushed": [{"name": w.name} for w in workouts], "failed": []}
 
+    def get_scheduled_workouts(self, days_ahead=30):  # noqa: ANN001
+        return []
+
 
 @pytest.fixture()
 def fake_client(monkeypatch) -> _FakeClient:

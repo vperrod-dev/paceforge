@@ -1,13 +1,14 @@
-"""brief() — the daily Telegram morning-brief text."""
+"""brief() — the daily Telegram morning-brief text (plain + Telegram-HTML)."""
 
 from __future__ import annotations
 
+import json
 from datetime import date
 
 import pytest
 
 from paceforge import actions, store
-from paceforge.models.plan import TrainingPlan, TrainingWeek, Workout
+from paceforge.models.plan import TrainingPlan, TrainingWeek, Workout, WorkoutStep
 from paceforge.models.profile import UserFitnessProfile
 
 
@@ -42,3 +43,36 @@ def test_brief_rest_day():
 def test_brief_nothing_scheduled():
     _seed()
     assert actions.brief("2026-06-01").endswith("Today: nothing scheduled.")
+
+
+def _tempo_workout() -> Workout:
+    return Workout(
+        workout_type="tempo", name="Tempo & Strides", scheduled_date=date(2026, 6, 1),
+        estimated_distance_meters=8000,
+        steps=[
+            WorkoutStep(step_type="warmup", target_type="pace", target_low=330, target_high=350),
+            WorkoutStep(step_type="active", target_type="pace", target_low=275, target_high=290),
+        ],
+        briefing={"purpose": "Push the <threshold>."})
+
+
+def test_brief_telegram_bold_header_present():
+    _seed(_tempo_workout())
+    assert "<b>Tempo &amp; Strides</b>" in actions.brief("2026-06-01", fmt="telegram")
+
+
+def test_brief_telegram_pace_band_from_work_step():
+    _seed(_tempo_workout())
+    assert "@ 4:35–4:50/km" in actions.brief("2026-06-01", fmt="telegram")
+
+
+def test_brief_telegram_escapes_user_text():
+    _seed(_tempo_workout())
+    assert "Push the &lt;threshold&gt;." in actions.brief("2026-06-01", fmt="telegram")
+
+
+def test_brief_telegram_readiness_verdict_from_fitness_json():
+    _seed(_tempo_workout())
+    (store.DATA_DIR / "fitness.json").write_text(json.dumps(
+        {"load": {"readiness_composite": {"score": 74, "band": "green"}}}))
+    assert "📈 <b>Trend</b> 🟢 74 (green)" in actions.brief("2026-06-01", fmt="telegram")
