@@ -16,14 +16,18 @@ def _tmp_data_dir(tmp_path, monkeypatch):
 
 
 class _FakeClient:
-    def __init__(self, scheduled=None):
+    def __init__(self, scheduled=None, fail_ids=None):
         self.deleted: list[int] = []
         self.pushed_weeks: list[list[str]] = []
         self.scheduled = scheduled or []
+        self.fail_ids = fail_ids or set()
         self._next_id = 1000
 
     def delete_workout(self, workout_id):  # noqa: ANN001
+        if int(workout_id) in self.fail_ids:
+            return False
         self.deleted.append(int(workout_id))
+        return True
 
     def push_plan_week(self, workouts, plan_paces=None, pace_bands=None):  # noqa: ANN001
         self.pushed_weeks.append([w.name for w in workouts])
@@ -104,3 +108,18 @@ def test_stale_completed_copy_deleted_and_cleared():
     assert result["stale_deleted"] == 1
     assert 77 in fake.deleted
     assert store.load_plan().weeks[0].workouts[0].garmin_workout_id is None
+
+
+def test_failed_stale_delete_keeps_id_for_next_run():
+    store.save_plan(_plan())
+    fake = _FakeClient(fail_ids={77})
+    result = actions.garmin_reconcile(client=fake)
+    assert (result["stale_deleted"], result["delete_failed"]) == (0, 1)
+    assert store.load_plan().weeks[0].workouts[0].garmin_workout_id == 77
+
+
+def test_failed_orphan_delete_is_reported_not_counted():
+    store.save_plan(_plan())
+    fake = _FakeClient(scheduled=[_scheduled(555, 3)], fail_ids={77, 555})
+    result = actions.garmin_reconcile(client=fake)
+    assert (result["orphans_deleted"], result["delete_failed"]) == (0, 2)

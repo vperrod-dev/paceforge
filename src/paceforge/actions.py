@@ -1008,13 +1008,17 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
     # (a) Completed past workouts no longer need their scheduled Garmin copy.
     today = date.today()
     stale_deleted = 0
+    delete_failed = 0
     for wk in plan.weeks:
         for w in wk.workouts:
             if (w.garmin_workout_id and w.completed
                     and w.scheduled_date and w.scheduled_date < today):
-                client.delete_workout(w.garmin_workout_id)
-                w.garmin_workout_id = None
-                stale_deleted += 1
+                # Keep the id on failure so tomorrow's reconcile retries the delete.
+                if client.delete_workout(w.garmin_workout_id):
+                    w.garmin_workout_id = None
+                    stale_deleted += 1
+                else:
+                    delete_failed += 1
 
     # (b) Push/refresh the upcoming window.
     weeks = _upcoming_weeks(plan)[:3]  # current + next 2
@@ -1040,13 +1044,15 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
         seen.add(int(wid))
         if int(wid) in owned:
             continue
-        client.delete_workout(int(wid))
-        orphans_deleted += 1
+        if client.delete_workout(int(wid)):
+            orphans_deleted += 1
+        else:
+            delete_failed += 1
 
     store.save_plan(plan)  # persist garmin_workout_id changes
     return {"weeks": [wk.week_number for wk in weeks], "pushed": pushed,
             "stale_deleted": stale_deleted, "orphans_deleted": orphans_deleted,
-            "failed": failed}
+            "delete_failed": delete_failed, "failed": failed}
 
 
 def autosync(client: GarminClient | None = None) -> dict:
@@ -1065,15 +1071,19 @@ def garmin_delete(client: GarminClient | None = None) -> dict:
         raise RuntimeError("No plan at data/plan.json.")
     client = client or garmin_connect()
     deleted = 0
+    failed = 0
     for week in plan.weeks:
         for w in week.workouts:
             if w.garmin_workout_id:
-                client.delete_workout(w.garmin_workout_id)
-                w.garmin_workout_id = None
-                deleted += 1
+                # Keep the id on failure so a re-run retries the delete.
+                if client.delete_workout(w.garmin_workout_id):
+                    w.garmin_workout_id = None
+                    deleted += 1
+                else:
+                    failed += 1
     if deleted:
         store.save_plan(plan)
-    return {"deleted": deleted}
+    return {"deleted": deleted, "failed": failed}
 
 
 def garmin_clear_calendar(
@@ -1103,21 +1113,22 @@ def garmin_clear_calendar(
     if dry_run:
         return {"dry_run": True, "from": today, "count": len(targets), "workouts": targets}
 
-    for t in targets:
-        client.delete_workout(t["id"])
+    failed_ids = {t["id"] for t in targets if not client.delete_workout(t["id"])}
 
     plan = store.load_plan()
     if plan:
         changed = False
         for week in plan.weeks:
             for w in week.workouts:
-                if w.garmin_workout_id and w.scheduled_date and w.scheduled_date.isoformat() >= today:
+                # Keep ids whose delete failed — clearing them would orphan the Garmin copy.
+                if (w.garmin_workout_id and int(w.garmin_workout_id) not in failed_ids
+                        and w.scheduled_date and w.scheduled_date.isoformat() >= today):
                     w.garmin_workout_id = None
                     changed = True
         if changed:
             store.save_plan(plan)
 
-    return {"deleted": len(targets), "from": today}
+    return {"deleted": len(targets) - len(failed_ids), "failed": len(failed_ids), "from": today}
 
 
 def calendar_edit(
@@ -1148,8 +1159,11 @@ def calendar_edit(
 
     client = client or garmin_connect()
     if action == "delete":
-        if workout.garmin_workout_id:
-            client.delete_workout(workout.garmin_workout_id)
+        if workout.garmin_workout_id and not client.delete_workout(workout.garmin_workout_id):
+            raise RuntimeError(
+                f"Garmin refused to delete workout {workout.garmin_workout_id} — "
+                "session kept in the plan; retry when Garmin is reachable."
+            )
         week.workouts.remove(workout)
     elif action == "reschedule":
         if not new_date:

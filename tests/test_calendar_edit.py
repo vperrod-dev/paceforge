@@ -16,12 +16,16 @@ def _tmp_data_dir(tmp_path, monkeypatch):
 
 
 class _FakeClient:
-    def __init__(self):
+    def __init__(self, fail_ids: set[int] | None = None):
         self.deleted: list[int] = []
         self.pushed: list[str] = []
+        self.fail_ids = fail_ids or set()
 
-    def delete_workout(self, workout_id: int) -> None:
+    def delete_workout(self, workout_id: int) -> bool:
+        if workout_id in self.fail_ids:
+            return False
         self.deleted.append(workout_id)
+        return True
 
     def push_plan_week(self, workouts, plan_paces=None):  # noqa: ANN001
         for i, w in enumerate(workouts):
@@ -66,6 +70,20 @@ def test_calendar_edit_delete_removes_session_and_garmin_workout():
     assert gid in fake.deleted
     saved = store.load_plan()
     assert all(w.session_id != sid for wk in saved.weeks for w in wk.workouts)
+
+
+def test_calendar_edit_delete_failure_raises_and_keeps_session():
+    plan = _plan()
+    store.save_plan(plan)
+    target = plan.weeks[0].workouts[0]
+
+    with pytest.raises(RuntimeError, match="session kept"):
+        actions.calendar_edit(target.session_id, "delete",
+                              client=_FakeClient(fail_ids={target.garmin_workout_id}))
+
+    saved = store.load_plan()
+    kept = next(w for wk in saved.weeks for w in wk.workouts if w.session_id == target.session_id)
+    assert kept.garmin_workout_id == target.garmin_workout_id
 
 
 def test_calendar_edit_reschedule_moves_date_and_repushes():

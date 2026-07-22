@@ -23,6 +23,7 @@ class _FakeClient:
 
     def delete_workout(self, workout_id):  # noqa: ANN001
         self.deleted.append(int(workout_id))
+        return True
 
     def push_plan_week(self, workouts, plan_paces=None, pace_bands=None):  # noqa: ANN001
         self.pushed_weeks.append([w.name for w in workouts])

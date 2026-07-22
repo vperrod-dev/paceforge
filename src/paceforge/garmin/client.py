@@ -790,13 +790,19 @@ class GarminClient:
 
     # ── Write operations ─────────────────────────────────────────────
 
-    def delete_workout(self, workout_id: int | str) -> None:
-        """Delete a workout from Garmin Connect by ID."""
+    def delete_workout(self, workout_id: int | str) -> bool:
+        """Delete a workout from Garmin Connect by ID.
+
+        Returns False on failure — callers must keep their ``garmin_workout_id``
+        so the delete is retried instead of leaving a stale copy on the watch.
+        """
         try:
             self.client.delete_workout(int(workout_id))
-            logger.info("Deleted Garmin workout %s", workout_id)
         except Exception:
             logger.warning("Failed to delete Garmin workout %s", workout_id, exc_info=True)
+            return False
+        logger.info("Deleted Garmin workout %s", workout_id)
+        return True
 
     def push_workout(self, workout: Workout, schedule_date: date | None = None,
                      plan_paces: dict | None = None, pace_bands: dict | None = None) -> dict:
