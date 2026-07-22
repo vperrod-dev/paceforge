@@ -467,7 +467,8 @@ def job_plan(run: Run, inputs: dict) -> None:
                 '"accepted": true. Then run `paceforge validate` (must pass), and commit '
                 "data/plan.json (and plan.md if you regenerate it) and push to master. If you "
                 "run low on turns, commit what you have rather than stopping."
-            ), tools="Bash,Read,Write,Edit,MultiEdit,Glob,Grep")
+            ), tools="Bash(paceforge:*),Bash(python:*),Bash(python3:*),Bash(git:*),"
+                     "Read,Write,Edit,MultiEdit,Glob,Grep")
         except Exception as e:       # continue-on-error: scaffold is already committed
             run.log(f"enrichment failed (non-fatal): {e}")
         publish(run)
