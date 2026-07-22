@@ -16,7 +16,9 @@ scrypt hash in the env file — no Caddy basic auth, Caddy only proxies
 repo AND replaces every workflow 1:1 — the portal talks to it through the same
 GitHub-API shapes at `/paceforge/api/gh/*` (`GH_API` const in `web/index.html`;
 on github.io it still targets the real GitHub API, so Pages remains the
-rollback). Timers: `paceforge-sync` daily 06:45 Dublin, `paceforge-autosync`
+rollback). Timers: `paceforge-sync` 3×/day 06:45/13:00/21:00 Dublin (morning pass
+sends the Telegram brief + dispatches the `daily` coach read; every pass dispatches
+`analyze`), `paceforge-autosync`
 daily 06:20 UTC (Garmin reconcile), `paceforge-coach` Mon 07:19 UTC (units in `ops/`; they call
 127.0.0.1:8123 directly, which bypasses the session check by design — only
 Caddy-forwarded requests need a session). Secrets: `~/.config/paceforge/env`
@@ -50,7 +52,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
 .venv/bin/paceforge rpe 7 <activity_id> # log session RPE (HR-less strength/HYROX load)
 .venv/bin/paceforge link <activity_id> --date 2026-06-01   # pin activity to a workout (or --session-id)
 .venv/bin/paceforge unlink <activity_id>                   # detach + never auto-rematch there
-.venv/bin/paceforge brief [--date YYYY-MM-DD]  # morning-brief text (readiness/sleep/today)
+.venv/bin/paceforge brief [--telegram] [--date YYYY-MM-DD]  # morning brief (plain text, or Telegram-HTML)
 
 .venv/bin/paceforge push [--week N] [--dry-run]   # upload a plan week to Garmin
 .venv/bin/paceforge autosync            # daily cron: reconcile Garmin with the plan (push 3 weeks, delete stale + orphans)

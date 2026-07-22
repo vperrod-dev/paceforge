@@ -39,25 +39,30 @@ future weeks only, rate-limited, frozen near race day.
 A desktop-first static dashboard ([vperrod.github.io/paceforge](https://vperrod.github.io/paceforge/)),
 deployed by `pages.yml` and re-deployed automatically after each sync:
 
-- **Today** (the home tab) — your readiness score with a plain-language go/no-go and
-  its dominant driver, today's (or next) planned session, trend arrows (Fitness/CTL vs
-  7 days ago, effective VO₂max vs 28 days ago, this week's on-plan %), a countdown to
-  your next race, an RPE check-in for any recent unrated session, the coach's latest
-  week headline, and a sync-freshness chip (green synced / amber partial or stale /
-  red failing — click through for the reason).
-- **Overview** — the everything dashboard: recent activities, this week's plan, key stats.
+- **Today** (the home tab — the everything dashboard) — a daily-vitals strip (sleep
+  score + duration + deep-sleep %, HRV, Body Battery, resting HR, VO₂max/VDOT), the
+  **coach's morning read** (written by the daily job after the morning sync: headline,
+  body state, how to run today's session, a synthesis of the last few days, and focus
+  points — greys out with its date when stale), your readiness score with a
+  plain-language go/no-go, its dominant driver and the deterministic "Today's call"
+  action, today's (or next) planned session, trend arrows (Fitness/CTL vs 7 days ago,
+  effective VO₂max vs 28 days ago, this week's on-plan %), a countdown to your next
+  race, an RPE check-in for any recent unrated session, the coach's latest week
+  headline, recent activities, this week's plan progress, race predictions, and a
+  sync-freshness chip (green synced / amber partial or stale / red failing).
 - **Plan** — week-by-week navigation with plan-vs-actual badges on every session and a
   weekly "% on plan" chip; every session opens with its full coaching briefing (why /
   structure / feel / if-it-goes-wrong / cues / fueling) and each week shows its role in
   the plan arc; a **pace-insights chip** proposes accept-one-click pace recalibrations
   when your quality sessions consistently beat (or miss) their windows; edit paces,
-  reschedule, add notes, push a week to Garmin — or let the **Monday auto-sync** push
-  the next two weeks to your watch automatically.
+  reschedule, add notes — the **daily Garmin reconcile** keeps your watch calendar
+  mirroring the plan automatically (pushes current + next 2 weeks, removes stale and
+  orphaned entries; also runs after every plan change), so manual pushing is optional.
 - **Calendar** — compact month grid (weeks start Monday), with dots colour-coded by
   session type (easy, long, tempo, fast, cross-training) and each day ringed by its
-  worst plan-vs-actual band (green on-plan / yellow / orange / red missed); click a day
-  to see the session inline (no popups); past days show what you actually did, upcoming
-  days show the plan.
+  worst plan-vs-actual band (green on-plan / yellow / orange / red missed); today
+  auto-opens, and the day's entries render full-width below the grid; past days show
+  what you actually did, upcoming days show the plan.
 - **Activity detail** — opens as a page with **pace / heart-rate / cadence / stride-length**
   charts over time (with an efficient-range band on cadence & stride), an HR-zone
   distribution (with the bpm range per zone), a pace histogram, per-km splits,
@@ -115,8 +120,13 @@ deployed by `pages.yml` and re-deployed automatically after each sync:
 
 Deterministic engines (`paceforge/engine/`) compute a complete athlete assessment from the
 Garmin time-series, then a **limiter-ranking** engine turns it into prioritised, readiness-gated
-guidance the coach writes up. The Fitness page leads with **Coach's Take** — your top-3 limiters,
-each with the metric evidence and a concrete "this week" action.
+guidance the coach writes up. The Fitness page leads with **"Today's call"** — a rule engine
+(`engine/insights.py`) over the day's metrics with published thresholds (Friel TSB bands, ACWR
+injury risk, Foster monotony, HRV normal-range, sleep debt → a concrete bedtime shift, Body
+Battery cutoffs, 80/20 distribution): one verdict, one action, and the evidence for every
+finding, stamped with data freshness (anything older than 36 h greys out). Below it,
+**Coach's Take** — your top-3 limiters, each with the metric evidence and a concrete
+"this week" action.
 
 - **Engine** (`engine/durability.py`): Critical Speed / D′ (+ Critical Power / W′), efficiency-factor
   trend, vVO2max, aerobic decoupling, compromised-run fade, HR-recovery, 80/20 intensity distribution,
@@ -195,7 +205,7 @@ paceforge recalibrate --delta 0.5           # accepted pace bump: re-target futu
 paceforge rpe 7 <activity_id>               # rate a session 1-10 (makes HR-less sessions count)
 paceforge push --dry-run                    # preview the week's workouts
 paceforge push                              # upload to Garmin
-paceforge autosync                          # what Mondays run: push next 2 weeks, clean stale
+paceforge autosync                          # daily Garmin reconcile: push 3 weeks, delete stale + orphans
 paceforge hyrox-import-profile <slug>       # import all races from a hyresult.com profile
 paceforge hyrox-search "Surname" --gender M # (legacy) results.hyrox.com name search
 ```
