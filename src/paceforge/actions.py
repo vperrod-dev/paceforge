@@ -569,8 +569,25 @@ def fitness() -> dict:
     plan = store.load_plan()
     compliance = weekly_compliance(plan, activities) if plan else None
     pace_insights = pace_status(plan) if plan and plan.weeks else None
+
+    import json
+
+    from paceforge.engine.insights import daily_insights
+    today = date.today()
+    todays_type = next((str(wo.workout_type.value) for wk in (plan.weeks if plan else [])
+                        for wo in wk.workouts if wo.scheduled_date == today
+                        and str(wo.workout_type.value) != "rest"), None)
+    try:
+        sync_meta = json.loads((store.DATA_DIR / "sync-status.json").read_text())
+        last_sync = sync_meta.get("last_success")
+    except (OSError, ValueError):
+        last_sync = None
+    insights = daily_insights(profile.model_dump(), load, running,
+                              todays_type=todays_type, last_sync=last_sync)
+
     return {"running": running, "load": load, "strength": strength,
-            "compliance": compliance, "pace_insights": pace_insights, **limiters}
+            "compliance": compliance, "pace_insights": pace_insights,
+            "insights": insights, **limiters}
 
 
 # ── HYROX race import (results.hyrox.com) ────────────────────────────

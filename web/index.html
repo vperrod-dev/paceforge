@@ -1121,8 +1121,7 @@ function clearCache(prefix) { for (const k of Object.keys(cache)) { if (k.starts
 // SHELL / ROUTER
 // ═══════════════════════════════════════════════════════
 const NAV = [
-  ['today', 'Today', icons.spark, 'Readiness, today’s session & what’s trending'],
-  ['home', 'Overview', icons.home, 'Your training command center'],
+  ['today', 'Today', icons.spark, 'Your day — health, session & training state'],
   ['fitness', 'Fitness', icons.fitness, 'Physiology, economy & race readiness'],
   ['plan', 'Plan', icons.plan, 'HYROX block — edit, sync & push'],
   ['calendar', 'Calendar', icons.calendar, 'Planned workouts & completed activities'],
@@ -1209,7 +1208,7 @@ async function loadTab(tab) {
   try {
     switch (tab) {
       case 'today': await renderToday(page); break;
-      case 'home': await renderHome(page); break;
+      case 'home': await renderToday(page); break;  // legacy deep-links
       case 'fitness': await renderFitness(page); break;
       case 'plan': await renderPlan(page); break;
       case 'calendar': await renderCalendar(page); break;
@@ -1257,7 +1256,7 @@ function _seriesDelta(series, key, days) {
 }
 
 async function renderToday(page) {
-  const [fitness, plan, events, weekly, syncStatus, activities, rpeData] = await Promise.all([
+  const [fitness, plan, events, weekly, syncStatus, activities, rpeData, profile, analytics] = await Promise.all([
     cached('fitness', () => loadJSON('fitness.json').catch(() => null)),
     planStore.get().catch(() => null),
     loadJSON('events.json').catch(() => []),
@@ -1265,11 +1264,14 @@ async function renderToday(page) {
     loadSyncStatus(),
     cached('activities', () => apiJson('/activities').catch(() => [])),
     loadJSON('rpe.json').catch(() => ({ entries: [] })),
+    loadJSON('profile.json').catch(() => ({})),
+    cached('analytics', () => apiJson('/profile/analytics').catch(() => null)),
   ]);
 
   setTopbar('Today', new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
     `${syncChipHtml(syncStatus)}
-     <button class="btn btn-ghost btn-sm" id="td-coach">${icons.spark} Ask Coach</button>`);
+     <button class="btn btn-ghost btn-sm" id="td-coach">${icons.spark} Ask Coach</button>
+     <button class="btn btn-primary btn-sm" id="td-sync">${icons.sync} Sync Garmin</button>`);
 
   const f = fitness || {};
   const rd = (f.load || {}).readiness_composite || {};
@@ -1330,6 +1332,10 @@ async function renderToday(page) {
         ${iwRow}
       </div>
     </div>
+    ${(f.insights && f.insights.verdict) ? `<div style="margin-top:12px;padding:9px 11px;border-radius:9px;background:color-mix(in srgb, ${SEV_COLOR[f.insights.verdict.band] || 'var(--text-2)'} 10%, transparent);font-size:.83rem">
+      <b>Today's call:</b> ${escHtml(f.insights.verdict.action)}
+      <button class="btn-link" data-jump-fitness style="margin-left:6px">Why? →</button>
+    </div>` : ''}
   </div>`;
 
   // ── Trend arrows ──
@@ -1387,18 +1393,42 @@ async function renderToday(page) {
     ${weekly.this_week && weekly.this_week.length ? `<ul style="margin:10px 0 0 18px;font-size:.85rem;color:var(--text-2)">${weekly.this_week.map(t => `<li style="margin-bottom:4px">${escHtml(typeof t === 'string' ? t : t.action || '')}</li>`).join('')}</ul>` : ''}
   </div>` : '';
 
-  page.innerHTML = `<div class="fade-in"><div class="dash-grid">
+  // ── Daily vitals strip (health snapshot for the day) ──
+  const p = profile || {};
+  const sleepDur = p.sleep_duration_seconds
+    ? `${Math.floor(p.sleep_duration_seconds / 3600)}h${String(Math.round(p.sleep_duration_seconds % 3600 / 60)).padStart(2, '0')}` : '';
+  const deepPct = p.sleep_duration_seconds && p.sleep_deep_seconds
+    ? Math.round(p.sleep_deep_seconds / p.sleep_duration_seconds * 100) : null;
+  const snap = (analytics || {}).snapshot || {};
+  const vitals = [
+    { label:'Sleep', value: p.sleep_score ?? '—', unit: sleepDur ? ' · ' + sleepDur : '', sub: deepPct != null ? `deep ${deepPct}% (13–23% ideal)` : '', accent:'var(--sky)', accentD:'var(--sky-d)' },
+    { label:'HRV', value: p.hrv_last_night ?? '—', unit: p.hrv_last_night != null ? 'ms' : '', sub: p.hrv_status || '', accent:'var(--emerald)', accentD:'var(--emerald-d)' },
+    { label:'Body Battery', value: p.body_battery_current ?? '—', unit:'', sub: p.stress_avg != null ? 'Stress avg · ' + p.stress_avg : '', accent:'var(--amber)', accentD:'var(--amber-d)' },
+    { label:'Resting HR', value: p.resting_hr ?? '—', unit: p.resting_hr != null ? 'bpm' : '', sub: p.training_status || '', accent:'var(--rose)', accentD:'var(--rose-d)' },
+    { label:'VO₂max', value: p.vo2_max ?? '—', unit:'', sub: snap.vdot != null ? 'VDOT ' + snap.vdot.toFixed(1) : '', accent:'var(--violet)', accentD:'var(--violet-d)' },
+  ];
+
+  const rp = (analytics || {}).race_predictions || {};
+  page.innerHTML = `<div class="fade-in">
+    <div class="grid stat-row">${vitals.map(statCard).join('')}</div>
+    <div class="dash-grid mt">
     <div class="span-7">${sessionCard}</div>
     <div class="span-5">${readinessCard}</div>
     <div class="span-7">${trendCard}</div>
     <div class="span-5">${eventCard || weeklyCard || ''}</div>
     ${rpeCard ? `<div class="span-7">${rpeCard}</div>` : ''}
     ${eventCard && weeklyCard ? `<div class="span-5">${weeklyCard}</div>` : ''}
+    <div class="span-7">${recentActivitiesCard(activities)}</div>
+    <div class="span-5">${thisWeekCard(plan)}</div>
+    <div class="span-5">${racePredictionsCard(rp)}</div>
   </div></div>`;
 
   on('td-coach', 'click', () => openCoachModal());
+  on('td-sync', 'click', e => syncFromGarmin(e.currentTarget));
   on('sync-chip', 'click', () => goTab('settings'));
   on('td-goto-plan', 'click', () => goTab('plan'));
+  bindActivityRows(page, activities);
+  bindWeekJump(page);
   if (todaysWo) on('td-open-wo', 'click', () => showWorkoutSheet(todaysWo, todaysIdx[0], todaysIdx[1]));
   if (unrated) {
     bindRpeSelector(page, {
@@ -1408,81 +1438,12 @@ async function renderToday(page) {
   }
 }
 
-// ═══════════════════════════════════════════════════════
-// VIEW: OVERVIEW (dashboard)
-// ═══════════════════════════════════════════════════════
-async function renderHome(page) {
-  const [analytics, activities, plan, profile, events, syncStatus] = await Promise.all([
-    cached('analytics', () => apiJson('/profile/analytics').catch(() => null)),
-    cached('activities', () => apiJson('/activities').catch(() => [])),
-    cached('plans', () => apiJson('/plans').catch(() => [])).then(p => p[0] || null),
-    loadJSON('profile.json').catch(() => ({})),
-    loadJSON('events.json').catch(() => []),
-    loadSyncStatus(),
-  ]);
-
-  const a = analytics || {}, snap = a.snapshot || {}, aero = a.aerobic || {}, lr = a.load_recovery || {}, rp = a.race_predictions || {};
-
-  setTopbar('Overview', greeting() + ', ' + (state.user.name || 'Runner'),
-    `${syncChipHtml(syncStatus)}
-     <button class="btn btn-ghost btn-sm" id="ov-coach">${icons.spark} Ask Coach</button>
-     <button class="btn btn-primary btn-sm" id="ov-sync">${icons.sync} Sync Garmin</button>`);
-
-  // ── Hero stats ──
-  const stats = [
-    { label:'VDOT', value: snap.vdot != null ? snap.vdot.toFixed(1) : '—', sub: snap.fitness_level || '', accent:'var(--emerald)', accentD:'var(--emerald-d)' },
-    { label:'VO₂max', value: profile.vo2_max != null ? profile.vo2_max : (aero.vo2max_category || '—'), unit: profile.vo2_max != null ? '' : '', sub: aero.vo2max_category || '', accent:'var(--sky)', accentD:'var(--sky-d)' },
-    { label:'Readiness', value: profile.training_readiness != null ? profile.training_readiness : '—', unit: profile.training_readiness != null ? '/100' : '', sub: snap.training_status || '', accent:'var(--violet)', accentD:'var(--violet-d)' },
-    { label:'Body Battery', value: lr.body_battery != null ? lr.body_battery : (profile.body_battery_current ?? '—'), unit:'', sub: lr.stress_level ? 'Stress · ' + lr.stress_level : '', accent:'var(--amber)', accentD:'var(--amber-d)' },
-    { label:'Weekly Volume', value: profile.weekly_mileage_km != null ? profile.weekly_mileage_km.toFixed(0) : '—', unit:'km', sub: lr.load_status ? 'Load · ' + lr.load_status : '', accent:'var(--rose)', accentD:'var(--rose-d)' },
-    { label:'HRV', value: profile.hrv_last_night != null ? profile.hrv_last_night : '—', unit: profile.hrv_last_night != null ? 'ms' : '', sub: profile.hrv_status || lr.hrv_assessment || '', accent:'var(--emerald)', accentD:'var(--emerald-d)' },
-  ];
-
-  let html = `<div class="fade-in">
-    <div class="grid stat-row">
-      ${stats.map(statCard).join('')}
-    </div>
-
-    <div class="dash-grid mt">
-      ${upcomingEventsCard(events) ? `<div class="span-12">${upcomingEventsCard(events)}</div>` : ''}
-      <div class="span-7">${recentActivitiesCard(activities)}</div>
-      <div class="span-5">${thisWeekCard(plan)}</div>
-      <div class="span-5">${racePredictionsCard(rp)}</div>
-      <div class="span-7">${loadRecoveryCard(lr, profile)}</div>
-    </div>
-  </div>`;
-
-  page.innerHTML = html;
-  on('ov-sync', 'click', e => syncFromGarmin(e.currentTarget));
-  on('ov-coach', 'click', () => openCoachModal());
-  on('sync-chip', 'click', () => goTab('settings'));
-  bindActivityRows(page, activities);
-  bindWeekJump(page);
-}
-
 function statCard(s) {
   return `<div class="stat" style="--accent:${s.accent};--accent-d:${s.accentD}">
     <div class="stat-label">${s.label}</div>
     <div class="stat-value">${s.value}${s.unit ? `<span class="unit">${s.unit}</span>` : ''}</div>
     ${s.sub ? `<div class="stat-sub"><span class="chip"><span class="dotmark"></span>${escHtml(s.sub)}</span></div>` : ''}
   </div>`;
-}
-
-function upcomingEventsCard(events) {
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = (events || []).filter(e => e.date && e.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
-  if (!upcoming.length) return '';
-  const items = upcoming.map(e => {
-    const days = Math.round((new Date(e.date + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000);
-    const col = days <= 14 ? 'var(--rose)' : days <= 42 ? 'var(--amber)' : 'var(--emerald)';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border-s)">
-      <div><div style="font-weight:600;font-size:.9rem">${escHtml(e.name || e.type || 'Event')}</div>
-        <div class="hint">${escHtml(e.date)}${e.type ? ' · ' + escHtml(e.type) : ''}${e.goal_time ? ' · goal ' + escHtml(e.goal_time) : ''}</div></div>
-      <div style="text-align:right"><div style="font-size:1.3rem;font-weight:700;color:${col}">${days}</div><div class="hint">${days === 1 ? 'day' : 'days'}</div></div>
-    </div>`;
-  }).join('');
-  return `<div class="card"><div class="card-h"><div class="card-title"><span class="ico">${icons.calendar}</span>Upcoming events</div></div>${items}</div>`;
 }
 
 function recentActivitiesCard(activities) {
@@ -1533,6 +1494,7 @@ function bindActivityRows(page, activities) {
 function bindWeekJump(page) {
   page.querySelectorAll('[data-jump-cal]').forEach(el => el.addEventListener('click', () => goTab('calendar')));
   page.querySelectorAll('[data-jump-plan]').forEach(el => el.addEventListener('click', () => goTab('plan')));
+  page.querySelectorAll('[data-jump-fitness]').forEach(el => el.addEventListener('click', () => goTab('fitness')));
 }
 
 function thisWeekCard(plan) {
@@ -1599,35 +1561,6 @@ function racePredictionsCard(rp) {
   </div>`;
 }
 
-function loadRecoveryCard(lr, profile) {
-  const gauges = [
-    ['Body Battery', lr.body_battery ?? profile.body_battery_current, 100, 'var(--emerald)'],
-    ['Sleep Score', lr.sleep_score ?? profile.sleep_score, 100, 'var(--sky)'],
-    ['Training Load 7d', lr.training_load_7day ?? profile.training_load_7day, 800, 'var(--violet)'],
-  ];
-  const tags = [
-    ['Load Status', lr.load_status],
-    ['HRV', lr.hrv_assessment || profile.hrv_status],
-    ['Fatigue Risk', lr.fatigue_risk],
-    ['Load Focus', lr.load_focus || profile.load_focus],
-  ].filter(t => t[1]);
-  return `<div class="card" style="height:100%">
-    <div class="card-h"><div class="card-title"><span class="ico">${icons.heart}</span>Load &amp; Recovery</div><button class="btn-link" data-jump-cal style="display:none"></button></div>
-    <div class="dash-grid" style="gap:14px">
-      <div class="span-7">
-        ${gauges.map(([l,v,max,c]) => {
-          const pct = v != null ? Math.min(100, Math.round(v/max*100)) : 0;
-          return `<div class="gauge-row"><span class="gauge-tag">${l}</span><div class="gauge-bar"><div class="gauge-fill" style="width:${pct}%;background:${c}"></div></div><span class="gauge-num">${v ?? '—'}</span></div>`;
-        }).join('')}
-      </div>
-      <div class="span-5">
-        ${tags.map(([l,v]) => `<div class="lv"><span class="lv-label">${l}</span><span class="lv-val">${escHtml(String(v))}</span></div>`).join('')}
-      </div>
-    </div>
-  </div>`;
-}
-
-function greeting() { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; }
 function woColor(type) {
   const c = { easy_run:'var(--emerald)', recovery_run:'var(--text-3)', tempo:'var(--amber)', threshold:'var(--amber)', long_run:'var(--sky)', intervals:'var(--rose)', speed:'var(--rose)', race_pace:'var(--violet)', fartlek:'var(--sky)', hyrox_mixed:'var(--violet)', cross_training:'var(--text-2)', rest:'var(--text-3)' };
   return c[type] || 'var(--text-2)';
@@ -1662,6 +1595,7 @@ async function renderFitness(page) {
 
   function draw() {
     page.innerHTML = `<div class="fade-in">
+      ${fitness ? renderInsightsPanel(fitness) : ''}
       ${fitness ? renderCoachTake(fitness) : ''}
       <div class="sub-tabs">${subTabs.map(([id,l]) => `<button class="sub-tab ${activeSub===id?'active':''}" data-sub="${id}">${l}</button>`).join('')}</div>
       <div id="fitness-content"></div>
@@ -1701,6 +1635,46 @@ function metricCard(label, value, sub, accent) {
 }
 function fxCard(title, icon, body) {
   return `<div class="card mb"><div class="card-h"><div class="card-title"><span class="ico">${icon || icons.fitness}</span>${title}</div></div>${body}</div>`;
+}
+
+// ── Daily insights panel: verdict + freshness + the "do this" list ──
+const SEV_COLOR = { red: 'var(--rose)', amber: 'var(--amber)', green: 'var(--emerald)', info: 'var(--sky)' };
+
+function freshnessChip(ins) {
+  if (!ins || ins.data_age_hours == null) return '';
+  const h = ins.data_age_hours;
+  const label = h < 1 ? 'synced <1 h ago' : h < 24 ? `synced ${Math.round(h)} h ago` : `synced ${Math.round(h / 24)} d ago`;
+  const color = ins.stale ? 'var(--text-3)' : 'var(--emerald)';
+  return `<span class="conn-status" style="background:${color}22;color:${color}"><span class="dotmark"></span>${label}${ins.stale ? ' · stale' : ''}</span>`;
+}
+
+function renderInsightsPanel(f) {
+  const ins = f.insights;
+  if (!ins || !ins.verdict) return '';
+  const v = ins.verdict;
+  const vColor = SEV_COLOR[v.band] || 'var(--text-2)';
+  const items = (ins.items || []).map(i => `
+    <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-s)">
+      <span style="margin-top:5px;width:8px;height:8px;border-radius:50%;background:${SEV_COLOR[i.severity] || 'var(--text-3)'};flex:none"></span>
+      <div style="min-width:0">
+        <span style="font-weight:600;font-size:.86rem">${escHtml(i.title)}</span>
+        <span style="font-size:.86rem;color:var(--text-2)"> — ${escHtml(i.advice)}</span>
+        <div class="hint" style="margin-top:2px">${escHtml(i.evidence)}</div>
+      </div>
+    </div>`).join('');
+  return `<div class="card mb" style="${ins.stale ? 'opacity:.75' : ''}">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Today's call</div>${freshnessChip(ins)}</div>
+    <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:color-mix(in srgb, ${vColor} 10%, transparent);margin-bottom:${items ? '10px' : '0'}">
+      <span style="margin-top:5px;width:10px;height:10px;border-radius:50%;background:${vColor};flex:none"></span>
+      <div>
+        <div style="font-weight:700;font-size:.92rem">${escHtml(v.headline)}</div>
+        <div style="font-size:.86rem;color:var(--text-2);margin-top:2px">${escHtml(v.action)}</div>
+        ${v.driver ? `<div class="hint" style="margin-top:2px">Readiness ${v.score != null ? Math.round(v.score) : '—'} · driver: ${escHtml(v.driver)}</div>` : ''}
+      </div>
+    </div>
+    ${items}
+    ${ins.stale ? `<div class="hint" style="margin-top:8px">Data is more than 36 h old — colours may not reflect this morning. Sync first.</div>` : ''}
+  </div>`;
 }
 
 function renderCoachTake(f) {
@@ -2738,12 +2712,12 @@ async function renderCalendar(page) {
     }
     const remaining = (7 - (startDay + last.getDate()) % 7) % 7;
     for (let i = 1; i <= remaining; i++) grid += `<div class="cal-day other-month"><div class="cal-num">${i}</div></div>`;
-    return `<div class="fade-in"><div class="dash-grid"><div class="span-5">
+    return `<div class="fade-in"><div class="dash-grid"><div class="span-12">
       <div class="card">
         <div class="card-h"><div class="card-title">${monthName}</div><div style="display:flex;gap:8px"><button class="btn-icon" id="cal-prev" aria-label="Previous month">‹</button><button class="btn-icon" id="cal-next" aria-label="Next month">›</button></div></div>
         <div class="cal-grid compact">${grid}</div>
       </div></div>
-      <div class="span-7"><div class="card" style="height:100%" id="cal-details"><div class="empty" style="border:none;padding:32px 12px">Select a day to see details.</div></div></div>
+      <div class="span-12"><div class="card" id="cal-details"><div class="empty" style="border:none;padding:32px 12px">Select a day to see details.</div></div></div>
     </div></div>`;
   }
 
@@ -2754,9 +2728,10 @@ async function renderCalendar(page) {
     const entries = calEntries[ds] || [];
     const dateLabel = new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
     if (!entries.length) { details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div><div class="empty" style="border:none;padding:24px 0">Nothing scheduled.</div>`; return; }
-    details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div>` + entries.map((e, i) => `
-      <div class="act-item" data-cal-idx="${i}"><div class="act-bar" style="background:${e.color}"></div>
-        <div class="act-info"><div class="act-name">${escHtml(e.title)}</div>${e.sub ? `<div class="act-meta">${escHtml(e.sub)}</div>` : ''}</div></div>`).join('');
+    details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">` + entries.map((e, i) => `
+      <div class="act-item" data-cal-idx="${i}" style="border:1px solid var(--border-s);border-radius:10px;padding:10px 12px"><div class="act-bar" style="background:${e.color}"></div>
+        <div class="act-info"><div class="act-name">${escHtml(e.title)}</div>${e.sub ? `<div class="act-meta">${escHtml(e.sub)}</div>` : ''}</div></div>`).join('') + `</div>`;
     details.querySelectorAll('[data-cal-idx]').forEach(c => c.addEventListener('click', () => {
       const e = entries[+c.dataset.calIdx];
       if (e.type === 'activity' && e.activity) renderActivityDetail(details, e.activity, { onBack: () => showDay(ds) });
@@ -2773,6 +2748,11 @@ async function renderCalendar(page) {
     }));
     on('cal-prev', 'click', () => { viewMonth--; if (viewMonth<0){viewMonth=11;viewYear--;} reDraw(); });
     on('cal-next', 'click', () => { viewMonth++; if (viewMonth>11){viewMonth=0;viewYear++;} reDraw(); });
+    // Auto-open today (or the 1st when browsing another month) so the panel is never empty.
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const preselect = page.querySelector(`.cal-day[data-date="${todayStr}"]`)
+      || page.querySelector('.cal-day[data-date]');
+    if (preselect) { preselect.classList.add('selected'); showDay(preselect.dataset.date); }
   }
   reDraw();
 }
@@ -3105,7 +3085,7 @@ async function renderActivityDetail(container, act, { onBack } = {}) {
 }
 
 // Open an activity as a full page (replaces the modal). Back returns to the prior tab.
-let _activityReturnTab = 'home';
+let _activityReturnTab = 'today';
 async function openActivity(act) {
   _activityReturnTab = state.tab;
   const page = document.getElementById('page-content');
@@ -3153,9 +3133,11 @@ async function renderHyroxPage(page) {
   }
   const ordered = [...races].sort((a, b) => String(b.event_date).localeCompare(String(a.event_date)));
   page.innerHTML = `<div class="fade-in">
-    ${hyroxProgressionSection(data.progression, data.priorities, data.prediction, data.compromise_by_station, data.pacing_strategy)}
+    ${hyroxHeadlineStrip(data.progression, data.prediction, ordered)}
+    ${hyroxFocusCard(data.priorities)}
     <div class="eyebrow" style="margin:22px 0 12px">Your races</div>
     <div class="grid cols-auto">${ordered.map(hyroxRaceCard).join('')}</div>
+    ${hyroxDeepAnalysis(data.progression, data.prediction, data.compromise_by_station, data.pacing_strategy)}
   </div>`;
   page.querySelectorAll('[data-race]').forEach(el =>
     el.addEventListener('click', () => openHyroxRace(el.dataset.race)));
@@ -3579,123 +3561,114 @@ function sparkline(values, { width = 220, height = 44 } = {}) {
   </svg>`;
 }
 
-function hyroxProgressionSection(prog, priorities, prediction, compromiseByStation, pacingStrategy) {
+// Headline strip — the five numbers that matter, everything else lives below the fold.
+function hyroxHeadlineStrip(prog, prediction, ordered) {
   if (!prog || !prog.num_races) return '';
-  const best = prog.best_race;
-  const improvingPill = prog.num_races >= 3
-    ? pill(prog.improving ? 'Improving' : 'Plateauing', prog.improving ? 'var(--emerald)' : 'var(--amber)')
-    : '';
-  // Station progression: most improved first (positive improvement_seconds = got faster).
-  const sc = (prog.station_comparison || []).filter(s => s.improvement_seconds != null);
-  sc.sort((a, b) => b.improvement_seconds - a.improvement_seconds);
-  const stationRows = sc.map(s => {
-    const imp = s.improvement_seconds;
-    const col = imp > 1 ? 'var(--emerald)' : imp < -1 ? 'var(--rose)' : 'var(--text-3)';
-    const sign = imp > 0 ? '−' : imp < 0 ? '+' : '±';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-s)">
-      <span style="font-size:.84rem">${escHtml(s.display)}</span>
-      <span style="display:flex;gap:12px;align-items:center">
-        <span class="hint">best ${escHtml(s.best_display)}</span>
-        <span style="font-family:var(--font-m);font-size:.8rem;font-weight:600;color:${col};min-width:54px;text-align:right">${sign}${Math.abs(Math.round(imp))}s</span>
-      </span></div>`;
-  }).join('');
+  const best = prog.best_race || {};
+  const latest = ordered[0] || {};
+  const pt = prog.percentile_trend || {};
+  const overallPct = (pt.overall || []).map(p => p.percentile);
+  const nowPct = overallPct.length ? overallPct[overallPct.length - 1] : null;
+  const trend = prog.num_races >= 3 ? (prog.improving ? 'improving' : 'plateauing') : '';
+  const stats = [
+    { label:'Latest race', value: latest.total_display || latest.total_time_display || '—', unit:'', sub: [latest.city, latest.event_date].filter(Boolean).join(' · '), accent:'var(--sky)', accentD:'var(--sky-d)' },
+    { label:'Personal best', value: best.total_display || '—', unit:'', sub: best.event_date || '', accent:'var(--emerald)', accentD:'var(--emerald-d)' },
+    { label:'Field percentile', value: nowPct != null ? nowPct : '—', unit: nowPct != null ? 'th' : '', sub: trend, accent:'var(--violet)', accentD:'var(--violet-d)' },
+    { label:'Next-race projection', value: prediction && prediction.predicted_display ? prediction.predicted_display : '—', unit:'', sub: prediction && prediction.trend ? prediction.trend : '', accent:'var(--amber)', accentD:'var(--amber-d)' },
+    { label:'Races', value: prog.num_races, unit:'', sub: 'career', accent:'var(--rose)', accentD:'var(--rose-d)' },
+  ];
+  return `<div class="grid stat-row" style="margin-bottom:16px">${stats.map(statCard).join('')}</div>`;
+}
+
+function hyroxFocusCard(priorities) {
   const focus = (priorities || []).slice(0, 4).map(p =>
     `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-s)">
       <span style="font-size:.84rem;font-weight:500">${escHtml(p.display)}${p.train_priority ? ' ' + pill('train priority', 'var(--rose)') : ''}</span>
       <span class="hint">${p.gap_seconds > 0 ? '+' + Math.round(p.gap_seconds) + 's vs top-3 (' + p.gap_pct + '%)' : 'at top-3 level'}</span>
     </div>`).join('');
-
-  const pt = prog.percentile_trend || {};
-  const overallPct = (pt.overall || []).map(p => p.percentile);
-  const competitivenessCard = overallPct.length >= 2 ? `
-    <div class="span-6"><div class="card" style="height:100%">
-      <div class="card-h"><div class="card-title"><span class="ico">${icons.fitness}</span>Competitiveness</div>
-        ${pill('now ' + overallPct[overallPct.length - 1] + 'th pct', pctColor(overallPct[overallPct.length - 1]))}</div>
-      <div class="hint" style="margin-bottom:4px">Overall field percentile per race — rank-based, so it controls for how strong each field was.</div>
-      ${miniChart(overallPct, { color: 'var(--sky)', fmt: v => Math.round(v) + 'th' })}
-      <div class="hint" style="margin-top:8px">Run-fade trend per race (lower = better pacing)</div>
-      ${sparkline(prog.fade_trend)}
-    </div></div>` : '';
-
-  return `<div class="dash-grid">
-    <div class="span-6"><div class="card" style="height:100%">
-      <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Progression</div>${improvingPill}</div>
-      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:6px">
-        <div><div class="hint">Races</div><div style="font-size:1.4rem;font-weight:700">${prog.num_races}</div></div>
-        ${best ? `<div><div class="hint">Best</div><div style="font-size:1.4rem;font-weight:700;color:var(--emerald)">${escHtml(best.total_display)}</div><div class="hint">${escHtml(best.event_date)}</div></div>` : ''}
-      </div>
-      <div class="hint" style="margin-top:8px">Finish-time trend (lower is better)</div>
-      ${sparkline(prog.total_trend)}
-    </div></div>
-    ${competitivenessCard}
-    <div class="span-${competitivenessCard ? '12' : '6'}"><div class="card" style="height:100%">
-      <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Focus for next race</div></div>
-      <div class="hint" style="margin-bottom:6px">Biggest gaps to the top-3 field in your latest race. <span style="color:var(--rose)">Train priority</span> = &gt;60s over your division benchmark, or a 2-weakest station.</div>
-      ${focus || '<div class="hint">No priorities computed.</div>'}
-    </div></div>
-    ${predictionCard(prediction)}
-    ${pacingStrategyCard(pacingStrategy)}
-    ${compromiseByStationCard(compromiseByStation)}
-    ${heatmapCard(prog)}
-    ${stationRows ? `<div class="span-12"><div class="card">
-      <div class="card-h"><div class="card-title">Station evolution — first race → latest</div></div>
-      ${stationRows}</div></div>` : ''}
+  if (!focus) return '';
+  return `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Focus for next race</div></div>
+    <div class="hint" style="margin-bottom:6px">Biggest gaps to the top-3 field in your latest race. <span style="color:var(--rose)">Train priority</span> = &gt;60s over your division benchmark, or a 2-weakest station.</div>
+    ${focus}
   </div>`;
 }
 
-// ── Next-race projection (own-history trend, cohort fallback) ──
-function predictionCard(prediction) {
-  if (!prediction || prediction.predicted_seconds == null) return '';
-  const trendColor = prediction.trend === 'improving' ? 'var(--emerald)'
-    : prediction.trend === 'slowing' ? 'var(--rose)' : 'var(--amber)';
-  const trendLabel = prediction.trend ? prediction.trend[0].toUpperCase() + prediction.trend.slice(1) : '';
-  return `<div class="span-6"><div class="card" style="height:100%">
-    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Next-race projection</div>
-      ${trendLabel ? pill(trendLabel, trendColor) : ''}</div>
-    <div style="font-family:var(--font-m);font-size:1.9rem;font-weight:800">${escHtml(prediction.predicted_display)}</div>
-    <div class="hint" style="margin-top:6px">${escHtml(prediction.basis)}</div>
-  </div></div>`;
+// Everything analytical folds into <details> sections — open what you need, when you need it.
+function foldSection(title, body, open = false) {
+  return `<details class="card" style="margin-bottom:12px" ${open ? 'open' : ''}>
+    <summary style="cursor:pointer;font-weight:700;font-size:.92rem;display:flex;align-items:center;gap:8px;list-style:none">
+      <span class="ico">${icons.hyrox}</span>${title}<span style="margin-left:auto;color:var(--text-3);font-weight:400;font-size:.78rem">show ↓</span></summary>
+    <div style="margin-top:12px">${body}</div>
+  </details>`;
 }
 
-// ── Career-level: does this athlete's own pacing discipline correlate with better results? ──
-function pacingStrategyCard(pacing) {
-  if (!pacing || !pacing.available) return '';
-  const color = pacing.correlation < -0.3 ? 'var(--emerald)' : pacing.correlation > 0.3 ? 'var(--rose)' : 'var(--text-3)';
-  return `<div class="span-6"><div class="card" style="height:100%">
-    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Does even pacing pay off for you?</div>
-      <span style="font-family:var(--font-m);font-weight:700;color:${color}">r = ${pacing.correlation}</span></div>
-    <div class="hint">${escHtml(pacing.read)} <span style="color:var(--text-3)">(${pacing.races_used} races)</span></div>
-  </div></div>`;
-}
+function hyroxDeepAnalysis(prog, prediction, compromiseByStation, pacingStrategy) {
+  if (!prog || !prog.num_races) return '';
+  const pt = prog.percentile_trend || {};
+  const overallPct = (pt.overall || []).map(p => p.percentile);
+  const sections = [];
 
-// ── Compromised running attributed to the station that caused it ──
-function compromiseByStationCard(cbs) {
-  if (!cbs || !cbs.available || !(cbs.stations || []).length) return '';
-  const max = Math.max(...cbs.stations.map(s => Math.abs(s.excess_fade_pct)), 1);
-  const rows = cbs.stations.map(s => {
-    const width = Math.min(100, Math.abs(s.excess_fade_pct) / max * 100);
-    const color = s.excess_fade_pct > 0 ? 'var(--rose)' : 'var(--emerald)';
-    return `<div style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px">
-        <span>Run ${s.run_position} — after ${escHtml(s.station_display)}</span>
-        <span style="font-family:var(--font-m);font-weight:700;color:${color}">${s.excess_fade_pct > 0 ? '+' : ''}${s.excess_fade_pct}%</span>
-      </div>
-      <div style="height:6px;border-radius:3px;background:var(--border-s)">
-        <div style="height:100%;border-radius:3px;width:${width}%;background:${color}"></div>
-      </div>
-    </div>`;
-  }).join('');
-  return `<div class="span-12"><div class="card">
-    <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Compromised running, by station</div></div>
-    <div class="hint" style="margin-bottom:10px">Run-pace fade at each stage vs. how much the field typically fades by that same point — isolates which transition costs <b>you</b> more than it costs the average athlete. Positive = worse than expected there; negative = you hold up better than the field.</div>
-    ${rows}
-  </div></div>`;
+  const progressionBody = `
+    <div class="hint" style="margin-bottom:4px">Finish-time trend (lower is better)</div>
+    ${sparkline(prog.total_trend)}
+    ${overallPct.length >= 2 ? `
+      <div class="hint" style="margin:12px 0 4px">Overall field percentile per race — rank-based, so it controls for how strong each field was.</div>
+      ${miniChart(overallPct, { color: 'var(--sky)', fmt: v => Math.round(v) + 'th' })}
+      <div class="hint" style="margin:8px 0 4px">Run-fade trend per race (lower = better pacing)</div>
+      ${sparkline(prog.fade_trend)}` : ''}
+    ${prediction && prediction.predicted_seconds != null ? `<div class="hint" style="margin-top:10px">Projection basis: ${escHtml(prediction.basis || '')}</div>` : ''}
+    ${pacingStrategy && pacingStrategy.available ? `<div class="hint" style="margin-top:6px">Even-pacing payoff: r = ${pacingStrategy.correlation} — ${escHtml(pacingStrategy.read)} (${pacingStrategy.races_used} races)</div>` : ''}`;
+  sections.push(foldSection('Progression & competitiveness', progressionBody));
+
+  const cbs = compromiseByStation;
+  if (cbs && cbs.available && (cbs.stations || []).length) {
+    const max = Math.max(...cbs.stations.map(s => Math.abs(s.excess_fade_pct)), 1);
+    const rows = cbs.stations.map(s => {
+      const width = Math.min(100, Math.abs(s.excess_fade_pct) / max * 100);
+      const color = s.excess_fade_pct > 0 ? 'var(--rose)' : 'var(--emerald)';
+      return `<div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px">
+          <span>Run ${s.run_position} — after ${escHtml(s.station_display)}</span>
+          <span style="font-family:var(--font-m);font-weight:700;color:${color}">${s.excess_fade_pct > 0 ? '+' : ''}${s.excess_fade_pct}%</span>
+        </div>
+        <div style="height:6px;border-radius:3px;background:var(--border-s)">
+          <div style="height:100%;border-radius:3px;width:${width}%;background:${color}"></div>
+        </div>
+      </div>`;
+    }).join('');
+    sections.push(foldSection('Compromised running, by station',
+      `<div class="hint" style="margin-bottom:10px">Run-pace fade at each stage vs. how much the field typically fades by that same point — isolates which transition costs <b>you</b> more than it costs the average athlete. Positive = worse than expected there; negative = you hold up better than the field.</div>${rows}`));
+  }
+
+  const heat = heatmapBody(prog);
+  if (heat) sections.push(foldSection('Every race × every segment',
+    `<div class="hint" style="margin-bottom:8px">Field percentile per segment across your career. A red <b>column</b> is a chronic limiter worth training; a red <b>row</b> was just a bad day.</div>${heat}`));
+
+  const sc = (prog.station_comparison || []).filter(s => s.improvement_seconds != null);
+  sc.sort((a, b) => b.improvement_seconds - a.improvement_seconds);
+  if (sc.length) {
+    const stationRows = sc.map(s => {
+      const imp = s.improvement_seconds;
+      const col = imp > 1 ? 'var(--emerald)' : imp < -1 ? 'var(--rose)' : 'var(--text-3)';
+      const sign = imp > 0 ? '−' : imp < 0 ? '+' : '±';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-s)">
+        <span style="font-size:.84rem">${escHtml(s.display)}</span>
+        <span style="display:flex;gap:12px;align-items:center">
+          <span class="hint">best ${escHtml(s.best_display)}</span>
+          <span style="font-family:var(--font-m);font-size:.8rem;font-weight:600;color:${col};min-width:54px;text-align:right">${sign}${Math.abs(Math.round(imp))}s</span>
+        </span></div>`;
+    }).join('');
+    sections.push(foldSection('Station evolution — first race → latest', stationRows));
+  }
+
+  return `<div class="eyebrow" style="margin:22px 0 12px">Deep analysis</div>${sections.join('')}`;
 }
 
 // ── Career heatmap: races × segments, coloured by field percentile ──
 // One glance separates chronic limiters (red columns) from one-off bad days
 // (red rows) — the "whole career at a glance" view.
-function heatmapCard(prog) {
+function heatmapBody(prog) {
   const pt = (prog || {}).percentile_trend || {};
   const stations = pt.stations || {};
   const events = (pt.overall || []).map(p => ({ index: p.race_index, event: p.event }));
@@ -3725,11 +3698,7 @@ function heatmapCard(prog) {
     }).join('');
     return `<tr><td style="padding:2px 6px;font-size:.72rem;white-space:nowrap">${escHtml(e.event)}</td>${cells}</tr>`;
   }).join('');
-  return `<div class="span-12"><div class="card">
-    <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Every race × every segment</div></div>
-    <div class="hint" style="margin-bottom:8px">Field percentile per segment across your career. A red <b>column</b> is a chronic limiter worth training; a red <b>row</b> was just a bad day.</div>
-    <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%">${head}${rows}</table></div>
-  </div></div>`;
+  return `<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%">${head}${rows}</table></div>`;
 }
 
 // ── Single-race detail ──
