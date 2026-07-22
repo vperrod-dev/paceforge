@@ -2,15 +2,19 @@
 
 (Previous VM-runner task shipped 2026-07-21 — see git history of this file.)
 
-- [ ] 1+2. Merge Overview into Today (single default tab): daily vitals strip (sleep, HRV, body battery, stress, resting HR, VO2max), session card, readiness, trending, recent activity, this-week, race predictions, RPE check-in. Remove `home` tab.
-- [ ] 3. Fitness depth: freshness stamps (when each metric was last updated), actionable insight rules (online research → engine module → fitness.json `insights` → "Do this" UI section).
-- [ ] 4. Plan owns the Garmin calendar: daily reconcile (push upcoming, delete orphans/stale), auto-trigger after plan changes, no manual pushing. (backend agent)
-- [ ] 5. Calendar: month grid + day details stacked full-width (no side-by-side scroll dance); auto-select today.
-- [ ] 6. HYROX tab: headline stats first, progression sections collapsible, less visual noise.
-- [ ] 7. Telegram: styled HTML messages (emoji, bold headers, structure) for morning brief + coach headline. (backend agent)
+- [x] 1+2. Merge Overview into Today (single default tab): daily vitals strip (sleep, HRV, body battery, resting HR, VO2max), session card, readiness, trending, recent activity, this-week, race predictions, RPE check-in. `home` tab removed.
+- [x] 3. Fitness depth: engine/insights.py rule engine (TSB/ACWR/monotony/HRV/sleep-debt/body-battery/illness/80-20, cited thresholds) → fitness.json insights → "Today's call" panel + freshness chip; research report tasks/fitness-depth-research-2026-07-22.md.
+- [x] 4. Plan owns the Garmin calendar: garmin_reconcile (push 3 weeks, delete stale + orphans), daily 06:20 UTC timer, auto-trigger after plan/recalibrate/calendar-edit jobs. First run: 9 pushed, 8 orphans removed.
+- [x] 5. Calendar: month + day details stacked full-width; today auto-selected.
+- [x] 6. HYROX tab: headline strip + focus card first, deep analysis in collapsible folds; 3 dead card fns removed.
+- [x] 7. Telegram: HTML brief (emoji vitals, pace band, verdict) via `paceforge brief --telegram`; sample sent + delivered.
 
-Verify: ruff + pytest + Playwright on the live portal URL, then push.
+Verified: ruff clean, 409 tests pass, Playwright all-tabs no JS errors, public URL 200, pushed.
 
 ## Review
 
-(fill at end)
+All 7 landed in one pass (frontend inline, backend via worktree agent, research via
+web agent). Insights engine is deliberately transparent rules-with-citations, no ML.
+Reconcile's first run removed 8 orphaned Garmin entries — the old-plan leftovers that
+caused this morning's 5-vs-8 km confusion class of problem. Watch: Whoop-style
+bedtime coach + weekly digest were researched but deferred (P2/P3 in the research doc).
