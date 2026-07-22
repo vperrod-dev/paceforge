@@ -40,3 +40,27 @@ every path was already relative to the process's cwd or an env var.
 **Open / optional:** the Settings page still shows a "GitHub Integration" panel
 naming `vperrod/paceforge` (pre-existing: `githubToken.has()` returns true on the
 VM); harmless but worth hiding when `LOCAL`, if friends ask what it is.
+
+---
+
+## GitHub removal (2026-07-22, Victor: "we wont be back to gitactions or make the repo public")
+
+- [x] `.github/workflows/` deleted (19 files)
+- [x] Frontend: PAT storage, token guards, Settings→GitHub card, auth headers, `ref`, the
+      Pages branch of GH_API — all gone; two dead raw.githubusercontent.com fetches (HYROX
+      import) now read `./data/hyrox.json`; user-facing text says "job", not "workflow"
+- [x] Runner/CLI/skill/doc framing: the runner is the backend, not a stand-in
+- [x] Docs: README (3 ways, not 4), CLAUDE.md (jobs + env contract), AGENTS.md, and the OS
+      side (restore-checklist §0c CLOSED, registry constraints, backlog items closed/moot)
+- [x] Memory: paceforge-vm-runner + paceforge-garmin-token no longer describe a live GitHub path
+- [x] Nuno's instance updated + its stale .github/workflows removed
+
+**Bug found while verifying, fixed at the root:** `commit_push` committed the whole index,
+so a job that fired while this checkout had unrelated staged work swept it into a "data:"
+commit and pushed it (that is how the workflow deletion landed inside commit `2d89c1d`).
+It now commits only its own pathspec — `tests/test_runner_commit.py` covers it, and the
+next real sync was verified to touch `data/` only.
+
+**Left deliberately:** the `/gh/repos/<o>/<r>/…` URL shapes on both sides. They are the
+runner's own contract now (owner/repo ignored, no token); rewriting the wire would touch
+~20 call sites and two route tables to change nothing a user sees.
