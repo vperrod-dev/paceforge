@@ -11,6 +11,11 @@
 
 Verified: ruff clean, 409 tests pass, Playwright all-tabs no JS errors, public URL 200, pushed.
 
+Follow-ons same day (Victor asks):
+- [x] Same-day coach assessment: sync timer → 3 passes (06:45/13:00/21:00 Dublin), each dispatches analyze; backlog cleared (Salou 07-19 + today's treadmill analysed).
+- [x] Coach's morning read: `daily` runner job after morning sync → data/daily-brief.json → lead card on Today (headline / body state / session / recent days / focus). daily.yml = GH rollback twin.
+- [x] Docs: README, CLAUDE.md, os/backlog.md updated.
+
 ## Review
 
 All 7 landed in one pass (frontend inline, backend via worktree agent, research via
