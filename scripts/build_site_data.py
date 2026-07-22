@@ -17,7 +17,7 @@ import json
 import re
 from pathlib import Path
 
-from paceforge import actions
+from paceforge import actions, store
 from paceforge.hyrox.analyzer import (
     analyze_race,
     compute_compromise_by_station,
@@ -72,6 +72,11 @@ def _build_hyrox() -> dict:
 
 
 def main() -> int:
+    # A brand-new instance has no profile until its first Garmin sync lands; there
+    # is nothing to derive yet, and failing here would mask the real reason.
+    if store.load_profile() is None:
+        print("no profile yet — nothing to publish")
+        return 0
     _write("analytics.json", actions.analyze())
     _write("fitness.json", actions.fitness())
 

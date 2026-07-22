@@ -839,7 +839,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/garmin/status":
             return self._send(200, dict(GARMIN))
         if path == "/auth/whoami":   # which athlete this instance belongs to
-            return self._send(200, {"user": os.environ.get("PF_WEB_USER", "")})
+            return self._send(200, {"user": os.environ.get("PF_WEB_USER", ""),
+                                    "email": os.environ.get("PACEFORGE_GARMIN_EMAIL", "")})
         if path == "/runs":
             return self._send(200, [run_json(r) for r in RUNS[-30:][::-1]])
         m = re.fullmatch(r"/(?:gh/)?runs/(\d+)/log", path)

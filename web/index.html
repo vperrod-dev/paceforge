@@ -596,12 +596,9 @@ function syncChipHtml(ss) {
 async function profileMeta() {
   const pr = await loadJSON('profile.json').catch(() => ({}));
   const tm = await loadJSON('token-meta.json').catch(() => ({}));
-  let name = state.user.name;
-  if (LOCAL) {
-    const who = await fetch('api/auth/whoami').then(r => r.json()).catch(() => ({}));
-    if (who.user) name = who.user.charAt(0).toUpperCase() + who.user.slice(1);
-  }
-  const email = tm.email || state.user.email;
+  const who = LOCAL ? await fetch('api/auth/whoami').then(r => r.json()).catch(() => ({})) : {};
+  const name = who.user ? who.user.charAt(0).toUpperCase() + who.user.slice(1) : state.user.name;
+  const email = tm.email || who.email || state.user.email;
   return { name, email, role: 'user', status: 'active',
            garmin_email: email, created_at: pr.profile_date || '' };
 }
@@ -4230,6 +4227,13 @@ function formatTimeAgo(iso) {
 // ── Boot ───────────────────────────────────────────────
 try { const u = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); if (u && u.name) state.user = u; } catch {}
 render();
+// Name the athlete this instance belongs to, before Settings is ever opened.
+if (LOCAL) profileMeta().then(p => {
+  if (p.name === state.user.name && p.email === state.user.email) return;
+  state.user = { name: p.name, email: p.email, role: p.role };
+  try { localStorage.setItem(USER_KEY, JSON.stringify(state.user)); } catch {}
+  render();
+});
 </script>
 <script type="module">import { initBike } from './bike/view.js'; initBike(window.PF_BIKE = {});</script>
 </body>
