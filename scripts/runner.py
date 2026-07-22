@@ -127,6 +127,13 @@ def commit_push(run: Run, paths: list[str], msg: str) -> None:
         run.log("nothing to commit")
         return
     sh(run, ["git", *BOT, "commit", "-m", msg])
+    # ponytail: a per-user instance has no origin — its data history lives in the
+    # local clone on this VM. Add a remote per user if off-VM backup ever matters.
+    remotes = subprocess.run(["git", "remote"], cwd=REPO_DIR, capture_output=True,
+                             text=True).stdout.split()
+    if "origin" not in remotes:
+        run.log("no origin remote — committed locally only")
+        return
     # GitHub first (Victor's token works); Forgejo fallback — the relay reconciles.
     if sh(run, ["git", "push", "origin"], check=False) != 0:
         run.log("origin push failed — pushing forgejo (relay will reconcile)")
@@ -187,7 +194,10 @@ _GARMIN_CLIENT = None
 
 def _garmin_finish() -> None:
     from paceforge import store
-    store.save_token_meta({"login_date": datetime.now(UTC).date().isoformat()})
+    # The email is persisted, not just held in env: a friend's instance only ever
+    # learns it from this login form, and it has to survive a runner restart.
+    store.save_token_meta({"login_date": datetime.now(UTC).date().isoformat(),
+                           "email": GARMIN.get("email")})
     GARMIN.update(status="ok", error=None, at=now())
     dispatch("sync", {})   # verify the token + backfill immediately
 
@@ -828,6 +838,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._static(REPO_DIR / path.lstrip("/"), root="data")
         if path == "/garmin/status":
             return self._send(200, dict(GARMIN))
+        if path == "/auth/whoami":   # which athlete this instance belongs to
+            return self._send(200, {"user": os.environ.get("PF_WEB_USER", "")})
         if path == "/runs":
             return self._send(200, [run_json(r) for r in RUNS[-30:][::-1]])
         m = re.fullmatch(r"/(?:gh/)?runs/(\d+)/log", path)

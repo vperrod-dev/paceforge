@@ -1,0 +1,15 @@
+# Same three passes as the single-user timer. The random delay spreads instances
+# out: they share one WARP egress IP (Garmin rate-limits per IP) and one machine
+# running the Claude coach steps.
+[Unit]
+Description=PaceForge Garmin sync for %i (06:45 / 13:00 / 21:00 Dublin)
+
+[Timer]
+OnCalendar=*-*-* 06:45:00 Europe/Dublin
+OnCalendar=*-*-* 13:00:00 Europe/Dublin
+OnCalendar=*-*-* 21:00:00 Europe/Dublin
+RandomizedDelaySec=1800
+Persistent=true
+
+[Install]
+WantedBy=timers.target

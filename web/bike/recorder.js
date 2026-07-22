@@ -2,8 +2,9 @@
 // No DOM; storage object injectable so it runs in node tests.
 
 import { normalizedPower } from './fit.js';
+import { NS } from './ns.js';
 
-const STORAGE_KEY = 'pf-bike-ride-inprogress';
+const STORAGE_KEY = 'pf-bike-ride-inprogress' + NS;
 const CHECKPOINT_MS = 60000;
 const MAX_GAP_S = 5; // ponytail: cap sample gaps (tab sleep) instead of modeling pauses per-gap
 

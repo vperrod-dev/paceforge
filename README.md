@@ -192,6 +192,25 @@ issue (which emails you) and closes it automatically on recovery.
 
 See `.env.example` for all variables.
 
+## Sharing it with other athletes
+
+PaceForge is single-user by design — so a second athlete gets a second copy of it
+rather than an account inside yours:
+
+```bash
+scripts/users.py add alice      # own checkout, own data, own port, own login; prints the password
+scripts/users.py list
+scripts/users.py update         # push code changes from this checkout into every instance
+scripts/users.py remove alice --yes
+```
+
+Each instance is served at `/pf/<name>/` by its own runner process, with its own
+Garmin connection, plan, history and bike profile; sessions are cookie-scoped to
+that path, so one athlete's login gives no access to another's. They connect their
+own Garmin account from the portal (Settings → Connect Garmin) and pair their own
+trainer over Web Bluetooth — nothing is provisioned by hand. Notifications
+(Telegram) stay with the instance that has `TG_TOKEN`/`TG_CHAT_ID` set.
+
 ## Usage
 
 ```bash

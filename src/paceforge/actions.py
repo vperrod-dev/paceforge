@@ -67,8 +67,18 @@ def _export_token(token_dir: Path) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
+def _garmin_email() -> str:
+    """The athlete's Garmin login. Env first (Victor's instance sets it); otherwise
+    the address the portal login was made with — a friend's instance has no email
+    in its env file, only what they typed into "Connect Garmin"."""
+    email = os.environ.get("PACEFORGE_GARMIN_EMAIL") or (store.load_token_meta() or {}).get("email")
+    if not email:
+        raise RuntimeError("No Garmin email — connect Garmin in the portal (Settings) once.")
+    return str(email)
+
+
 def garmin_connect() -> GarminClient:
-    email = os.environ["PACEFORGE_GARMIN_EMAIL"]
+    email = _garmin_email()
     token_dir = _token_dir()
     _materialize_token(token_dir)
     client = GarminClient.try_reconnect(email, str(token_dir))

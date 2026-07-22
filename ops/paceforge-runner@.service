@@ -1,0 +1,17 @@
+# Per-user PaceForge instance (see scripts/new-user.sh). One process per athlete:
+# own checkout, own data/, own Garmin token, own port — the isolation is the OS's,
+# not the app's. Victor's own instance stays on the un-templated units.
+[Unit]
+Description=PaceForge job runner for %i
+After=network-online.target
+
+[Service]
+ExecStart=%h/projects/paceforge-users/%i/.venv/bin/python %h/projects/paceforge-users/%i/scripts/runner.py
+WorkingDirectory=%h/projects/paceforge-users/%i
+EnvironmentFile=%h/.config/paceforge/%i.env
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

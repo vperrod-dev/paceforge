@@ -1,0 +1,8 @@
+[Unit]
+Description=PaceForge weekly coach review for %i (via that instance's runner)
+After=paceforge-runner@%i.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/paceforge/%i.env
+ExecStart=/usr/bin/curl -fsS -X POST -H "Content-Type: application/json" -d '{"_weekly":true}' http://127.0.0.1:${PACEFORGE_RUNNER_PORT}/run/coach

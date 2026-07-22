@@ -11,14 +11,15 @@ import { RideRecorder } from './recorder.js';
 import { encodeRideFit } from './fit.js';
 import { uploadIntervalsIcu, uploadStrava } from './upload.js';
 import { RidePlayer } from './player.js';
+import { NS } from './ns.js';
 
-const PROFILE_KEY = 'pf-bike-profile';
-const PENDING_KEY = 'pf-bike-rides-pending';
-const IMPORTS_KEY = 'pf-bike-imports';
+const PROFILE_KEY = 'pf-bike-profile' + NS;
+const PENDING_KEY = 'pf-bike-rides-pending' + NS;
+const IMPORTS_KEY = 'pf-bike-imports' + NS;
 // Upload tokens live ONLY in sessionStorage — same threat model as the GitHub
 // PAT in index.html: cleared when the browser session ends, never disk-backed.
-const INTERVALS_KEY = 'pf-bike-intervals-key';
-const STRAVA_KEY = 'pf-bike-strava-token';
+const INTERVALS_KEY = 'pf-bike-intervals-key' + NS;
+const STRAVA_KEY = 'pf-bike-strava-token' + NS;
 // purge tokens persisted by older versions
 try { localStorage.removeItem(INTERVALS_KEY); localStorage.removeItem(STRAVA_KEY); } catch {}
 

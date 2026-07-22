@@ -34,6 +34,45 @@ the runner retries every 45 min and Telegrams on connect/MFA/failure.
 Debug: `GET /paceforge/api/runs`, logs in `~/.local/state/paceforge-runner/`.
 Retirement steps when the flag lifts: `claude-config os/github-restore-checklist.md`.
 
+## Multi-user (sharing the portal with friends)
+
+Each athlete gets **their own instance**, not a tenant inside one app: their own
+checkout under `~/projects/paceforge-users/<name>/`, their own `data/` (local git
+history, **no remote** — `commit_push` skips the push when there is no `origin`),
+their own Garmin token dir, their own runner port (8124+) and their own login,
+reached at `/pf/<name>/` (`PF_COOKIE_PATH` scopes the session cookie, so one
+portal's cookie is useless on another). Isolation is the OS's, so no job, path or
+Garmin client can cross between athletes. Victor's own instance is unchanged:
+`/paceforge/`, port 8123, the un-templated units, and the only one with Telegram
+(`telegram()` no-ops without `TG_*`, so friends simply get none).
+
+```bash
+scripts/users.py add alice        # clone + env + units + Caddy route, prints the password
+scripts/users.py list
+scripts/users.py update [alice]   # copy code from this checkout into instances, restart
+scripts/users.py remove alice --yes
+```
+
+The venv is **shared by symlink** — `paceforge` is installed editable, so every
+instance runs this checkout's Python package and a fix in `src/` reaches everyone
+at once. Only `web/`, `scripts/`, `ops/`, `.claude/` come from the instance's own
+copy (`runner.py` resolves its own path to find the instance root, so it cannot be
+a symlink) — which is why code changes need `scripts/users.py update`, and why
+that update is a file copy, not a `git pull`: this repo commits Victor's own
+training data to the same branch, and pulling it would drag his data into theirs.
+
+A friend's onboarding is: open the URL → sign in → Settings → **Connect Garmin**
+with their own account. Nothing else is provisioned by hand — the runner persists
+the email they logged in with to `data/token-meta.json`, and
+`actions._garmin_email()` reads it back when the env has none. Their bike is
+browser-side Web Bluetooth as before, against their own `data/bike/profile.json`.
+Do the Garmin logins **one athlete at a time**: they share one WARP egress IP and
+Garmin rate-limits per IP (the runner rides out a 429 by retrying every 45 min).
+
+Coach steps run the same `claude` CLI on Victor's account for everyone; the sync
+timers carry `RandomizedDelaySec` so instances don't pile onto the machine at
+06:45 together.
+
 ## Commands
 
 ```bash

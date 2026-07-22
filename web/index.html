@@ -495,7 +495,8 @@ a{color:var(--emerald);text-decoration:none}
 
 // ── State ──────────────────────────────────────────────
 const state = {
-  user: { name: 'Victor', email: 'vperrod@gmail.com', role: 'user' },
+  // Placeholder until profile.json loads — every instance serves its own athlete.
+  user: { name: 'Athlete', email: '', role: 'user' },
   tab: 'today',
 };
 const REPO = 'vperrod/paceforge';     // owner/repo for GitHub actions
@@ -505,6 +506,13 @@ const REF  = 'master';
 // Pages → the real GitHub API with the user's PAT (rollback path, unchanged).
 const LOCAL = !location.hostname.endsWith('github.io');
 const GH_API = LOCAL ? 'api/gh' : 'https://api.github.com';
+// Browser storage is per-ORIGIN, and every instance is served from the same host
+// under a different base path (/paceforge, /pf/<name>, …). Suffix every storage
+// key with that base so two portals open in one browser never mix state.
+const NS = '@' + (location.pathname.replace(/\/(index\.html)?$/, '') || '/');
+const RPE_PENDING_KEY = 'pf_rpe_pending' + NS;
+const BENCHMARKS_KEY = 'pf_benchmarks' + NS;
+const USER_KEY = 'pf_user' + NS;
 
 // ═══════════════════════════════════════════════════════
 // STATIC DATA LAYER  (unchanged contract — DO NOT BREAK)
@@ -582,12 +590,20 @@ function syncChipHtml(ss) {
   return `<span class="sync-chip sync-${cls}" id="sync-chip" title="${escHtml(title)}"><span class="dotmark"></span>${escHtml(label)}</span>`;
 }
 
+// Identity comes from this instance itself — the portal account it is running for
+// and the address its Garmin login was made with — so every portal shows its own
+// athlete. On GitHub Pages (no runner) the placeholder in `state` stands.
 async function profileMeta() {
   const pr = await loadJSON('profile.json').catch(() => ({}));
-  return {
-    name: state.user.name, email: state.user.email, role: 'user', status: 'active',
-    garmin_email: state.user.email, created_at: pr.profile_date || '',
-  };
+  const tm = await loadJSON('token-meta.json').catch(() => ({}));
+  let name = state.user.name;
+  if (LOCAL) {
+    const who = await fetch('api/auth/whoami').then(r => r.json()).catch(() => ({}));
+    if (who.user) name = who.user.charAt(0).toUpperCase() + who.user.slice(1);
+  }
+  const email = tm.email || state.user.email;
+  return { name, email, role: 'user', status: 'active',
+           garmin_email: email, created_at: pr.profile_date || '' };
 }
 
 async function feedFromActivities() {
@@ -608,7 +624,7 @@ async function feedFromActivities() {
 // Seeded from ./data/plan.json on first load (key: pf_plan).
 // All Plan-view reads go through planStore.get().
 // ═══════════════════════════════════════════════════════
-const PLAN_KEY = 'pf_plan';
+const PLAN_KEY = 'pf_plan' + NS;
 const planStore = {
   _mem: null,
   async _seed() {
@@ -713,7 +729,7 @@ function exportPlan() { planStore.export(); }
 // Token lives ONLY in sessionStorage (pf_gh_token) — cleared when the
 // browser session ends, never persisted to disk-backed localStorage.
 // ═══════════════════════════════════════════════════════
-const GH_TOKEN_KEY = 'pf_gh_token';
+const GH_TOKEN_KEY = 'pf_gh_token' + NS;
 try { localStorage.removeItem(GH_TOKEN_KEY); } catch {} // purge tokens persisted by older versions
 const githubToken = {
   get() { return (sessionStorage.getItem(GH_TOKEN_KEY) || '').trim(); },
@@ -779,15 +795,15 @@ async function saveRpe(entry) {
   if (res.status !== 204) throw new Error(await ghError(res));
   // Optimistic local cache so the pills stay lit until the next data deploy.
   try {
-    const pending = JSON.parse(localStorage.getItem('pf_rpe_pending') || '{}');
+    const pending = JSON.parse(localStorage.getItem(RPE_PENDING_KEY) || '{}');
     pending[entry.activity_id ?? entry.date] = entry;
-    localStorage.setItem('pf_rpe_pending', JSON.stringify(pending));
+    localStorage.setItem(RPE_PENDING_KEY, JSON.stringify(pending));
   } catch {}
 }
 
 async function rpeForActivity(activityId) {
   try {
-    const pending = JSON.parse(localStorage.getItem('pf_rpe_pending') || '{}');
+    const pending = JSON.parse(localStorage.getItem(RPE_PENDING_KEY) || '{}');
     if (pending[activityId]) return pending[activityId].rpe;
   } catch {}
   const data = await loadJSON('rpe.json').catch(() => ({ entries: [] }));
@@ -1375,7 +1391,7 @@ async function renderToday(page) {
 
   // ── RPE check-in: most recent activity (48h) without a rating ──
   let pending = {};
-  try { pending = JSON.parse(localStorage.getItem('pf_rpe_pending') || '{}'); } catch {}
+  try { pending = JSON.parse(localStorage.getItem(RPE_PENDING_KEY) || '{}'); } catch {}
   const rated = new Set((rpeData.entries || []).map(e => e.activity_id).filter(Boolean));
   Object.keys(pending).forEach(k => rated.add(Number(k)));
   const cutoff48 = new Date(Date.now() - 48 * 3600e3).toISOString();
@@ -1889,7 +1905,7 @@ function renderStrength(f) {
 }
 
 function benchmarkForm(f) {
-  const bm = (() => { try { return JSON.parse(localStorage.getItem('pf_benchmarks') || '{}'); } catch { return {}; } })();
+  const bm = (() => { try { return JSON.parse(localStorage.getItem(BENCHMARKS_KEY) || '{}'); } catch { return {}; } })();
   const fld = (id, label, ph, val) => `<div class="bm-field"><label for="bm-${id}">${label}</label><input id="bm-${id}" type="number" inputmode="decimal" placeholder="${ph}" value="${val ?? ''}" class="mono-input"></div>`;
   return fxCard('Strength benchmarks', icons.edit, `
     <div class="hint" style="margin-bottom:10px">Enter a few one-time benchmarks (re-test every 6–8 weeks) to unlock the strength assessment. HR from a gym session can't measure strength — these can.</div>
@@ -1912,7 +1928,7 @@ function bindBenchmarkForm(container, redraw) {
     const fields = ['wall_balls_max', 'sandbag_lunges_max', 'row_500m_sec', 'ski_500m_sec', 'station_60s_reps', 'bodyweight_kg'];
     const bm = {};
     fields.forEach(id => { const v = container.querySelector('#bm-' + id)?.value; if (v !== '' && v != null) bm[id] = Number(v); });
-    try { localStorage.setItem('pf_benchmarks', JSON.stringify(bm)); } catch {}
+    try { localStorage.setItem(BENCHMARKS_KEY, JSON.stringify(bm)); } catch {}
     const status = container.querySelector('#bm-status');
     if (!githubToken.has()) { status.innerHTML = 'Saved locally. Add a GitHub token in Settings to sync and unlock the full strength assessment.'; return; }
     status.textContent = 'Saving…';
@@ -3973,7 +3989,7 @@ function syncRunHtml(run) {
 async function renderSettings(page) {
   const profile = await apiJson('/auth/profile');
   state.user = { name: profile.name, email: profile.email, role: profile.role };
-  try { localStorage.setItem('pf_user', JSON.stringify(state.user)); } catch {}
+  try { localStorage.setItem(USER_KEY, JSON.stringify(state.user)); } catch {}
   let garminStatus = 'Not connected';
   let syncStatus = null;
   try {
@@ -4212,7 +4228,7 @@ function formatTimeAgo(iso) {
 }
 
 // ── Boot ───────────────────────────────────────────────
-try { const u = JSON.parse(localStorage.getItem('pf_user') || 'null'); if (u && u.name) state.user = u; } catch {}
+try { const u = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); if (u && u.name) state.user = u; } catch {}
 render();
 </script>
 <script type="module">import { initBike } from './bike/view.js'; initBike(window.PF_BIKE = {});</script>

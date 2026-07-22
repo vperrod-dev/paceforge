@@ -1,0 +1,10 @@
+[Unit]
+Description=PaceForge weekly coach review for %i, Mon 07:19 UTC
+
+[Timer]
+OnCalendar=Mon *-*-* 07:19:00 UTC
+RandomizedDelaySec=3600
+Persistent=true
+
+[Install]
+WantedBy=timers.target
