@@ -668,6 +668,9 @@ def _new_session() -> str:
     return tok
 
 
+_LOGIN_BRAKE = threading.Lock()   # serialize failed-login sleeps across threads
+
+
 def check_login(user: str, password: str) -> bool:
     """scrypt hash + constant-time compares; PF_WEB_PASS_SCRYPT = '<salt_hex>$<hash_hex>'.
     Browsers autofill the email in the username box — accept both spellings."""
@@ -813,7 +816,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/auth/login":
             b = self._body()
             if not check_login(str(b.get("user") or ""), str(b.get("password") or "")):
-                time.sleep(1)   # cheap brute-force brake — single-user service
+                with _LOGIN_BRAKE:   # global, not per-thread: N parallel guesses ≈ N seconds
+                    time.sleep(1)
                 return self._send(401, {"message": "wrong user or password"})
             tok = _new_session()
             self.send_response(204)
