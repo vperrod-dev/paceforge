@@ -5,4 +5,4 @@ After=paceforge-runner@%i.service
 [Service]
 Type=oneshot
 EnvironmentFile=%h/.config/paceforge/%i.env
-ExecStart=/usr/bin/curl -fsS -X POST -d {} http://127.0.0.1:${PACEFORGE_RUNNER_PORT}/run/sync
+ExecStart=/usr/bin/curl -fsS -X POST -d {} http://127.0.0.1:${PACEFORGE_RUNNER_INTERNAL_PORT}/run/sync

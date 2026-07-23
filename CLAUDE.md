@@ -25,8 +25,9 @@ are ignored, and no token is involved (the session cookie is the auth). Timers: 
 sends the Telegram brief + dispatches the `daily` coach read; every pass dispatches
 `analyze`), `paceforge-autosync`
 daily 06:20 UTC (Garmin reconcile), `paceforge-coach` Mon 07:19 UTC (units in `ops/`; they call
-127.0.0.1:8123 directly, which bypasses the session check by design — only
-Caddy-forwarded requests need a session). Secrets: `~/.config/paceforge/env`
+the runner's loopback-only internal port — 8223 for Victor, `PACEFORGE_RUNNER_INTERNAL_PORT`
+(= public port + 100) for instances — which is trusted and bypasses the session check by
+design; the public port Caddy fronts always needs a session). Secrets: `~/.config/paceforge/env`
 (0600). Victor's own checkout still pushes data commits to `origin` (private
 repo) with Forgejo as fallback; per-athlete instances have no remote at all.
 Claude steps (plan enrichment, analyses, coach) run the local `claude` CLI.

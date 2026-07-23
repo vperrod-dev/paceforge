@@ -18,8 +18,10 @@ sides already agree on it; owner and repo in the paths are ignored:
     GET  /auth/whoami                                      this instance's athlete
     GET  /healthz
 
-Binds 127.0.0.1 only; Caddy fronts it at /paceforge/api/* (and /pf/<name>/api/*
-for other athletes' instances — see scripts/users.py). The coach/analysis steps
+Binds 127.0.0.1 only, on two ports: the public PORT (Caddy fronts it at
+/paceforge/api/*, and /pf/<name>/api/* for other athletes' instances — see
+scripts/users.py — and always requires a session) and INTERNAL_PORT (loopback-
+only, trusted, for systemd timers and curl). The coach/analysis steps
 run the local `claude` CLI. Every job holds one global lock, because concurrent
 data/ writes corrupt the JSON; after any data change the derived JSON is rebuilt
 (build_site_data.py) and served straight from this checkout.
@@ -55,6 +57,10 @@ VENV_BIN = REPO_DIR / ".venv" / "bin"
 STATE_DIR = Path(os.environ.get("PACEFORGE_RUNNER_STATE", Path.home() / ".local/state/paceforge-runner"))
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", str(Path.home() / ".local/bin/claude"))
 PORT = int(os.environ.get("PACEFORGE_RUNNER_PORT", "8123"))
+# Second loopback listener for local callers (systemd timers, curl). Trust is
+# derived from *which* socket accepted the connection — a value the server owns
+# — instead of the absence of a client-settable X-Forwarded-For header.
+INTERNAL_PORT = int(os.environ.get("PACEFORGE_RUNNER_INTERNAL_PORT", str(PORT + 100)))
 BOT = ["-c", "user.name=paceforge-bot", "-c", "user.email=bot@paceforge.local"]
 
 JOB_LOCK = threading.Lock()   # ponytail: one global lock — concurrent data/ writes corrupt JSON
@@ -711,9 +717,10 @@ def dispatch(job: str, inputs: dict) -> int:
 
 
 # ── web auth: cookie session with a real login page (Victor: no basic-auth
-# prompts). Caddy just proxies /paceforge/* here; requests that came through
-# Caddy carry X-Forwarded-For and need a session — direct localhost calls
-# (systemd timers, debugging) stay open exactly as before. ──
+# prompts). Caddy proxies /paceforge/* to the public PORT, which always needs a
+# session; local callers (systemd timers, debugging) hit the loopback-only
+# INTERNAL_PORT, which is trusted. The boundary is the accepting socket, not a
+# forgeable header. ──
 
 COOKIE = "pf_session"
 COOKIE_PATH = os.environ.get("PF_COOKIE_PATH", "/paceforge")
@@ -819,8 +826,8 @@ class Handler(BaseHTTPRequestHandler):
         return path[4:] if path.startswith("/api/") else path
 
     def _authed(self) -> bool:
-        if "X-Forwarded-For" not in self.headers:
-            return True   # direct localhost (timers, curl) — same trust as before
+        if self.connection.getsockname()[1] == INTERNAL_PORT:
+            return True   # arrived on the loopback-only internal port (timers, curl)
         cookies = dict(p.strip().split("=", 1) for p in
                        (self.headers.get("Cookie") or "").split(";") if "=" in p)
         tok = cookies.get(COOKIE, "")
@@ -945,8 +952,10 @@ def main() -> int:
         _NEXT_ID = max((r["id"] for r in RUNS), default=0) + 1
     except FileNotFoundError:
         pass
+    internal = ThreadingHTTPServer(("127.0.0.1", INTERNAL_PORT), Handler)
+    threading.Thread(target=internal.serve_forever, daemon=True).start()
     srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"paceforge-runner on 127.0.0.1:{PORT}, repo {REPO_DIR}")
+    print(f"paceforge-runner on 127.0.0.1:{PORT} (internal {INTERNAL_PORT}), repo {REPO_DIR}")
     srv.serve_forever()
     return 0
 

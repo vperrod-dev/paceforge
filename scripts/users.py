@@ -187,6 +187,7 @@ def cmd_add(args: argparse.Namespace) -> None:
         f"PF_WEB_PASS_SCRYPT={scrypt_conf(password)}\n"
         f"PF_COOKIE_PATH=/pf/{name}\n"
         f"PACEFORGE_RUNNER_PORT={port}\n"
+        f"PACEFORGE_RUNNER_INTERNAL_PORT={port + 100}\n"
         f"PACEFORGE_RUNNER_STATE={state_dir}\n"
         f"PACEFORGE_GARMIN_TOKEN_DIR={token_dir}\n"
         f"PF_GARMIN_PROXY={env_of('env').get('PF_GARMIN_PROXY', '')}\n")
@@ -228,6 +229,17 @@ def cmd_list(_: argparse.Namespace) -> None:
               f"{count:4} activities   https://{HOST}/pf/{name}/")
 
 
+def _backfill_internal_port(name: str) -> None:
+    """Add PACEFORGE_RUNNER_INTERNAL_PORT to instances provisioned before the
+    runner moved its trusted loopback listener onto a second port."""
+    env = env_of(name)
+    if env.get("PACEFORGE_RUNNER_INTERNAL_PORT") or "PACEFORGE_RUNNER_PORT" not in env:
+        return
+    f = ENV_DIR / f"{name}.env"
+    f.write_text(f.read_text().rstrip("\n")
+                 + f"\nPACEFORGE_RUNNER_INTERNAL_PORT={int(env['PACEFORGE_RUNNER_PORT']) + 100}\n")
+
+
 def cmd_update(args: argparse.Namespace) -> None:
     """Copy the main checkout's code into each instance and restart it.
 
@@ -242,6 +254,7 @@ def cmd_update(args: argparse.Namespace) -> None:
             if (MAIN / rel).exists():
                 (dest / rel).parent.mkdir(parents=True, exist_ok=True)
                 run(["rsync", "-a", "--delete", f"{MAIN / rel}/", f"{dest / rel}/"])
+        _backfill_internal_port(name)
         changed = git_commit(dest, f"code: sync from {MAIN.name} @ "
                                    f"{run(['git', 'rev-parse', '--short', 'HEAD'], cwd=MAIN)}")
         run(["systemctl", "--user", "restart", f"paceforge-runner@{name}"])

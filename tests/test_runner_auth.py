@@ -1,4 +1,5 @@
-"""runner.py web auth: cookie sessions gate Caddy-forwarded requests, localhost stays open."""
+"""runner.py web auth: cookie sessions gate the public port; the loopback-only
+internal port stays open. Trust is the accepting socket, never a client header."""
 
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -21,20 +23,26 @@ import runner  # noqa: E402
 _SALT = "00" * 16
 _CONF = _SALT + "$" + hashlib.scrypt(
     b"open-sesame", salt=bytes.fromhex(_SALT), n=2**14, r=8, p=1).hex()
-FWD = {"X-Forwarded-For": "203.0.113.9"}  # marks the request as Caddy-proxied
+SPOOF = {"X-Forwarded-For": "203.0.113.9"}  # a header a caller could forge — must not grant trust
 
 
 @pytest.fixture()
-def base_url(monkeypatch, tmp_path):
+def app(monkeypatch, tmp_path):
     monkeypatch.setenv("PF_WEB_USER", "victor")
     monkeypatch.setenv("PF_WEB_PASS_SCRYPT", _CONF)
     monkeypatch.setenv("PACEFORGE_GARMIN_EMAIL", "victor@example.com")
     monkeypatch.setattr(runner, "SESSIONS_FILE", tmp_path / "sessions.json")
     monkeypatch.setattr(runner, "_SESSIONS", {})
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), runner.Handler)
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{srv.server_address[1]}"
-    srv.shutdown()
+    public = ThreadingHTTPServer(("127.0.0.1", 0), runner.Handler)
+    internal = ThreadingHTTPServer(("127.0.0.1", 0), runner.Handler)
+    monkeypatch.setattr(runner, "INTERNAL_PORT", internal.server_address[1])
+    for srv in (public, internal):
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield SimpleNamespace(
+        public=f"http://127.0.0.1:{public.server_address[1]}",
+        internal=f"http://127.0.0.1:{internal.server_address[1]}")
+    public.shutdown()
+    internal.shutdown()
 
 
 def _req(url: str, method: str = "GET", body: dict | None = None, headers: dict | None = None):
@@ -49,67 +57,73 @@ def _req(url: str, method: str = "GET", body: dict | None = None, headers: dict 
         return e.code, dict(e.headers), e.read()
 
 
-def _login(base_url: str, user: str = "victor", password: str = "open-sesame"):
-    return _req(base_url + "/api/auth/login", "POST",
-                {"user": user, "password": password}, FWD)
+def _login(app, user: str = "victor", password: str = "open-sesame"):
+    return _req(app.public + "/api/auth/login", "POST", {"user": user, "password": password})
 
 
-def _session_cookie(base_url: str) -> str:
-    _, headers, _ = _login(base_url)
+def _session_cookie(app) -> str:
+    _, headers, _ = _login(app)
     return headers["Set-Cookie"].split(";")[0]
 
 
-def test_direct_localhost_request_needs_no_session(base_url):
-    code, _, _ = _req(base_url + "/api/runs")  # no X-Forwarded-For: timers, curl
+def test_internal_port_request_needs_no_session(app):
+    code, _, _ = _req(app.internal + "/api/runs")  # timers, curl
     assert code == 200
 
 
-def test_forwarded_api_request_without_session_is_401(base_url):
-    code, _, _ = _req(base_url + "/api/runs", headers=FWD)
+def test_public_request_without_session_is_401(app):
+    code, _, _ = _req(app.public + "/api/runs")
     assert code == 401
 
 
-def test_forwarded_page_request_without_session_gets_login_page(base_url):
-    _, _, body = _req(base_url + "/", headers=FWD)
+def test_spoofed_missing_forwarded_header_on_public_port_stays_401(app):
+    # A local process reaching the public port and omitting X-Forwarded-For
+    # (the old bypass) is still rejected — trust is the socket, not the header.
+    code, _, _ = _req(app.public + "/api/runs", headers={})
+    assert code == 401
+
+
+def test_public_page_request_without_session_gets_login_page(app):
+    _, _, body = _req(app.public + "/")
     assert b"auth/login" in body  # the sign-in form, not the portal
 
 
-def test_healthz_is_open_without_session(base_url):
-    code, _, _ = _req(base_url + "/api/healthz", headers=FWD)
+def test_healthz_is_open_on_public_port(app):
+    code, _, _ = _req(app.public + "/api/healthz")
     assert code == 200
 
 
-def test_valid_login_sets_session_cookie(base_url):
-    code, headers, _ = _login(base_url)
+def test_valid_login_sets_session_cookie(app):
+    code, headers, _ = _login(app)
     assert (code, headers["Set-Cookie"].startswith("pf_session=")) == (204, True)
 
 
-def test_garmin_email_is_accepted_as_username(base_url):
-    code, _, _ = _login(base_url, user="Victor@Example.com")
+def test_garmin_email_is_accepted_as_username(app):
+    code, _, _ = _login(app, user="Victor@Example.com")
     assert code == 204
 
 
-def test_wrong_password_is_rejected(base_url):
-    code, _, _ = _login(base_url, password="wrong")
+def test_wrong_password_is_rejected(app):
+    code, _, _ = _login(app, password="wrong")
     assert code == 401
 
 
-def test_session_cookie_grants_api_access(base_url):
-    cookie = _session_cookie(base_url)
-    code, _, _ = _req(base_url + "/api/runs", headers={**FWD, "Cookie": cookie})
+def test_session_cookie_grants_public_api_access(app):
+    cookie = _session_cookie(app)
+    code, _, _ = _req(app.public + "/api/runs", headers={"Cookie": cookie})
     assert code == 200
 
 
-def test_expired_session_is_rejected(base_url):
-    cookie = _session_cookie(base_url)
+def test_expired_session_is_rejected(app):
+    cookie = _session_cookie(app)
     token = cookie.split("=", 1)[1]
     runner._SESSIONS[token] = time.time() - runner.SESSION_TTL - 1
-    code, _, _ = _req(base_url + "/api/runs", headers={**FWD, "Cookie": cookie})
+    code, _, _ = _req(app.public + "/api/runs", headers={"Cookie": cookie})
     assert code == 401
 
 
-def test_forwarded_post_without_session_is_401(base_url):
-    code, _, _ = _req(base_url + "/api/run/sync", "POST", {}, FWD)
+def test_public_post_without_session_is_401(app):
+    code, _, _ = _req(app.public + "/api/run/sync", "POST", {}, SPOOF)
     assert code == 401
 
 
