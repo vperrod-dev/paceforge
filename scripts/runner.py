@@ -310,7 +310,8 @@ def garmin_mfa(code: str) -> None:
 
 def upsert_rpe(entry: dict, data_dir: Path) -> None:
     rpe = int(entry["rpe"])
-    assert 1 <= rpe <= 10, "rpe must be 1-10"
+    if not (1 <= rpe <= 10):
+        raise ValueError("rpe must be 1-10")
     aid = entry.get("activity_id")
     clean = {
         "activity_id": int(aid) if aid is not None else None,
@@ -339,10 +340,12 @@ def append_ride(entry: dict, data_dir: Path) -> None:
     def num(key, lo, hi, required=False):
         v = entry.get(key)
         if v is None:
-            assert not required, f"{key} required"
+            if required:
+                raise ValueError(f"{key} required")
             return None
         v = float(v)
-        assert lo <= v <= hi, f"{key} out of range"
+        if not (lo <= v <= hi):
+            raise ValueError(f"{key} out of range")
         return round(v, 1)
 
     clean = {
@@ -380,7 +383,8 @@ def patch_bike_profile(patch: dict, data_dir: Path, today: str | None = None) ->
         profile = {"ftp": None, "ftp_history": [], "weight_kg": None, "wprime_j": 20000}
     if patch.get("ftp") is not None:
         ftp = int(patch["ftp"])
-        assert 50 <= ftp <= 600, "ftp out of range"
+        if not (50 <= ftp <= 600):
+            raise ValueError("ftp out of range")
         if ftp != profile.get("ftp"):
             profile["ftp"] = ftp
             profile.setdefault("ftp_history", []).append({
@@ -390,14 +394,28 @@ def patch_bike_profile(patch: dict, data_dir: Path, today: str | None = None) ->
             })
     if patch.get("weight_kg") is not None:
         w = float(patch["weight_kg"])
-        assert 30 <= w <= 200, "weight out of range"
+        if not (30 <= w <= 200):
+            raise ValueError("weight out of range")
         profile["weight_kg"] = w
     if patch.get("wprime_j") is not None:
         wp = int(patch["wprime_j"])
-        assert 5000 <= wp <= 50000, "wprime out of range"
+        if not (5000 <= wp <= 50000):
+            raise ValueError("wprime out of range")
         profile["wprime_j"] = wp
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(profile, indent=2))
+
+
+def write_events(events: object, data_dir: Path) -> None:
+    if not isinstance(events, list):
+        raise ValueError("events must be a list")
+    (data_dir / "events.json").write_text(json.dumps(events, indent=2))
+
+
+def write_benchmarks(benchmarks: object, data_dir: Path) -> None:
+    if not isinstance(benchmarks, dict):
+        raise ValueError("benchmarks must be an object")
+    (data_dir / "benchmarks.json").write_text(json.dumps(benchmarks, indent=2))
 
 
 def pending_analyses(data_dir: Path) -> list[str]:
@@ -690,10 +708,9 @@ JOBS = {
     "save-ride": _save_job(append_ride, "data/bike/rides.json", "data: log bike ride"),
     "save-bike-profile": _save_job(patch_bike_profile,
                                    "data/bike/profile.json", "data: update bike profile"),
-    "save-events": _save_job(lambda e, d: (d / "events.json").write_text(json.dumps(e, indent=2)),
-                             "data/events.json", "data: update upcoming events"),
-    "save-benchmarks": _save_job(lambda e, d: (d / "benchmarks.json").write_text(json.dumps(e, indent=2)),
-                                 "data/benchmarks.json", "data: update strength benchmarks"),
+    "save-events": _save_job(write_events, "data/events.json", "data: update upcoming events"),
+    "save-benchmarks": _save_job(write_benchmarks, "data/benchmarks.json",
+                                 "data: update strength benchmarks"),
 }
 
 

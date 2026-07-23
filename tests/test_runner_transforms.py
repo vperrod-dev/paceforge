@@ -9,7 +9,14 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from runner import append_ride, patch_bike_profile, pending_analyses, upsert_rpe  # noqa: E402
+from runner import (  # noqa: E402
+    append_ride,
+    patch_bike_profile,
+    pending_analyses,
+    upsert_rpe,
+    write_benchmarks,
+    write_events,
+)
 
 
 def read(p: Path) -> dict:
@@ -28,7 +35,7 @@ def test_upsert_rpe_replaces_same_activity(tmp_path):
 
 
 def test_upsert_rpe_rejects_out_of_range(tmp_path):
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         upsert_rpe({"activity_id": 7, "date": "2026-07-21", "rpe": 11}, tmp_path)
 
 
@@ -39,8 +46,18 @@ def test_append_ride_is_idempotent_on_date(tmp_path):
 
 
 def test_append_ride_requires_duration(tmp_path):
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         append_ride({"date": "2026-07-21T18:00:00"}, tmp_path)
+
+
+def test_append_ride_rejects_out_of_range_ftp(tmp_path):
+    with pytest.raises(ValueError):
+        append_ride({"date": "2026-07-21T18:00:00", "duration_sec": 3600, "ftp": 5000}, tmp_path)
+
+
+def test_bike_profile_rejects_out_of_range_ftp(tmp_path):
+    with pytest.raises(ValueError):
+        patch_bike_profile({"ftp": 9000}, tmp_path, today="2026-07-21")
 
 
 def test_bike_profile_ftp_change_grows_history(tmp_path):
@@ -64,3 +81,23 @@ def test_pending_analyses_skips_existing_file(tmp_path):
         {"completed": False, "matched_activity_ids": [3]},
     ]}]}))
     assert pending_analyses(tmp_path) == ["1"]
+
+
+def test_write_events_accepts_a_list(tmp_path):
+    write_events([{"name": "Dublin Marathon"}], tmp_path)
+    assert read(tmp_path / "events.json") == [{"name": "Dublin Marathon"}]
+
+
+def test_write_events_rejects_non_list(tmp_path):
+    with pytest.raises(ValueError):
+        write_events({"name": "Dublin Marathon"}, tmp_path)
+
+
+def test_write_benchmarks_accepts_a_dict(tmp_path):
+    write_benchmarks({"deadlift_kg": 180}, tmp_path)
+    assert read(tmp_path / "benchmarks.json") == {"deadlift_kg": 180}
+
+
+def test_write_benchmarks_rejects_non_dict(tmp_path):
+    with pytest.raises(ValueError):
+        write_benchmarks([180], tmp_path)
