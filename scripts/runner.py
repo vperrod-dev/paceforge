@@ -528,7 +528,7 @@ def job_plan(run: Run, inputs: dict) -> None:
                 '"accepted": true. Then run `paceforge validate` (must pass), and commit '
                 "data/plan.json (and plan.md if you regenerate it) and push to master. If you "
                 "run low on turns, commit what you have rather than stopping."
-            ), tools="Bash(paceforge:*),Bash(python:*),Bash(python3:*),Bash(git:*),"
+            ), tools="Bash(paceforge:*),Bash(git:*),"
                      "Read,Write,Edit,MultiEdit,Glob,Grep")
         except Exception as e:       # continue-on-error: scaffold is already committed
             run.log(f"enrichment failed (non-fatal): {e}")
@@ -548,7 +548,7 @@ def job_coach(run: Run, inputs: dict) -> None:
         "The athlete's request is in the COACH_TASK environment variable — read it and do it.\n"
         "Then run `paceforge validate`, regenerate plan.md if the plan changed, and "
         "commit any changes to data/, plan.md, and week-review.md and push to master."
-    ), tools="Bash(paceforge:*),Bash(python:*),Bash(python3:*),Bash(git:*),"
+    ), tools="Bash(paceforge:*),Bash(git:*),"
              "Read,Write,Edit,MultiEdit,Glob,Grep,TodoWrite",
        env={"COACH_TASK": task})
     publish(run)
