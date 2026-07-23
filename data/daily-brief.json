@@ -1,12 +1,12 @@
 {
-  "date": "2026-07-22",
-  "headline": "Red recovery day — the run is done, so the rest of today is about sleep, not training.",
-  "body_state": "The composite says **37.7 — low band, red verdict**, and the driver is sleep: **5.7 h last night (score 59)** on top of a **23 h sleep debt over 14 days**. HRV came in at **34 ms, below your 7-day band**, respiration was elevated overnight (the 'illness signals' flag), and Body Battery started the day at **38**. Garmin's own readiness (64) is friendlier, but the composite sees the sleep debt it doesn't. Load-wise you're fresh — TSB +7, acute:chronic 0.60 — so this is a recovery problem, not a fatigue problem. Nothing hard until the overnight signals clear.",
-  "session": "Today's 5.3 km easy run is **already in the books**: 5.51 km at 4:28/km, avg HR 134 — volume green (104%), but only the first kilometre sat in the 4:35–5:03 easy window, and you closed at 77% max HR on a day the verdict said protect. Done is done; the cost was moderate (aerobic TE 2.7). For the rest of today: no second session, no strength, and take the advice literally — **bed ~60 min earlier**, tonight and for the next two weeks. Thursday's 6 km long run stays on only if HRV is back in range tomorrow.",
-  "recent": "Three runs, one pattern: every 'easy' run turns into a squeeze. Salou Jul 17 was the honest one (5:23/km, HR 135). Salou Jul 19 finished with three hill kms at HR 160–178 — a hard second half on a holiday easy day. Today's treadmill run progressed 4:40 → 4:20/km, 64% of it in Zone 3. That's the grey-zone limiter live: **17.5% easy vs the ~80% target**. Sunday's 5K time trial was missed (red), so the cutback week has volume but no benchmark — and the recovery it was designed to deliver is being eroded from both ends: pace above, sleep below.",
+  "date": "2026-07-23",
+  "headline": "Rest day — and today the body agrees: sleep debt and a spiked resting HR say protect, don't push.",
+  "body_state": "Readiness **51 (moderate)**, Garmin **Recovery**, overtraining flag **caution** — and the deterministic verdict is **red**: *\"Sleep debt building — protect today.\"* Sleep last night **5.7 h** (score 59) on top of **23 h of 14-day debt**. The red driver is resting HR: **87 bpm vs a 45 baseline** — a big spike, so treat it as an early warning, not a verdict (hydrate, sleep). HRV **41 ms, balanced**, body battery **43**. Nothing here is broken, but everything points the same way: bank recovery today.",
+  "session": "**No run on the calendar today — that's correct, take it.** The job is to clear sleep debt: aim for lights-out ~60 min earlier tonight. Tomorrow (Fri) is the **6 km long run**, the shortest of the plan on purpose — easy, no targets, watch stays quiet, run to feel. If resting HR is still elevated in the morning, keep it a true easy shuffle and don't chase the pace band. Any HYROX/strength work today stays genuinely easy — the cutback only works if the off-day load drops too.",
+  "recent": "The theme of the last four days is **easy days that aren't easy enough** — your #1 limiter, live. Yesterday's treadmill 'easy' run was green on volume (5.5 km) but **64% of it sat in Zone 3** and it closed at 77% max HR — a moderate run dressed as a recovery run. The Salou holiday runs (Jul 17 & 19) were more defensible: 4:59–5:23/km in 23–24 °C heat and 78–86 m of hills kept HR honest at 135–143. Pattern: on flat, cool ground you drift into the grey zone; that's exactly what's costing recovery right now.",
   "focus": [
-    "Sleep is the workout: in bed ~60 min earlier tonight — clear the 23 h debt before any quality returns.",
-    "Thursday's 6 km long run at true easy (4:35–5:03/km, HR under ~145) — the whole run in the window, not just km 1.",
-    "No intensity until HRV is back in your normal band and the respiration flag clears."
+    "Protect today — bed ~60 min earlier, hydrate; the 23 h sleep debt and RHR 87 are the story.",
+    "Tomorrow's long run: cap HR in zone 2 and start embarrassingly controlled — that fixes grey-zone drift and pacing in one move.",
+    "Rate any HYROX/strength session (RPE) so station load counts instead of vanishing."
   ]
 }
