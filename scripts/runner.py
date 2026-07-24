@@ -890,7 +890,7 @@ class Handler(BaseHTTPRequestHandler):
             rel = urllib.parse.unquote(m.group(1))
             f = (REPO_DIR / rel).resolve()
             # data/ only — the portal polls analyses; nothing else is served raw
-            if not str(f).startswith(str((REPO_DIR / "data").resolve())) or not f.is_file():
+            if not f.is_relative_to((REPO_DIR / "data").resolve()) or not f.is_file():
                 return self._send(404, {"message": "Not Found"})
             return self._send(200, {"content": base64.b64encode(f.read_bytes()).decode(),
                                     "encoding": "base64"})
@@ -902,7 +902,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _static(self, f: Path, root: str = "web"):
         f = f.resolve()
-        if not str(f).startswith(str((REPO_DIR / root).resolve())) or not f.is_file():
+        if not f.is_relative_to((REPO_DIR / root).resolve()) or not f.is_file():
             return self._send(404, {"message": "Not Found"})
         ctype = mimetypes.guess_type(f.name)[0] or "application/octet-stream"
         return self._send(200, f.read_bytes(), ctype)
