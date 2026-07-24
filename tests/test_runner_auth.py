@@ -131,3 +131,17 @@ def test_check_login_rejects_when_config_missing(monkeypatch):
     monkeypatch.delenv("PF_WEB_PASS_SCRYPT", raising=False)
     monkeypatch.setenv("PF_WEB_USER", "victor")
     assert runner.check_login("victor", "anything") is False
+
+
+def test_contents_route_blocks_path_traversal(app):
+    cookie = _session_cookie(app)  # the /contents/ route is behind the session gate
+    url = app.public + "/api/gh/repos/o/r/contents/../../../../../../etc/passwd"
+    code, _, _ = _req(url, headers={"Cookie": cookie})
+    assert code == 404  # escaping data/ is refused, not served
+
+
+def test_static_route_blocks_path_traversal(app):
+    cookie = _session_cookie(app)  # _static() is only reached once authed
+    url = app.public + "/api/../../../../../../etc/passwd"
+    code, _, _ = _req(url, headers={"Cookie": cookie})
+    assert code == 404  # escaping web/ is refused, not served
