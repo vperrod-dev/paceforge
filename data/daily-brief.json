@@ -1,12 +1,12 @@
 {
-  "date": "2026-07-23",
-  "headline": "Rest day — and today the body agrees: sleep debt and a spiked resting HR say protect, don't push.",
-  "body_state": "Readiness **51 (moderate)**, Garmin **Recovery**, overtraining flag **caution** — and the deterministic verdict is **red**: *\"Sleep debt building — protect today.\"* Sleep last night **5.7 h** (score 59) on top of **23 h of 14-day debt**. The red driver is resting HR: **87 bpm vs a 45 baseline** — a big spike, so treat it as an early warning, not a verdict (hydrate, sleep). HRV **41 ms, balanced**, body battery **43**. Nothing here is broken, but everything points the same way: bank recovery today.",
-  "session": "**No run on the calendar today — that's correct, take it.** The job is to clear sleep debt: aim for lights-out ~60 min earlier tonight. Tomorrow (Fri) is the **6 km long run**, the shortest of the plan on purpose — easy, no targets, watch stays quiet, run to feel. If resting HR is still elevated in the morning, keep it a true easy shuffle and don't chase the pace band. Any HYROX/strength work today stays genuinely easy — the cutback only works if the off-day load drops too.",
-  "recent": "The theme of the last four days is **easy days that aren't easy enough** — your #1 limiter, live. Yesterday's treadmill 'easy' run was green on volume (5.5 km) but **64% of it sat in Zone 3** and it closed at 77% max HR — a moderate run dressed as a recovery run. The Salou holiday runs (Jul 17 & 19) were more defensible: 4:59–5:23/km in 23–24 °C heat and 78–86 m of hills kept HR honest at 135–143. Pattern: on flat, cool ground you drift into the grey zone; that's exactly what's costing recovery right now.",
+  "date": "2026-07-24",
+  "headline": "Body Battery 26 off 5.3h sleep — today's 6km long run stays, but run it dead easy or bank it for tomorrow.",
+  "body_state": "Recovery failed overnight and the numbers agree: **Body Battery 26** (anything under 30 means the charge never happened), **5.3h sleep** at score 52 — only 12 min REM, 67 min deep — on top of **23h of 14-day sleep debt**. **RHR 51 vs 46 baseline** (+5, an early warning), HRV 41 (balanced), readiness 64, training status Recovery. The deterministic verdict is **red**: protect today, easy or off whatever the plan says. Nothing here is alarming alone, but stacked together they say don't add stress today.",
+  "session": "Planned: **6km long run** — 5.8km easy @ **4:35–5:03/km**, the shortest long run of the plan, deliberately unstructured, run to feel. On a red-battery morning that shape is right, so keep it — but run the **slow edge (~5:00/km)** and hold HR **under ~146 (75% max)**, truly conversational. The watch stays quiet. If it still feels like RPE 5–6 in the first 2km, cut it short or move it to tomorrow — don't chase pace to prove the block landed.",
+  "recent": "The pattern is consistent and it's costing you: easy runs keep landing too fast. Tuesday's treadmill matched the 5km easy (green volume, 5.5km) but ran **4:28/km — 9–12s under the window**, closing at 77% max in the grey zone. Wednesday was an unlabelled indoor cardio block that vanishes from load entirely. **Grey-zone middle-intensity is the #1 limiter** (18% easy vs the 80% polarised target). Today is the easiest chance to fix it: slow is the workout.",
   "focus": [
-    "Protect today — bed ~60 min earlier, hydrate; the 23 h sleep debt and RHR 87 are the story.",
-    "Tomorrow's long run: cap HR in zone 2 and start embarrassingly controlled — that fixes grey-zone drift and pacing in one move.",
-    "Rate any HYROX/strength session (RPE) so station load counts instead of vanishing."
+    "Run today at the SLOW edge (~5:00/km), HR under 146 — no grey zone on a red-battery cutback morning",
+    "Sleep 60 min earlier tonight; chip at the 23h debt before next week's build",
+    "Log any indoor cardio with an RPE so it counts toward load instead of disappearing"
   ]
 }
