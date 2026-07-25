@@ -1697,7 +1697,7 @@
     }
   ],
   "profile_date": "2026-07-25",
-  "body_battery_current": 33,
+  "body_battery_current": 35,
   "body_battery_high": null,
   "body_battery_low": null,
   "sleep_score": 54,
@@ -1706,7 +1706,7 @@
   "sleep_light_seconds": 15960.0,
   "sleep_rem_seconds": 600.0,
   "sleep_awake_seconds": 120.0,
-  "stress_avg": 34,
+  "stress_avg": 33,
   "stress_high": 96,
   "stress_low": null,
   "training_load_7day": 495.0,
