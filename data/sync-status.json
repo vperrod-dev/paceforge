@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "last_attempt": "2026-07-24T20:00:05+00:00",
-  "last_success": "2026-07-24T20:00:05+00:00",
+  "last_attempt": "2026-07-25T05:45:03+00:00",
+  "last_success": "2026-07-25T05:45:03+00:00",
   "result": "ok",
   "error": null,
   "endpoints": {
@@ -58,7 +58,7 @@
     }
   },
   "counters": {
-    "activities": 74,
+    "activities": 73,
     "new_details": 0,
     "detail_failures": 0,
     "matched_workouts": 5,
@@ -67,6 +67,6 @@
   },
   "token": {
     "refreshed": false,
-    "age_days": 3
+    "age_days": 4
   }
 }
