@@ -1,12 +1,12 @@
 {
-  "date": "2026-07-24",
-  "headline": "Body Battery 26 off 5.3h sleep — today's 6km long run stays, but run it dead easy or bank it for tomorrow.",
-  "body_state": "Recovery failed overnight and the numbers agree: **Body Battery 26** (anything under 30 means the charge never happened), **5.3h sleep** at score 52 — only 12 min REM, 67 min deep — on top of **23h of 14-day sleep debt**. **RHR 51 vs 46 baseline** (+5, an early warning), HRV 41 (balanced), readiness 64, training status Recovery. The deterministic verdict is **red**: protect today, easy or off whatever the plan says. Nothing here is alarming alone, but stacked together they say don't add stress today.",
-  "session": "Planned: **6km long run** — 5.8km easy @ **4:35–5:03/km**, the shortest long run of the plan, deliberately unstructured, run to feel. On a red-battery morning that shape is right, so keep it — but run the **slow edge (~5:00/km)** and hold HR **under ~146 (75% max)**, truly conversational. The watch stays quiet. If it still feels like RPE 5–6 in the first 2km, cut it short or move it to tomorrow — don't chase pace to prove the block landed.",
-  "recent": "The pattern is consistent and it's costing you: easy runs keep landing too fast. Tuesday's treadmill matched the 5km easy (green volume, 5.5km) but ran **4:28/km — 9–12s under the window**, closing at 77% max in the grey zone. Wednesday was an unlabelled indoor cardio block that vanishes from load entirely. **Grey-zone middle-intensity is the #1 limiter** (18% easy vs the 80% polarised target). Today is the easiest chance to fix it: slow is the workout.",
+  "date": "2026-07-25",
+  "headline": "Red recovery morning and no session on the board — take the rest, arrive at Monday's build week fresh.",
+  "body_state": "The deterministic verdict is **red**, readiness **29.6 (low)**, and the driver is sleep. **HRV is below your personal 7-day band** — the single strongest hold-intensity signal, and HRV-guided athletes gain ~8% more by respecting it. On top: **22h of 14-day sleep debt**, last night **6.5h**; **Body Battery 33** (under 40, quality underperforms); **RHR 52 vs 46–47 baseline** (+5, an early warning); Garmin training status **Strained**, overtraining **caution**. Nothing is a crisis alone, but stacked they all say the same thing — don't add stress today.",
+  "session": "**No workout is scheduled today** — you're between the Week 4 cutback (ended Friday) and Week 5, which opens Monday with **easy + strides → progressive → 11km long run** (VO2/threshold build). On a red morning with an empty board, the right move is **rest, or 20–30 min truly easy**. If you move at all: **slow edge ~5:00/km (4:35–5:03 window), HR under 146 (75% max)**, conversational, watch quiet. Don't invent volume to make up Friday's missed long run — banking recovery now is what lets Monday's first build session land.",
+  "recent": "Your last real run was **Wed 7/22, treadmill**: green volume (5.5km) but **4:28/km — 9–12s under the easy window**, closing at **77% max in the grey zone**. Thursday was a 46-min **indoor cardio block that carries no load** unless you rate it. You haven't run since. Week 4's **5K time trial and 6km long run both show incomplete** — the cutback quietly emptied out. **Grey-zone middle-intensity is limiter #1** (17.5% easy vs the 80% polarised target). The fix is boring and free: when you resume, easy means easy.",
   "focus": [
-    "Run today at the SLOW edge (~5:00/km), HR under 146 — no grey zone on a red-battery cutback morning",
-    "Sleep 60 min earlier tonight; chip at the 23h debt before next week's build",
-    "Log any indoor cardio with an RPE so it counts toward load instead of disappearing"
+    "Protect recovery today — sleep 60 min earlier, hydrate, no made-up mileage; let Monday's build start from a real base",
+    "When you resume, run the SLOW edge (~5:00/km), HR under 146 — kill the grey zone before the VO2/threshold weeks demand it",
+    "Rate the indoor cardio with an RPE so it counts toward load instead of vanishing"
   ]
 }
