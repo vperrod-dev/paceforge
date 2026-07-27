@@ -1,115 +1,83 @@
-# Week Review — July 6–12, 2026
+# Week Review — July 20–26, 2026
 
-**Block:** Base | **Week 2 of plan** | **Target event:** Sep 20, 2026 (HYROX)
+**Block:** Base (week 4 of 12, recovery week) | **Plan:** Half Marathon — Sep 20, 2026
 
 ---
 
 ## Headline diagnosis
 
-Three weeks running, every single planned session has landed yellow, orange, or red —
-never green — and last week is the low point: the recovery run hit 56% of planned
-distance, the progressive run 63% (and never actually progressed), and Friday's 10km
-long run was skipped entirely. Weekly compliance sits at 0% for two straight weeks. In
-its place, four unplanned indoor-cardio sessions filled the week (65, 39, 47, and 43
-minutes — roughly 3.2 hours), none of them rated or labelled, plus an unplanned 2.6km
-shakeout Sunday. This isn't an overtraining story — resting HR is down 9.3% off
-baseline, ACWR sits in the "sweet spot" (1.29), and monotony/strain aren't flagged — the
-total training load is fine. What's actually happening is a *substitution* pattern:
-prescribed running keeps getting swapped for shorter, unstructured cardio blocks, which
-is why "grey-zone training" is limiter #1 two weeks running and why a genuinely hard
-2026-07-08 evening session (avg HR 147, max 187) got stacked onto the same day as a
-truncated progressive run. The plan's numbers aren't broken; what's completing against
-them is.
-
----
+You are under-trained and under-recovered at the same time — and the fatigue isn't coming
+from running. The recovery week asked for 21.1km across three sessions; you ran 5.5km of it.
+Monday's 5K time trial and Friday's 6km long run were both missed (compliance 33% — the
+fourth week running below 70%, overall 42%), and your acute:chronic load ratio has sunk to
+0.60, well under the 0.8–1.3 range your body is adapted to. Yet this morning Garmin says
+training readiness 25, HRV low (40ms vs your baseline), status "Strained". A light week
+plus a strained body points at one driver, and the data names it: **sleep**. You're
+carrying 21 hours of sleep debt over 14 days (last night 7.3h). The training plan isn't
+what's breaking you — the recovery side of the ledger is. Fix the sleep, and the missing
+volume becomes safe to add back; skip that step and even easy weeks will keep reading as
+strain.
 
 ## Top limiters
 
-**1. Grey-zone training (20.4% easy / 55.9% moderate — target ~80% easy)**
-Same limiter as before, worse. The four unplanned cardio blocks this week sat at
-113–147 bpm avg — moderate, not easy or hard — while the actual easy/recovery runs
-(Monday, 133 bpm) were cut to half length. You're accumulating moderate-intensity
-minutes instead of the easy aerobic volume the base phase is built to deliver.
+**1. Sleep debt gating everything (21h over 14 days)**
+Last night 7.3h, HRV low at 40ms, readiness 25, status "Strained" — after a 5.5km week.
+The deterministic verdict is red with sleep as the driver: *"Go to bed ~60 min earlier for
+the next two weeks."* That's the single highest-leverage change available right now.
 
-**2. Weak HYROX stations (Row 1000m, Sandbag Lunges 100m, Sled Pull 50m)**
-Unchanged again — no dedicated, labelled station work landed this week. The unplanned
-cardio sessions *could* be rowing/erg work supporting Row 1000m, but none carry a note
-or RPE, so there's no way to credit them toward this gap or confirm they're targeted.
+**2. Grey-zone training (16.0% easy / 51.3% moderate — target ~80% easy)**
+Third review in a row with this limiter on top of the run side. Wednesday's easy run
+(5.51km, HR 134 avg) was fine, but Thursday's 46-minute unplanned cardio sat at HR 130
+avg — moderate again, adding recovery cost without either true easy volume or true
+quality. Estimated cost: ~7 min at your goal race.
 
-**3. Pacing discipline (habitual positive splits, ratio 1.036 — fast start, fade)**
-Wednesday's progressive run is the clearest evidence: it's built to climb from easy
-(4:30–4:58/km) through marathon (4:16–4:22/km) to threshold (4:01–4:07/km), but it was
-cut off at 5.36 km (63%) with an average pace of 4:47/km — essentially the whole run
-stayed in the easy band. It shows as "completed," but the marathon/threshold pace
-stimulus never happened.
+**3. Pacing discipline (habitual positive splits, ratio 1.027)**
+You start fast and fade — and the missed time trial hurts here too: we still have no
+fresh 5K marker to calibrate paces against. Week 5's progressive run is built exactly
+to train this: each third *must* be faster than the last, which only works if the first
+third is genuinely easy.
 
----
+(Weak HYROX stations — Row 1000m, Sandbag Lunges, Sled Pull — remain on file from the race
+analysis, but with no strength sessions logged this week there is nothing new to act on.)
 
-## This week (July 13–19)
+## This week (week 5, Build — readiness-gated)
 
-**Readiness gate: moderate (composite 43.4/100), overtraining flag = caution** (red
-flags: HRV below normal range for 3 days, ~24 hours of accumulated sleep debt). Garmin's
-own readiness score reads 45 — "Low, keep it easy." Total load isn't the problem, so
-hard sessions aren't off the table, but they need the volume actually completed to count.
+Garmin readiness is 25 and HRV is low, so intensity waits for the body to say yes, and
+sleep is this week's first workout: lights out ~60 minutes earlier, every night.
 
-**Already flagged: today's session.** Monday's "8km Easy + 6 Strides" is logged at 3.73
-km / 18.6 min against 8.5 km / 38.3 min planned (44%) — the same pattern continuing into
-week 3 before this review was even written. If that was a genuine time constraint,
-that's fine; if it was cut short mid-run, that's the pattern to interrupt this week.
+- **Done — Mon easy + strides:** you already ran 7.7km @ 4:35/km, HR 145 this morning —
+  on the easy-pace target (4:35/km), slightly long of the planned 6km. Given readiness 25,
+  that's enough for today; skip nothing else but add nothing else.
+- **Wed — 7km Progressive Run:** the pacing-discipline session. Thirds at roughly
+  4:50 → 4:35 (easy, 275s/km) → 4:24 (marathon pace, 264s/km), HR ceiling ~163 (your
+  lactate threshold HR) in the final third. **Gate:** only run the fast final third if
+  morning HRV is back in its normal range and readiness is off the floor (>50); otherwise
+  run it as 7km steady easy and keep the progression for next week.
+- **Fri — 11km Long Run:** easy pace 4:35/km, HR comfortably under 150. This is the
+  week's most important run — the long run has been missed two weeks straight and it's
+  the cheapest aerobic volume you can buy at ACWR 0.60.
 
-**Wednesday Jul 15 — 6km Tempo Run**
-Target 4:01–4:07/km (~160–165 bpm). Check readiness Wednesday morning: if HRV is still
-reading below range or readiness is still sub-45, cut this to 4km at the same pace
-rather than pushing all 6km or skipping outright — protect the intensity, trim the
-volume.
+## This block
 
-**Friday Jul 17 — 10km Progressive Long Run**
-Last week's long run was missed completely — protect this one specifically. Structure:
-5.7 km easy (4:30–4:58/km) → 2.9 km at marathon pace (4:16–4:22/km) → 1.0 km at
-threshold (4:01–4:07/km). If time is tight, it's better to run the full easy+marathon
-portion and trim the threshold finish than to cut the run short before reaching marathon
-pace at all — that's where Wednesday's progressive run lost its value.
-
-**If an off-day urge for indoor cardio shows up, label it.** A quick note or `paceforge
-rpe` entry turns it from an untracked substitution into either logged HYROX
-station work or a deliberate cross-training choice — either is fine, but right now
-there's no way to tell which it was.
-
----
-
-## This block (Base, weeks 1–4 → recovery week 4 starts July 20)
-
-**Theme:** Establish a consistent easy-volume base and get the two skipped-limiter
-items (station strength, pacing discipline) actually touched before Build starts July
-27. The engine's numbers are solid — VDOT 54.8, resting HR trending down, ACWR in the
-sweet spot — the constraint is completion, not fitness capacity.
-
-**Re-test at week 4 (July 20, recovery week):** trailing easy/moderate/hard split
-(target progress toward 60/30/10 on the way to 80/15/5), whether a single planned
-running session has landed green (80–120%) in the intervening two weeks, and whether
-any of the unplanned cardio sessions carry a note or RPE tying them to station work.
-
----
+Build phase, weeks 5–8: volume climbs 24 → 27km with VO2max and threshold work layered
+in — but only as fast as sleep and HRV allow. The missed 5K time trial is **not** being
+crammed into this week; the next scheduled re-test is the **5K Time Trial in week 8
+(w/c Aug 17)**, and that's the checkpoint for recalibrating paces (current VDOT 53.4,
+threshold 4:08/km). Between now and then: three green weeks of the planned sessions
+beats any single heroic workout.
 
 ## What we can't see yet
 
-- **What the unplanned cardio actually is.** Four sessions this week (Jul 7, 8pm, 9,
-  11) have no name beyond "Cardio," no distance, and no RPE. If it's rowing/ski-erg
-  work it's directly relevant to the Row 1000m gap — right now it's invisible to that
-  limiter. Rate or note the next one.
-- **No fresh HYROX station benchmarks.** Row 1000m, Sandbag Lunges 100m, and Sled Pull
-  50m are still only known from race splits vs the field. A timed test on any one of
-  these would confirm whether the cardio substitution is closing the gap or just adding
-  volume.
+- **RPE ratings** — only one session ever rated (Jul 8). The indoor cardio sessions carry
+  no HR-based structure we can classify; rate them 1–10 in the dashboard so they count
+  properly toward load and we can tell "easy cross-training" from hidden quality.
+- **What the unplanned cardio actually is** — 45+ min at HR 130 twice a week is a pattern,
+  not noise. If it's HYROX station work, tell me and I'll build it into the plan properly
+  instead of it eroding the run schedule from the side.
 
----
+## One thing to NOT do
 
-## One thing NOT to do
-
-**Don't let an indoor-cardio session replace the day's planned run.** Wednesday stacked
-a truncated progressive run (63%, never reached marathon pace) with a hard 39-minute
-evening cardio block (HR up to 187) on the same day, and Friday's long run disappeared
-entirely into the week's cardio volume. If time is short, cut the run's duration and
-keep the structure (get to marathon/threshold pace even briefly) rather than swapping
-the whole session for something else — that's the only way Wednesday's and Friday's
-sessions this week will actually test what they're meant to.
+Do not make up the missed sessions. The time trial and the skipped long runs are gone —
+stacking them into a Build week on readiness 25 with low HRV is exactly how a "Strained"
+status becomes an injury. This week is three runs and eight hours of sleep a night;
+nothing else.
