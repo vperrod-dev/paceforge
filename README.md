@@ -111,8 +111,11 @@ after each sync:
   Rides record **crash-safe** and export as standard **.FIT** — download, or upload
   to **intervals.icu / Strava** with one click; summaries persist to `data/bike/`
   via the `save-ride` job and feed the ride history + a rule-based
-  *suggested next ride*. A **Demo mode** (simulated trainer) runs the whole flow
-  with no hardware. Plan & build log: `tasks/bike-section-plan-2026-07-13.md`. (Settings → Upcoming events); they show as a
+  *suggested next ride*. Saved rides are **first-class training**: they join the
+  activity feed, Calendar and Today's "Done today" card (power-tile detail view),
+  count into CTL/ATL/TSB, ACWR and monotony (power TSS bridged onto the TRIMP
+  scale), and get their own coach analysis. A **Demo mode** (simulated trainer)
+  runs the whole flow with no hardware. Plan & build log: `tasks/bike-section-plan-2026-07-13.md`. (Settings → Upcoming events); they show as a
   countdown on Today and on the Calendar, and the coach rebalances your plan around
   them (taper into races, build between them) gated by your health metrics.
 - **Fitness** — the full assessment (below).
