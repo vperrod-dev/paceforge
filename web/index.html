@@ -535,7 +535,7 @@ async function apiJson(path, opts = {}) {
   switch (p) {
     case '/profile/analytics': return loadJSON('analytics.json');
     case '/plans': { const plan = await planStore.get().catch(() => null); return plan ? [plan] : []; }
-    case '/activities': return loadJSON('activities.json');
+    case '/activities': return allActivities();
     case '/auth/profile': return profileMeta();
     case '/garmin/status': {
       // Truthful connection state: derived from the last sync attempt's outcome,
@@ -603,8 +603,25 @@ async function profileMeta() {
            garmin_email: email, created_at: pr.profile_date || '' };
 }
 
+// Garmin activities + app-recorded bike rides (data/bike/rides.json) as one
+// list. Rides never reach Garmin, so they get pseudo-activity entries here —
+// same ids ("bike:<date>") the load engine uses.
+async function allActivities() {
+  const [acts, rides] = await Promise.all([
+    loadJSON('activities.json').catch(() => []),
+    loadJSON('bike/rides.json').then(r => r.rides || []).catch(() => []),
+  ]);
+  const bike = rides.map(r => ({
+    activity_id: 'bike:' + r.date, name: r.workout || 'Indoor ride',
+    activity_type: 'indoor_cycling', start_time: r.date,
+    duration_seconds: r.duration_sec, avg_hr: r.avg_hr,
+    calories: r.kj ? Math.round(r.kj) : null, bike: r,
+  }));
+  return [...acts, ...bike].sort((a, b) => String(b.start_time || '').localeCompare(String(a.start_time || '')));
+}
+
 async function feedFromActivities() {
-  const acts = await loadJSON('activities.json').catch(() => []);
+  const acts = await allActivities();
   return acts.slice(0, 20).map(a => ({
     id: a.activity_id, user_name: state.user.name, title: a.name || a.activity_type || 'Activity',
     created_at: a.start_time, like_count: 0, comment_count: 0, user_liked: false,
@@ -1299,6 +1316,25 @@ async function renderToday(page) {
     sessionCard = `<div class="card">${emptyState('Nothing scheduled', plan ? 'Enjoy the rest day — recovery is training.' : 'Ask the Coach to build a plan.', icons.plan)}</div>`;
   }
 
+  // ── Done today — every activity done today (Garmin + app-recorded rides) ──
+  const doneToday = (activities || []).filter(a => String(a.start_time || '').slice(0, 10) === todayISO);
+  if (doneToday.length) {
+    const rows = doneToday.map((a, i) => {
+      const b = a.bike;
+      const stats = b
+        ? [formatSeconds(a.duration_seconds), b.np != null ? 'NP ' + Math.round(b.np) + 'W' : null,
+           b.tss != null ? 'TSS ' + Math.round(b.tss) : null].filter(Boolean).join(' · ')
+        : [a.distance_meters ? (a.distance_meters / 1000).toFixed(1) + ' km' : null,
+           a.duration_seconds ? formatSeconds(a.duration_seconds) : null,
+           a.avg_hr ? a.avg_hr + ' bpm' : null].filter(Boolean).join(' · ');
+      return `<div class="feed-row" data-done-act="${i}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-s);cursor:pointer">
+        <div><div style="font-weight:600;font-size:.88rem">${b ? '🚴' : '🏃'} ${escHtml(a.name || a.activity_type || 'Activity')}</div>
+        <div style="font-size:.8rem;color:var(--text-2);margin-top:2px">${stats}</div></div>
+        <span style="color:var(--text-3)">${icons.chevron || '›'}</span></div>`;
+    }).join('');
+    sessionCard += `<div class="card"><div class="card-h"><div class="card-title"><span class="ico">${icons.check}</span>Done today</div></div>${rows}</div>`;
+  }
+
   // ── Readiness gauge ──
   const readinessCard = `<div class="card">
     <div class="card-h"><div class="card-title"><span class="ico">${icons.heart}</span>Readiness</div></div>
@@ -1429,6 +1465,8 @@ async function renderToday(page) {
   on('sync-chip', 'click', () => goTab('settings'));
   on('td-goto-plan', 'click', () => goTab('plan'));
   bindActivityRows(page, activities);
+  page.querySelectorAll('[data-done-act]').forEach(el =>
+    el.addEventListener('click', () => openActivity(doneToday[Number(el.dataset.doneAct)])));
   bindWeekJump(page);
   if (todaysWo) on('td-open-wo', 'click', () => showWorkoutSheet(todaysWo, todaysIdx[0], todaysIdx[1]));
   if (unrated) {
@@ -3011,6 +3049,19 @@ function activityDetailBody(act, detail, analysisMd, match) {
         <button class="btn btn-primary btn-sm" id="act-analyze" style="margin-top:12px">${icons.spark} Analyze with Coach</button>
         <div class="hint" style="margin-top:6px">Asks Claude to write a full coaching analysis of this session.</div></div>`;
 
+  if (act.bike) {
+    const b = act.bike;
+    return `
+    <div class="detail-grid">
+      ${detailItem(duration, 'Duration')}${detailItem(b.avg_power != null ? Math.round(b.avg_power) + 'W' : '—', 'Avg Power')}
+      ${detailItem(b.np != null ? Math.round(b.np) + 'W' : '—', 'NP')}${detailItem(b.if != null ? b.if.toFixed(2) : '—', 'IF')}
+      ${detailItem(b.tss != null ? Math.round(b.tss) : '—', 'TSS')}${detailItem(b.kj != null ? Math.round(b.kj) : '—', 'kJ')}
+      ${detailItem(act.avg_hr || '—', 'Avg HR')}${detailItem(b.avg_cadence != null ? Math.round(b.avg_cadence) : '—', 'Cadence')}
+      ${detailItem(b.ftp != null ? Math.round(b.ftp) + 'W' : '—', 'FTP')}
+    </div>
+    ${planHtml}
+    <div class="act-sec"><div class="eyebrow" style="margin-bottom:8px">Coach analysis</div><div id="coach-analysis-slot">${analysisInner}</div></div>`;
+  }
   return `
     <div class="detail-grid">
       ${detailItem(distKm, 'Distance km')}${detailItem(duration, 'Duration')}${detailItem(pace, 'Avg Pace')}
