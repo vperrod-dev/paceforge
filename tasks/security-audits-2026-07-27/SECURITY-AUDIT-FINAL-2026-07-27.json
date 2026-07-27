@@ -1,0 +1,117 @@
+{
+  "audit_date": "2026-07-27T19:12:00Z",
+  "codebase": "paceforge",
+  "scope": "Backend (scripts/runner.py), Frontend (web/index.html, web/bike/*.js), dependencies",
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "category": "memory-leak",
+      "file": "scripts/runner.py",
+      "line": 68,
+      "title": "Unbounded RUNS list memory accumulation",
+      "description": "RUNS list accumulates job records indefinitely without trimming. In long-lived systemd process, this causes unbounded memory growth over weeks of uptime. Each run record persists in memory and is serialized to disk on startup, creating a DoS vector.",
+      "impact": "Memory exhaustion after prolonged operation (weeks to months)",
+      "reproduction": "Run service for extended period; observe memory grow as RUNS list appends every job",
+      "fix": "Trim RUNS to last N entries (e.g., 100). Persist full history to separate log file if audit trail needed."
+    },
+    {
+      "severity": "medium",
+      "category": "dependency-management",
+      "file": "pyproject.toml",
+      "line": null,
+      "title": "Loose dependency version constraints",
+      "description": "CLAUDE.md mentions 'Loose dependency version constraints allow automatic updates'. Without pinned versions or upper bounds, pip install can pull vulnerable versions if a dependency auto-updates.",
+      "impact": "Transitive vulnerability ingestion without explicit control",
+      "reproduction": "Run pip install -e . with loose constraints; pip may select vulnerable sub-dependency versions",
+      "fix": "Pin critical dependencies (urllib3, garminconnect, scrypt) to specific versions. Use pip-audit in CI."
+    },
+    {
+      "severity": "low",
+      "category": "input-validation",
+      "file": "web/bike/workouts.js",
+      "line": 38,
+      "title": "Custom XML parser lacks entity expansion limits",
+      "description": "parseXml() implements entity decoding without limits on nesting depth or count. Malformed ZWO workout files could trigger XML bomb attack.",
+      "impact": "DoS via CPU exhaustion during workout parsing (low severity: user-uploaded files only, no remote vector)",
+      "reproduction": "Craft ZWO with deeply nested entity references; upload and parse",
+      "fix": "Add entity expansion depth counter; cap at less than 10 levels. Reject files with more than 100 entity declarations."
+    },
+    {
+      "severity": "low",
+      "category": "rate-limiting",
+      "file": "scripts/runner.py",
+      "line": 821,
+      "title": "No rate limiting on file upload endpoints",
+      "description": "No explicit rate limiting on /run/push or /garmin/login endpoints. Upload endpoints accept payloads without throttling.",
+      "impact": "Attackers could spam uploads to consume bandwidth/storage (mitigated: endpoints are auth-required)",
+      "reproduction": "Repeatedly POST large payloads to /run/push",
+      "fix": "Implement per-user request throttling (X requests per minute) via middleware."
+    },
+    {
+      "severity": "low",
+      "category": "csrf",
+      "file": "web/index.html",
+      "line": 801,
+      "title": "No CSRF tokens in API requests",
+      "description": "Form POST to /auth/login and job dispatch endpoints lack CSRF tokens. Relies on SameSite=Lax cookie only.",
+      "impact": "State-changing requests lack explicit token validation (mitigated by SameSite=Lax)",
+      "reproduction": "Craft cross-site form POST to /api/run/<job>; should be blocked by SameSite",
+      "fix": "Add hidden CSRF token to forms; validate server-side for defense-in-depth."
+    }
+  ],
+  "good_practices": [
+    {
+      "finding": "Password authentication uses scrypt (n=2^14, r=8, p=1) with constant-time comparison",
+      "file": "scripts/runner.py:767-779",
+      "status": "secure"
+    },
+    {
+      "finding": "HTTP request body capped at 1 MiB on unauthenticated /auth/login endpoint",
+      "file": "scripts/runner.py:814-839",
+      "status": "prevents DoS"
+    },
+    {
+      "finding": "Session cookies set with HttpOnly, Secure, SameSite=Lax",
+      "file": "scripts/runner.py:927-928",
+      "status": "secure"
+    },
+    {
+      "finding": "API tokens stored in sessionStorage only, cleared on browser close",
+      "file": "web/bike/view.js:159-160",
+      "status": "good practice"
+    },
+    {
+      "finding": "User input escaped via escHtml() before DOM insertion",
+      "file": "web/index.html:4116",
+      "status": "prevents XSS"
+    },
+    {
+      "finding": "File-based storage (data/*.json) — no SQL injection surface",
+      "file": "scripts/runner.py, src/store.py",
+      "status": "eliminates SQL risk"
+    },
+    {
+      "finding": "Garmin credentials routed through WARP proxy; never persisted or logged",
+      "file": "scripts/runner.py:243-261",
+      "status": "credential handling"
+    }
+  ],
+  "not_applicable": [
+    "SQL injection — file-based storage only, no database",
+    "Hardcoded secrets — no API keys found in source code",
+    "Remote code execution — no unsafe subprocess calls with user input",
+    "XXE (XML external entity) — custom parser does not support DTD/external entities"
+  ],
+  "riskScore": 28,
+  "riskScoreReasoning": "Low-to-medium overall. No critical vulnerabilities. Two medium issues (unbounded RUNS list, loose dependencies) are manageable with straightforward fixes. Good baseline security practices (scrypt auth, HTTPS headers, XSS mitigation). File-based storage eliminates SQL risks. Main concerns are DoS via memory leak and transitive vulnerabilities from loose dependency pins.",
+  "recommendations": [
+    "Trim RUNS list to last 100-500 entries; persist full history to separate log if audit trail needed.",
+    "Pin versions of urllib3, garminconnect, scrypt, hashlib and crypto libraries to prevent auto-update vulnerabilities.",
+    "Add entity expansion depth counter to XML parser; reject files with nesting greater than 10 levels.",
+    "Implement request throttling (10 reqs/min per user) on /run/* and upload endpoints.",
+    "Add CSRF tokens to form submissions for defense-in-depth (SameSite already blocks most attacks).",
+    "Run pip-audit in CI to detect transitive dependency vulnerabilities.",
+    "Consider per-IP rate limiting on failed login attempts (current implementation is per-thread sleep only)."
+  ],
+  "summary": "PaceForge demonstrates solid security hygiene: scrypt password hashing, secure cookies, no hardcoded secrets, file-based storage, and proper XSS escaping. Main concerns are operational memory management (unbounded RUNS accumulation) and dependency supply chain (loose version constraints). No evidence of SQL injection, RCE, or critical auth bypass. Recommended actions are all medium-effort mitigations."
+}

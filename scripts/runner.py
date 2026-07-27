@@ -811,6 +811,9 @@ document.getElementById('f').addEventListener('submit', async (e) => {
 
 # ── HTTP ──
 
+MAX_BODY = 1 << 20   # 1 MiB — every control payload is tiny JSON; bound the read
+
+
 def run_json(rec: dict) -> dict:
     return {**rec, "html_url": f"api/gh/runs/{rec['id']}/log",
             "run_started_at": rec.get("run_started_at") or rec["created_at"]}
@@ -828,7 +831,15 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(raw)
 
     def _body(self) -> dict:
-        n = int(self.headers.get("Content-Length") or 0)
+        # Cap the read: /auth/login is unauthenticated, so an oversized
+        # Content-Length must not force an unbounded allocation, a negative one
+        # must not turn into read-to-EOF, and a malformed one must not 500. Every
+        # real control payload is tiny JSON; a truncated body just parses as invalid.
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            n = 0
+        n = min(max(n, 0), MAX_BODY)
         try:
             return json.loads(self.rfile.read(n) or b"{}")
         except json.JSONDecodeError:

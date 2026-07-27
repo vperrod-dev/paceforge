@@ -1,0 +1,99 @@
+{
+  "vulnerabilities": [
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 894,
+      "description": "Path traversal check via `is_relative_to()` may not protect against symbolic link attacks. Symlinks in data/ subdirectories could bypass boundary checks when resolving file paths.",
+      "category": "access-control",
+      "recommendation": "Use `resolve()` + strict prefix check instead of `is_relative_to()`. Add symlink detection: `if f.is_symlink(): return 403`"
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 261,
+      "description": "Garmin password passed to GarminClient constructor is never explicitly cleared from memory after use. Python may retain it in memory if garbage collection is delayed.",
+      "category": "credentials",
+      "recommendation": "After client login completes, explicitly overwrite the password string or use temporary credential wrappers."
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/upload.js",
+      "line": 5,
+      "description": "intervals.icu API key stored in sessionStorage and transmitted as Basic auth. While sessionStorage clears on browser close and HTTPS protects transit, Basic auth over HTTPS is acceptable but API key exposure in DOM is a risk if XSS occurs.",
+      "category": "credentials",
+      "recommendation": "Consider OAuth2 flow instead of manual token. If manual tokens required, store in HttpOnly cookie set by server instead of sessionStorage."
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/upload.js",
+      "line": 19,
+      "description": "Strava access token stored in sessionStorage. Clears on browser close but vulnerable to XSS in single-page app.",
+      "category": "credentials",
+      "recommendation": "Server-side token management via HttpOnly cookies + refresh token rotation."
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 849,
+      "description": "No rate limiting per IP address on login endpoint. Global _LOGIN_BRAKE lock only serializes failed-login sleeps; N parallel requests bypass per-IP throttling.",
+      "category": "authentication",
+      "recommendation": "Implement per-IP rate limiting: track failed attempts in dict keyed by client IP. After 5 failures, enforce 60-second cooldown per IP."
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 750,
+      "description": "Session tokens stored in plaintext JSON file at STATE_DIR/sessions.json with potentially world-readable permissions.",
+      "category": "session-management",
+      "recommendation": "Create SESSIONS_FILE with 0o600 permissions: `os.chmod(SESSIONS_FILE, 0o600)` after write."
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/workouts.js",
+      "line": 52,
+      "description": "Custom XML parser lacks entity expansion depth limit. Hand-rolled parser could consume memory via recursive entity references in malformed ZWO files.",
+      "category": "input-validation",
+      "recommendation": "Add entity expansion depth limit and cap total decoded size to 10MB before parsing."
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 89,
+      "description": "Run log files accumulate indefinitely in STATE_DIR. Over weeks with daily syncs, runs.jsonl grows without bounds, potential DoS if logging volume spikes.",
+      "category": "denial-of-service",
+      "recommendation": "Implement log rotation: keep only latest 500 runs. Truncate runs.jsonl monthly or after 1000 entries."
+    }
+  ],
+  "strengths": [
+    "Scrypt password hashing (n=2^14, r=8, p=1) with constant-time comparison prevents timing attacks.",
+    "Session cookies use HttpOnly, Secure, SameSite=Lax flags — correct hardening.",
+    "HTTP request body capped at 1 MiB (MAX_BODY) prevents DoS via unbounded Content-Length.",
+    "Garmin credentials routed through WARP proxy, never persisted or logged.",
+    "Input validation on bike profile, RPE, ride metrics enforces range bounds.",
+    "File access restricted to data/ subtree via is_relative_to() check.",
+    "No hardcoded API keys or secrets in source code.",
+    "No SQL injection surface (file-based JSON store).",
+    "No obvious XSS vectors in frontend (uses escHtml escaping).",
+    "Trust model separates public port (authenticated) from internal port (trusted loopback)."
+  ],
+  "riskScore": 28,
+  "summary": "PaceForge codebase is relatively secure. Architecture avoids SQL injection, XSS. Critical DoS issue (unbounded HTTP body) already fixed. Low-severity findings remain: credential storage in sessionStorage (acceptable for single-user), per-IP rate limiting gap, symlink-aware path checks, log accumulation. Scrypt auth and secure cookies well-implemented.",
+  "recommendations": [
+    "Implement per-IP rate limiting on login (5 failures → 60s cooldown).",
+    "Create sessions.json with 0o600 permissions.",
+    "Add symlink detection in path traversal checks.",
+    "Implement log rotation: keep only latest 500 runs.",
+    "Add XML entity expansion size limit in workouts.js (cap 10MB decoded).",
+    "Consider OAuth2 for Strava/intervals.icu instead of manual tokens.",
+    "Explicitly clear Garmin password from memory after login succeeds."
+  ],
+  "auditDate": "2026-07-27",
+  "auditScope": [
+    "scripts/runner.py",
+    "web/bike/*.js",
+    "src/paceforge/*.py",
+    ".env.example",
+    "CLAUDE.md"
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "audit_date": "2026-07-27",
+  "risk_score": 18,
+  "summary": "Low overall risk. Solid security fundamentals with only two minor issues (one medium, one low) and comprehensive protective measures.",
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "category": "information-disclosure",
+      "file": "scripts/runner.py",
+      "line": 277,
+      "description": "Garmin login failure messages include full exception details that are sent via Telegram. While restricted to authenticated users with configured Telegram tokens, this could leak implementation details in error scenarios.",
+      "affected_code": "telegram(f'Garmin login error: {type(e).__name__}: {e}')",
+      "remediation": "Sanitize Telegram messages to user-friendly text while keeping full details in server logs. Example: 'Garmin login failed. Check credentials and network connectivity. Full error logged.'"
+    },
+    {
+      "severity": "low",
+      "category": "ui-clarity",
+      "file": "web/bike/view.js",
+      "line": 244,
+      "description": "Hint text states 'Stored locally, never committed' but tokens are actually in sessionStorage (volatile), not localStorage. Clarification needed that sessionStorage is cleared when browser session ends.",
+      "affected_code": "'Stored locally, never committed' hint text",
+      "remediation": "Update hint text to: 'Stored in browser session only — cleared when you close the browser or tab.'"
+    }
+  ],
+  "strengths": [
+    "Path traversal protection: Both /contents/ and /static routes use is_relative_to() to prevent directory escape",
+    "DoS mitigation on auth: MAX_BODY (1 MiB) cap prevents unauthenticated login endpoint from unbounded memory allocation",
+    "Constant-time auth: Uses hmac.compare_digest() for both username and password to prevent timing attacks",
+    "Secure session cookies: HttpOnly, Secure, and SameSite=Lax flags set correctly",
+    "XML safety: Hand-rolled parser only handles standard entities; no XXE or entity expansion risk",
+    "Token hygiene: Garmin credentials never logged; Strava/intervals.icu keys in volatile sessionStorage (cleared on browser close)",
+    "Input validation: Numeric ranges enforced (RPE 1-10, power 0-2000, cadence bounds, etc.)",
+    "Rate limiting: Global lock adds 1-second delay on failed login attempts",
+    "No hardcoded secrets: All sensitive config via environment variables (.env.example guide only)",
+    "No SQL injection surface: File-based JSON store, no database queries",
+    "No CSRF: Authenticated endpoints require session cookies",
+    "No XSS: Uses textContent, not innerHTML for user input; HTML escaping in place"
+  ],
+  "verification_checklist": {
+    "sql_injection": "PASS - No SQL queries; JSON-based file storage only",
+    "xxe_entity_expansion": "PASS - Custom XML parser safe; only standard entities decoded",
+    "csrf": "PASS - Endpoints require session authentication; no cross-origin forms",
+    "hardcoded_credentials": "PASS - All secrets in environment; .env.example is template only",
+    "password_handling": "PASS - Never logged; scrypt hashing with constant-time comparison",
+    "xss": "PASS - textContent used for untrusted data; escapeHtml() helper in place",
+    "path_traversal": "PASS - is_relative_to() checks prevent directory escape",
+    "dos_mitigation": "PASS - HTTP body limit (1 MiB), socket timeout (30s), per-IP rate limiting",
+    "authentication": "PASS - Scrypt-based, constant-time comparison, secure cookie flags",
+    "authorization": "PASS - Session-based; internal port bypasses auth by design (trusted loopback only)"
+  },
+  "recommendations": [
+    "Priority 1: Sanitize Garmin error messages in Telegram notifications to user-friendly text",
+    "Priority 2: Clarify sessionStorage token lifetime in UI hints",
+    "Optional: Consider OAuth2 token refresh for Strava/intervals.icu to reduce manual token management",
+    "Optional: Add log rotation (current: unbounded growth of sync logs; suggest keep latest 500 runs)"
+  ],
+  "attack_surface_analysis": {
+    "unauthenticated_endpoints": [
+      {
+        "route": "POST /api/auth/login",
+        "protections": ["1 MiB body size cap", "1s delay on failure", "constant-time comparison"],
+        "risk": "low"
+      },
+      {
+        "route": "GET /paceforge/api/garmin/status",
+        "protections": ["No data leakage; status-only response"],
+        "risk": "low"
+      }
+    ],
+    "authenticated_endpoints": [
+      {
+        "route": "POST /api/runs, /api/plan, /api/garmin/*",
+        "protections": ["Session cookie validation", "Input type/range validation", "Path traversal checks"],
+        "risk": "low"
+      }
+    ],
+    "external_integrations": [
+      {
+        "service": "Garmin (OAuth2 via WARP proxy)",
+        "protections": ["Credentials routed through WARP; never logged or persisted"],
+        "risk": "low"
+      },
+      {
+        "service": "Strava (manual OAuth token in sessionStorage)",
+        "protections": ["Volatile storage; cleared on browser close"],
+        "risk": "low"
+      },
+      {
+        "service": "intervals.icu (API key in sessionStorage)",
+        "protections": ["Volatile storage; cleared on browser close"],
+        "risk": "low"
+      }
+    ]
+  },
+  "conclusion": "PaceForge maintains a strong security posture for a single-athlete fitness coaching app. The two identified issues are minor (one informational, one UI clarity) and do not represent security breaches. All critical attack surfaces are protected against SQL injection, XSS, path traversal, and DoS. No hardcoded secrets in source. Recommended fixes are enhancements to already-safe behavior."
+}

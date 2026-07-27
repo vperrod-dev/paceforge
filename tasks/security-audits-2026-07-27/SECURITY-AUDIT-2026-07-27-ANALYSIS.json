@@ -1,0 +1,105 @@
+{
+  "vulnerabilities": [
+    {
+      "severity": "high",
+      "file": "web/bike/upload.js",
+      "line": 10,
+      "description": "Insecure Basic Auth with API keys. Basic auth encodes credentials in easily-reversible base64. API keys should use Bearer tokens instead. If transmitted over non-HTTPS, credentials visible to proxies/firewalls.",
+      "category": "authentication",
+      "cwe": "CWE-287: Improper Authentication",
+      "affected_code": "headers: { Authorization: `Basic ${btoa(`API_KEY:${apiKey}`)}` }"
+    },
+    {
+      "severity": "high",
+      "file": "web/bike/workouts.js",
+      "line": 52,
+      "description": "Unbounded XML entity expansion during workout file parsing. Custom XML parser allows arbitrary numeric character references (&#xHHHH; &#DDDDD;) without depth limits. Malicious or malformed ZWO/ERG/MRC files could cause denial of service via parser crash or infinite loops.",
+      "category": "denial-of-service",
+      "cwe": "CWE-776: Improper Restriction of Recursive Entity References in DTDs",
+      "affected_code": "const code = ... parseInt(...); out += String.fromCodePoint(code)"
+    },
+    {
+      "severity": "high",
+      "file": "web/bike/workouts.js",
+      "line": 70,
+      "description": "No input validation or size limits on XML file before parsing. parseXml() function accepts arbitrary-length strings without pre-validation. Deeply nested XML structures could exhaust memory or stack, causing browser tab crash.",
+      "category": "denial-of-service",
+      "cwe": "CWE-400: Uncontrolled Resource Consumption",
+      "affected_code": "function parseXml(src) { ... while (i < src.length) parseElement() }"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/upload.js",
+      "line": 29,
+      "description": "Strava OAuth token stored in browser sessionStorage. While sessionStorage is cleared on browser close (better than localStorage), it remains vulnerable to XSS attacks. No token refresh mechanism implemented (commented as 'OAuth flow when it matters').",
+      "category": "token-handling",
+      "cwe": "CWE-522: Insufficiently Protected Credentials",
+      "affected_code": "sessionStorage.getItem(STRAVA_KEY); // vulnerable to XSS"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/upload.js",
+      "line": 7,
+      "description": "intervals.icu API key stored in browser sessionStorage. Vulnerable to XSS attacks. API key is sensitive credential that could allow unauthorized activity uploads to the athlete's account.",
+      "category": "token-handling",
+      "cwe": "CWE-522: Insufficiently Protected Credentials",
+      "affected_code": "sessionStorage.getItem(INTERVALS_KEY)"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/workouts.js",
+      "line": 43,
+      "description": "XML parser accepts named entity references without validation. Allows &#xHHHH; and &#DDDDD; without bounds checking. Could accept invalid Unicode codepoints or trigger unexpected character encoding behavior.",
+      "category": "input-validation",
+      "cwe": "CWE-20: Improper Input Validation",
+      "affected_code": "const code = name[1] === 'x' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10)"
+    },
+    {
+      "severity": "low",
+      "file": ".venv/lib/python3.12/site-packages/urllib3/contrib/emscripten/emscripten_fetch_worker.js",
+      "line": 32,
+      "description": "Error messages from network requests are encoded and returned to caller. Could leak internal implementation details, stack traces, or sensitive path information in error responses.",
+      "category": "information-disclosure",
+      "cwe": "CWE-209: Information Exposure Through an Error Message",
+      "affected_code": "let errorBytes = encoder.encode(error.message)"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/upload.js",
+      "line": 29,
+      "description": "Incomplete Strava OAuth implementation. Manual token handling with no refresh token flow implemented. Token expiration not handled, could lead to silent auth failures or stale tokens persisting in sessionStorage.",
+      "category": "authentication",
+      "cwe": "CWE-613: Insufficient Session Expiration",
+      "affected_code": "// ponytail: manual token, OAuth flow when it matters"
+    }
+  ],
+  "riskScore": 52,
+  "riskLevel": "MEDIUM-HIGH",
+  "summary": "Codebase demonstrates generally good security practices (scrypt hashing, secure cookies, input validation) but has critical vulnerabilities in authentication mechanisms and XML parsing. Basic auth with API keys is suboptimal; XML parser lacks bounds checking and could enable DoS attacks. Token storage in browser storage is vulnerable to XSS.",
+  "recommendations": [
+    "Replace Basic Auth with Bearer tokens in web/bike/upload.js. Migrate intervals.icu authentication to use bearer tokens or OAuth2.",
+    "Add size limits and parsing depth limits to XML parser in web/bike/workouts.js. Validate file size before parsing and reject files > 10MB.",
+    "Implement proper error handling in XML parser — catch malformed input without exposing error details to users.",
+    "Move API tokens from sessionStorage to in-memory storage. Never persist sensitive tokens to browser storage; require re-authentication or use secure OAuth flows.",
+    "Implement Strava OAuth2 token refresh flow. Do not rely on manual token management; use proper grant_type=refresh_token handling.",
+    "Add comprehensive input validation to XML entity decoder. Limit numeric character references to valid Unicode ranges (U+0000 to U+10FFFF).",
+    "Audit and limit error message verbosity in emscripten_fetch_worker.js. Return generic errors to users; log detailed errors server-side only.",
+    "Add Content Security Policy (CSP) headers to prevent XSS attacks against sessionStorage tokens.",
+    "Consider adding rate limiting to workout file uploads to prevent resource exhaustion.",
+    "Document and enforce HTTPS-only transmission of API keys and tokens."
+  ],
+  "positiveFindings": [
+    "Password authentication uses scrypt with constant-time comparison (secure against timing attacks)",
+    "Session cookies configured with HttpOnly, Secure, SameSite=Lax flags",
+    "No SQL injection risk (no database used)",
+    "No hardcoded secrets in code (secrets stored in .env files with proper permissions)",
+    "Input validation on bike profile parameters (ranges enforced)",
+    "Output sanitization using escHtml() function in UI code",
+    "Path traversal protections implemented using resolve() and is_relative_to() checks",
+    "Garmin credentials routed through WARP proxy, never persisted or logged",
+    "Internal routes (port 8223) trust session authentication by design",
+    "Minimal embedded login form with small attack surface"
+  ],
+  "auditDate": "2026-07-27",
+  "modelUsed": "claude-haiku-4-5"
+}

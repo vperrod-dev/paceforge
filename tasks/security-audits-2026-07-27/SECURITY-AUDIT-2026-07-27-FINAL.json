@@ -1,0 +1,67 @@
+{
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "file": "web/bike/workouts.js",
+      "line": 180,
+      "description": "No size limit on XML parsing. Malformed ZWO files with deeply nested or very large XML could cause DoS via memory exhaustion or infinite parsing loops. parseXml() does not validate file size before parsing.",
+      "short_summary": "XML bomb DoS via unlimited ZWO file size"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/zwift-ride.js",
+      "line": 100,
+      "description": "Varint parser in decodeControllerNotification() can read past array bounds. If the last byte in a protobuf message has bit 0x80 set (indicating continuation), the while loop increments i past bytes.length, reading undefined. Malformed Zwift Ride controller input could crash or cause unexpected behavior.",
+      "short_summary": "Protobuf varint parser array bounds overread"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/upload.js",
+      "line": 19,
+      "description": "Error responses included in exception messages via res.text(). If an upload server echoes request headers in error responses, auth tokens (intervals.icu API key or Strava bearer token) could be leaked in console/logs. Risk is low if servers are well-behaved, but not controlled.",
+      "short_summary": "Potential auth token leak in error messages"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/view.js",
+      "line": 248,
+      "description": "Upload tokens (Strava access token, intervals.icu API key) stored in sessionStorage. sessionStorage is accessible to any script on the origin via XSS. If an XSS vulnerability exists elsewhere in the app, tokens can be stolen. No Content-Security-Policy visible to mitigate.",
+      "short_summary": "Token theft via XSS to sessionStorage"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/view.js",
+      "line": 258,
+      "description": "STORAGE_KEY purge does not check for exceptions. Ride checkpoint data stored in localStorage (pf-bike-ride-inprogress) contains power metrics and timing. In multi-user browsers, NS isolation (location.pathname suffix) prevents cross-instance collision, but no encryption at rest.",
+      "short_summary": "Plaintext ride data in localStorage"
+    },
+    {
+      "severity": "low",
+      "file": ".env.example",
+      "line": 1,
+      "description": "No guidance on .env file permissions. GARMIN_TOKEN and Strava credentials should be in a 0600-mode file. Comment in file says they go in ~/.config/paceforge/env (good), but .env.example offers no warnings about mode or umask.",
+      "short_summary": "Missing .env permission guidance"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/workouts.js",
+      "line": 120,
+      "description": "XML entity decoding allows numeric character references (&#...; and &#x...;). While the whitelist of named entities is safe, a malformed numeric reference with a huge codepoint (e.g., &#999999999;) could cause memory bloat or slow parsing. No range validation on parseInt result.",
+      "short_summary": "XML entity parsing accepts unbounded codepoint values"
+    }
+  ],
+  "riskScore": 28,
+  "summary": "PaceForge backend (runner.py) is hardened: scrypt auth, HttpOnly/Secure/SameSite cookies, constant-time comparison, bounded HTTP body reads. Frontend (browser) is clean of hardcoded secrets and SQL injection. Main risks are in file parsing (XML/protobuf DoS), token storage (sessionStorage + XSS), and error handling (token leaks). The codebase follows OWASP patterns well (escaping, auth flags, session isolation). Risk score reflects medium-severity DoS and token-theft vectors that require either malformed input or XSS to trigger; no critical RCE or auth bypass found.",
+  "recommendations": [
+    "Add MAX_ZWO_SIZE limit in workouts.js parseXml(). Cap file size before parsing (suggest 5–10 MB). Throw early on oversized input.",
+    "Fix protobuf varint parser: add bounds check in while loop: `while (i < bytes.length && (b & 0x80))` to prevent undefined reads.",
+    "Remove error response bodies from exception messages. Log raw status + generic message to user ('Upload failed'); log full response server-side only. Prevents token leaks via error echo.",
+    "Add CSP header in runner.py: `Content-Security-Policy: default-src 'self'; connect-src 'self' https://intervals.icu https://www.strava.com` to reduce XSS surface. Consider moving tokens to httpOnly cookie (harder to steal via XSS, requires CORS for API calls).",
+    "Document .env permissions: add comment in .env.example: '# Ensure ~/.config/paceforge/env is mode 0600. run: chmod 600 ~/.config/paceforge/env'",
+    "Add numeric entity range validation in workouts.js decodeEntities(): reject codepoints > U+10FFFF. Use Number.isInteger() and bounds check before String.fromCodePoint().",
+    "Enable HTTPS-only for the runner (Caddy already should enforce this). Verify `https://claude-dev-vperrod.westeurope.cloudapp.azure.com/paceforge/` returns HSTS header.",
+    "Log auth token sources (sessionStorage vs cookie) and their refresh cycles. Monitor for leaked tokens in error logs or Sentry.",
+    "Add integrity check for uploaded ZWO/FIT files (filename whitelist or MIME validation). Reject files with suspicious extensions.",
+    "Review runner.py's CORS policy for /auth/login and /garmin/* endpoints. Ensure they reject cross-origin requests if they accept only session cookies."
+  ]
+}

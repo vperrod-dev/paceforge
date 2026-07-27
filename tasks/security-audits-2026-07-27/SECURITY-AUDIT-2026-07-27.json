@@ -1,0 +1,112 @@
+{
+  "audit_date": "2026-07-27",
+  "codebase": "PaceForge",
+  "riskScore": 15,
+  "summary": "Low risk. No critical vulnerabilities. Strong cryptography, XSS protection, path traversal guards, and secrets management. One low-severity input validation gap identified.",
+  "vulnerabilities": [
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 887,
+      "title": "Missing input validation on per_page parameter",
+      "description": "The 'per_page' query parameter is converted to int() without bounds checking or error handling. Sending ?per_page=abc causes ValueError and crashes the request handler thread, resulting in a 500 error.",
+      "cwe": "CWE-20 (Improper Input Validation)",
+      "attack_vector": "Authenticated user sends: GET /api/gh/repos/o/r/actions/workflows/sync/runs?per_page=not_a_number",
+      "impact": "Request-level denial-of-service (single request fails with 500 error). Mitigated by authentication requirement and request-level isolation.",
+      "remediation": "Wrap conversion in try-except block with sensible default fallback (e.g., per=5). Validate range: per = max(1, min(100, int(per)))"
+    }
+  ],
+  "strengths": [
+    {
+      "category": "Cryptography",
+      "finding": "Uses scrypt(n=2¹⁴, r=8, p=1) with hmac.compare_digest() for constant-time password verification. No weak hashing (MD5/SHA1)."
+    },
+    {
+      "category": "Session Handling",
+      "finding": "Cookies configured with HttpOnly, Secure, and SameSite=Lax flags. Session tokens generated via secrets.token_urlsafe(32)."
+    },
+    {
+      "category": "Path Traversal Protection",
+      "finding": "All file operations use Path.resolve() + is_relative_to() to enforce directory bounds. No traversal risk detected."
+    },
+    {
+      "category": "XSS Protection",
+      "finding": "User input consistently escaped with H.escHtml() before HTML insertion. SVG colors sourced from hardcoded zone arrays, not user input."
+    },
+    {
+      "category": "Command Injection Prevention",
+      "finding": "All subprocess calls use array form (no shell=True). No string interpolation in command arguments."
+    },
+    {
+      "category": "Secrets Management",
+      "finding": "No hardcoded credentials in code. Garmin passwords not logged or persisted. Environment variables secured in deployment config (0600 file permissions)."
+    },
+    {
+      "category": "Token Storage",
+      "finding": "API keys stored only in sessionStorage (browser memory, cleared on session close). Never persisted to disk or localStorage."
+    },
+    {
+      "category": "DoS Mitigation",
+      "finding": "HTTP body size capped at 1 MiB on unauthenticated login endpoint to prevent memory exhaustion attacks."
+    },
+    {
+      "category": "Input Validation",
+      "finding": "Numeric fields (RPE, FTP, W', bike profile values) validated with range checks before persistence."
+    }
+  ],
+  "non_issues": [
+    "SQL injection — No SQL queries in codebase (file-based JSON storage only)",
+    "XML External Entity (XXE) — Custom XML parser has no external entity support; safe for untrusted ZWO/ERG/MRC workout files",
+    "Unescaped XSS — All user input escaped before rendering",
+    "Hardcoded secrets — None detected",
+    "Weak encryption — Uses scrypt (industry standard)",
+    "ReDoS patterns — No dangerous regex detected",
+    "Credential leakage — Passwords/tokens not logged or exposed in error messages"
+  ],
+  "recommendations": [
+    {
+      "priority": "High",
+      "action": "Fix per_page input validation in scripts/runner.py:887",
+      "effort": "5 minutes",
+      "impact": "Closes the single identified vulnerability"
+    },
+    {
+      "priority": "Medium",
+      "action": "Add a Content-Security-Policy header in Caddy config for defense-in-depth against XSS",
+      "effort": "10 minutes",
+      "impact": "Blocks inline scripts even if escaping fails; reduces XSS surface area"
+    },
+    {
+      "priority": "Medium",
+      "action": "Implement rate limiting per IP for failed login attempts (currently thread-lock only)",
+      "effort": "30 minutes",
+      "impact": "Hardens brute-force defense; current lock is per-process, not per-IP"
+    },
+    {
+      "priority": "Low",
+      "action": "Validate XML parsing limits in workouts.js (max file size, max elements)",
+      "effort": "15 minutes",
+      "impact": "Prevents malformed ZWO files from causing DoS via resource exhaustion"
+    },
+    {
+      "priority": "Low",
+      "action": "Add CORS headers explicitly (allow same-origin only) in Caddy config",
+      "effort": "5 minutes",
+      "impact": "Defense-in-depth; prevents accidental cross-origin data exposure"
+    }
+  ],
+  "assumptions": [
+    "Environment variables are secured in deployment (~/.config/paceforge/env with 0600 permissions)",
+    "Caddy reverse proxy properly enforces authentication before /paceforge/* routes",
+    "Localhost (127.0.0.1) is trusted for internal runner port (8223)",
+    "Browser environment upstream is XSS-free (e.g., no malicious browser extensions)",
+    "Third-party dependencies (urllib3, etc.) are kept current via regular updates",
+    "Garmin credentials not persisted; token refresh handled safely per CLAUDE.md"
+  ],
+  "methodology": [
+    "Source code review across Python (runner.py, actions.py) and JavaScript (web/bike/*.js, web/index.html)",
+    "Focus on authentication, authorization, input validation, secrets handling, and injection risks",
+    "Comparison against OWASP Top 10 and CWE-25 most dangerous software weaknesses",
+    "Review of CLAUDE.md security architecture notes and prior audit findings"
+  ]
+}

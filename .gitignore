@@ -59,3 +59,8 @@ data/hyrox_analysis.json
 data/weekly.json
 _site/
 .claude/worktrees/
+
+# plugin state (ruflo / proven-config)
+.claude-flow/
+.claude/.proven-config-version
+.claude/proven-config.json

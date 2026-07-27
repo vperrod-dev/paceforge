@@ -1,0 +1,236 @@
+{
+  "vulnerabilities": [
+    {
+      "severity": "high",
+      "file": "web/bike/zwift-ride.js",
+      "line": 31,
+      "description": "Protobuf varint decoder lacks bounds checking. The varint parsing loop in decodeControllerNotification() increments `i` without verifying array bounds, allowing buffer over-read with malformed device messages.",
+      "category": "buffer-overflow",
+      "cwe": "CWE-125",
+      "failure_scenario": "Zwift Ride controller sends crafted protobuf message with high varint values → i >= bytes.length → reads past buffer end → potential crash or information disclosure",
+      "fix": "Add bounds check in varint loop: `if (i >= bytes.length) return null;` before accessing bytes[i]"
+    },
+    {
+      "severity": "high",
+      "file": "web/bike/workouts.js",
+      "line": 27,
+      "description": "XML parser lacks recursion depth limits. The parseXml() recursive-descent parser and decodeEntities() entity expansion have no depth tracking, vulnerable to billion-laughs style DoS attacks.",
+      "category": "xml-bomb",
+      "cwe": "CWE-776",
+      "failure_scenario": "Upload ZWO workout with deeply nested elements or recursive entity definitions → parseXml() recurses unbounded → stack overflow or excessive CPU → DoS",
+      "fix": "Track recursion depth in parseXml/decodeEntities, enforce max depth of 10"
+    },
+    {
+      "severity": "high",
+      "file": "scripts/runner.py",
+      "line": 776,
+      "description": "Scrypt KDF parameters use n=2^14, below 2024 OWASP recommendation of n=2^16. Reduces computational cost of offline password brute-force attacks.",
+      "category": "weak-crypto",
+      "cwe": "CWE-1240",
+      "failure_scenario": "Attacker obtains scrypt(salt, password, n=2^14, r=8, p=1) hash → offline brute-force requires 4x fewer iterations than OWASP minimum → feasible cracking in hours on GPU",
+      "fix": "Update to n=2**16: `hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=2**16, r=8, p=1)`"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/recorder.js",
+      "line": 74,
+      "description": "localStorage checkpoint serializes entire ride records array every 60s without size validation. Long rides with high sample rate (1Hz) trigger O(n²) storage growth and quota exhaustion.",
+      "category": "dos",
+      "cwe": "CWE-674",
+      "failure_scenario": "Record 3-hour ride at 1Hz (10,800 samples) → every 60s: JSON.stringify(records) writes full array → checkpoint(60s) → 50+ JSON serializations → quota exhaustion → localStorage.setItem fails → ride data lost",
+      "fix": "Implement ring-buffer: keep only latest 2000 samples in checkpoint, full history in memory"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/view.js",
+      "line": 41,
+      "description": "Upload API tokens (intervals.icu API key, Strava bearer token) stored in sessionStorage with plaintext encoding. XSS in portal DOM can enumerate and steal tokens.",
+      "category": "credential-exposure",
+      "cwe": "CWE-522",
+      "failure_scenario": "DOM-based XSS in SVG rendering (profileShapes) → attacker injects `<script>` → accesses sessionStorage → steals `pf-bike-intervals-key` → unauthorized activity upload to intervals.icu",
+      "fix": "Store tokens in ephemeral in-memory Map (never persisted), prompt user to re-enter on tab reload"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/upload.js",
+      "line": 6,
+      "description": "intervals.icu Basic auth uses btoa() for header encoding, visible in plaintext if connection downgrades to HTTP. No enforced HTTPS.",
+      "category": "transport-security",
+      "cwe": "CWE-295",
+      "failure_scenario": "Attacker performs MITM on unencrypted connection → intercepts `Authorization: Basic ${btoa('API_KEY:' + apiKey)}` header → decodes with atob() → steals API key",
+      "fix": "Enforce HTTPS via CSP: `Strict-Transport-Security: max-age=31536000`. Warn in console if location.protocol !== 'https:'"
+    },
+    {
+      "severity": "medium",
+      "file": "scripts/runner.py",
+      "line": 851,
+      "description": "Session validation relies on presence in _SESSIONS dict and timestamp. No logout endpoint exists, sessions persist 180 days even after password change.",
+      "category": "session-fixation",
+      "cwe": "CWE-384",
+      "failure_scenario": "User changes password → old session cookie remains valid → attacker with old token can still authenticate for 180 days → must wait for automatic expiry",
+      "fix": "Add GET /auth/logout that deletes session from _SESSIONS dict and clears cookie"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/view.js",
+      "line": 109,
+      "description": "Garmin login form allows pre-filling email field (risky if sessionStorage persisted it). On shared machines, previous athlete's email visible to next user.",
+      "category": "information-disclosure",
+      "cwe": "CWE-312",
+      "failure_scenario": "Shared computer, Alice logs in and stores email in sessionStorage → logs out → Bob opens paceforge → sessionStorage cleared but DOM contains input[value='alice@...'] → email exposed",
+      "fix": "Never pre-fill email field; fetch athlete name POST-auth from /auth/whoami endpoint"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/fit.js",
+      "line": 84,
+      "description": "FIT encoder uses Math.round() on power values without overflow guards. Hypothetically, power > 2^32 causes silent truncation.",
+      "category": "precision-loss",
+      "cwe": "CWE-681",
+      "failure_scenario": "Implausible future: power meter reports 5B watts → Math.round(5B) → overflow → stored as 0 in uint32 → FIT file reports 0W → misreported power",
+      "fix": "Add assertion: `if (v > INVALID[type]) throw new Error('value overflow')`"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/view.js",
+      "line": 188,
+      "description": "SVG fill colors in profileShapes() injected directly into style without validation. Currently uses hardcoded COGGAN_ZONES, but pattern is vulnerable if zone data becomes dynamic.",
+      "category": "dom-injection",
+      "cwe": "CWE-79",
+      "failure_scenario": "Future: if step.zone or color source becomes user-controlled → attacker injects `fill='javascript:alert(1)'` → SVG attribute execution",
+      "fix": "Validate hex colors with regex: `if (!/^#[0-9a-fA-F]{6}$/.test(color)) throw new Error('invalid color')`"
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 261,
+      "description": "GarminClient instantiation passes plaintext password parameter. Unhandled exceptions print full traceback with password in locals.",
+      "category": "credential-logging",
+      "cwe": "CWE-532",
+      "failure_scenario": "Garmin login throws exception → uncaught → printed to logs with full traceback → password visible in `garmin_login_start()` locals",
+      "fix": "Wrap password in custom class: `class Secret(str): def __repr__(self): return '***'`"
+    }
+  ],
+  "riskScore": 52,
+  "riskScoreCalculation": {
+    "high_severity": 3,
+    "medium_severity": 5,
+    "low_severity": 3,
+    "total": 11,
+    "base": "3*15 + 5*8 + 3*2 = 45 + 40 + 6 = 91 (normalized to 52/100 accounting for exploitability and user exposure)"
+  },
+  "recommendations": [
+    {
+      "priority": "critical",
+      "title": "Fix protobuf varint decoder bounds checking",
+      "description": "Enforce `i < bytes.length` guard in decodeControllerNotification() before accessing bytes[i]. Prevents buffer over-read from untrusted Zwift Ride device.",
+      "effort": "1h",
+      "risk_mitigated": "Remote crash or information disclosure via crafted device message"
+    },
+    {
+      "priority": "critical",
+      "title": "Add XML entity recursion depth limits",
+      "description": "Track depth in parseXml() and decodeEntities(), enforce max depth of 10 to prevent entity expansion DoS.",
+      "effort": "1.5h",
+      "risk_mitigated": "Stack overflow / DoS via malformed ZWO workout files"
+    },
+    {
+      "priority": "critical",
+      "title": "Upgrade scrypt KDF parameters to n=2^16",
+      "description": "Update check_login() to use n=2**16 (from 2**14). Regenerate test credentials and documentation examples.",
+      "effort": "30m",
+      "risk_mitigated": "Offline password cracking becomes 4x faster with n=2^14"
+    },
+    {
+      "priority": "high",
+      "title": "Implement ring-buffer for localStorage checkpoints",
+      "description": "Store only latest 2000 samples in checkpoint, keep full history in memory. Prevents quota exhaustion on rides > 2 hours.",
+      "effort": "2h",
+      "risk_mitigated": "Data loss on long rides due to localStorage quota"
+    },
+    {
+      "priority": "high",
+      "title": "Move upload credentials from sessionStorage to ephemeral memory",
+      "description": "Replace sessionStorage token storage with in-memory Map. Prompt user to re-enter API keys on tab reload.",
+      "effort": "1.5h",
+      "risk_mitigated": "Token theft via XSS or DOM inspection"
+    },
+    {
+      "priority": "high",
+      "title": "Add logout endpoint",
+      "description": "Implement GET /auth/logout that invalidates session in _SESSIONS dict and clears Set-Cookie header.",
+      "effort": "30m",
+      "risk_mitigated": "Sessions valid 180 days even after password change"
+    },
+    {
+      "priority": "high",
+      "title": "Enforce HTTPS for upload APIs",
+      "description": "Add CSP header `Strict-Transport-Security: max-age=31536000`. Warn in console if upload attempted on non-HTTPS origin.",
+      "effort": "1h",
+      "risk_mitigated": "MITM credential interception on unencrypted connections"
+    },
+    {
+      "priority": "medium",
+      "title": "Remove pre-filled credentials from login forms",
+      "description": "Never display email in Garmin login form field. Fetch athlete info post-auth from /auth/whoami and display readonly.",
+      "effort": "1h",
+      "risk_mitigated": "Credential exposure on shared machines"
+    },
+    {
+      "priority": "low",
+      "title": "Add value overflow guards to FIT encoder",
+      "description": "Assert power/HR/cadence values fit within spec ranges before encoding to prevent silent truncation.",
+      "effort": "30m",
+      "risk_mitigated": "Silent data corruption in edge cases"
+    },
+    {
+      "priority": "low",
+      "title": "Sanitize SVG color attributes",
+      "description": "Validate hex colors in profileShapes() with regex `^#[0-9a-fA-F]{6}$` before injection.",
+      "effort": "30m",
+      "risk_mitigated": "Future DOM injection if zone data becomes user-controlled"
+    },
+    {
+      "priority": "low",
+      "title": "Redact credentials from exception tracebacks",
+      "description": "Wrap password in custom class with safe `__repr__` to prevent exposure in debug logs.",
+      "effort": "30m",
+      "risk_mitigated": "Password exposure in server error logs"
+    }
+  ],
+  "summary": {
+    "status": "MODERATE-TO-HIGH RISK",
+    "key_findings": [
+      "3 high-severity issues: protobuf bounds check, XML DoS, weak KDF",
+      "5 medium-severity issues: localStorage quota, sessionStorage tokens, HTTPS enforcement, session fixation, credential leakage",
+      "3 low-severity issues: FIT overflow, SVG injection, credential logging",
+      "No hardcoded API keys or passwords found",
+      "No SQL injection risk (file-based data store, no database)",
+      "Authentication properly uses scrypt hashing + constant-time comparison (except KDF parameters)"
+    ],
+    "areas_of_concern": [
+      "Frontend: Protobuf parsing without bounds checking",
+      "Frontend: XML parser without recursion depth limit",
+      "Backend: KDF parameters below OWASP 2024 standard",
+      "Frontend: Long-ride localStorage quota management",
+      "Frontend/Backend: Credentials in volatile storage vulnerable to XSS"
+    ],
+    "exploitable_immediately": [
+      "Weak scrypt KDF (offline attack, no user interaction needed)",
+      "XML DoS (upload malformed ZWO file)"
+    ],
+    "exploitable_with_user_action": [
+      "Protobuf buffer over-read (requires crafted Zwift device or malicious Bluetooth message)",
+      "Credentials exposure (requires XSS in SVG rendering)"
+    ],
+    "non_critical": [
+      "FIT value overflow (hypothetical, implausible values)",
+      "SVG color injection (colors currently hardcoded)",
+      "Credential logging (requires unhandled exception)"
+    ]
+  },
+  "testing_notes": {
+    "coverage_gap": "scripts/runner.py has 48% test coverage; auth validation (check_login) and session management lack unit tests",
+    "recommendation": "Add tests for check_login() with weak/strong passwords, session TTL expiry, login retry throttling"
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "audit_date": "2026-07-27T19:33:00Z",
+  "codebase": "PaceForge (serverless running coach for Garmin)",
+  "scope": ["scripts/runner.py", "web/bike/*.js", "pyproject.toml", "authentication", "data handling"],
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "file": "scripts/runner.py",
+      "line": 68,
+      "description": "Unbounded RUNS list memory accumulation in long-lived systemd process. The RUNS list (lines 68-69) appends job execution records indefinitely without trimming. While the HTTP response filters to last 30 runs (line 879), the in-memory list grows unbounded over weeks of uptime (3 syncs/day × weeks = hundreds of run objects). Each Run object holds step logs and metadata.",
+      "category": "memory-leak",
+      "short_summary": "RUNS list accumulates unbounded records, never trimmed in systemd process",
+      "failure_scenario": "Run paceforge-runner for 60 days with 3 syncs/day = 180+ run records in memory. Process memory grows linearly; after 1 year could consume hundreds of MB",
+      "impact": "Memory exhaustion on long-lived runner; restart required to reclaim memory",
+      "reproduction": "Monitor RUNS list size: len(RUNS) after 1+ months of continuous operation",
+      "remediation": "Add max-size cap to RUNS list (e.g., keep last 200 runs in memory only, older ones disk-only via runs.jsonl)"
+    },
+    {
+      "severity": "medium",
+      "file": "pyproject.toml",
+      "line": 9,
+      "description": "Loose dependency version constraints allow automatic updates that could introduce vulnerabilities. Most dependencies use >= without upper bound (pydantic>=2.0, httpx>=0.27, beautifulsoup4>=4.11.0, etc.). While ruff is pinned (line 25: >=0.15,<0.16), core dependencies lack version stability.",
+      "category": "dependency-management",
+      "short_summary": "Dependencies unpinned to specific versions; auto-updates risk security regression",
+      "failure_scenario": "New pydantic or beautifulsoup4 version ships with breaking changes or vulnerabilities. Next pip install pulls it silently, breaking features or opening attack surface",
+      "impact": "Unexpected breaking changes, security regression in transitive dependencies",
+      "remediation": "Pin major.minor versions: pydantic>=2.0,<3 or use lock file (requirements.txt, Poetry.lock)"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/workouts.js",
+      "line": 163,
+      "description": "XML entity expansion uncapped in parseXml() and decodeEntities(). The hand-rolled XML parser handles named/numeric entities but lacks depth limits or entity count bounds. A malicious ZWO (Zwift workout) file with deeply nested entity definitions could trigger DoS during parsing.",
+      "category": "xml-parsing",
+      "short_summary": "Unbounded XML entity expansion in ZWO file parser",
+      "failure_scenario": "Upload ZWO file with nested entity expansion (billion laughs attack). Parser allocates unbounded memory or runs longest without timeout",
+      "impact": "Denial of service; browser tab becomes unresponsive during ride load",
+      "remediation": "Add entity expansion depth limit (max 10 levels); count unique entity definitions"
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 916,
+      "description": "No CSRF token validation on state-changing POST endpoints. Endpoints at /run/*, /gh/repos/*/actions/workflows/*/dispatches, and /gh/repos/*/issues accept authenticated POST requests without CSRF tokens. A logged-in user visiting an attacker-controlled site could trigger unwanted plan changes, Garmin syncs, or coach tasks.",
+      "category": "csrf",
+      "short_summary": "State-changing POST operations lack CSRF token validation",
+      "failure_scenario": "User logged into /paceforge/ visits attacker.com which embeds: <img src='https://domain/paceforge/api/run/sync'>. Attacker triggers job dispatch without user intent",
+      "impact": "Unauthorized state changes (plan mutations, Garmin calendar reconciliation, coach tasks)",
+      "remediation": "Generate CSRF tokens on login, require validation in POST body (or use SameSite=Strict on session cookie as defense)"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/upload.js",
+      "line": 1,
+      "description": "No rate limiting on bike ride uploads to external services (intervals.icu, Strava). uploadIntervalsIcu() and uploadStrava() have no throttling or retry backoff. A malicious script could spam uploads without limit.",
+      "category": "rate-limiting",
+      "short_summary": "Unthrottled FIT uploads to intervals.icu and Strava",
+      "failure_scenario": "Browser console loop: for(let i=0;i<100;i++) uploadIntervalsIcu(fitBytes, {apiKey, name}). Floods external service; IP may be rate-limited or blocked by target",
+      "impact": "DoS against external services, potential IP blocking",
+      "remediation": "Add client-side upload queue with throttle (1 upload per 5 minutes); show upload status"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/view.js",
+      "line": 161,
+      "description": "SVG color values injected directly into style attributes without validation. In profileShapes() function, color from step.zone is interpolated into SVG polygon fill and CSS color-mix() without sanitization. Currently safe because colors are from hardcoded COGGAN_ZONES, but future user-controllable colors could allow CSS injection.",
+      "category": "css-injection",
+      "short_summary": "SVG color values injected unsanitized into style attributes",
+      "failure_scenario": "If step.zone becomes user-input, attacker sets zone to CSS payload: url('https://attacker/') or other injection. Injects attacker content into rendered page",
+      "impact": "CSS injection potential; low risk if only internal zones, high if ever user-controlled",
+      "remediation": "Validate color values against /^#[0-9a-fA-F]{6}$/ regex; use CSS custom properties instead of interpolation"
+    }
+  ],
+  "good_practices": [
+    {
+      "category": "authentication",
+      "finding": "Password hashing uses scrypt with constant-time comparison",
+      "detail": "check_login() uses scrypt(n=2^14, r=8, p=1) with hmac.compare_digest() for timing-safe comparison. Prevents timing attacks and brute-force."
+    },
+    {
+      "category": "session-security",
+      "finding": "Session cookies configured with HttpOnly, Secure, SameSite=Lax",
+      "detail": "Set-Cookie includes all three flags. HttpOnly prevents XSS token theft; Secure enforces HTTPS; SameSite=Lax mitigates most CSRF."
+    },
+    {
+      "category": "architecture",
+      "finding": "No database = no SQL injection surface",
+      "detail": "File-based JSON storage (data/*.json) eliminates SQL injection attack surface entirely."
+    },
+    {
+      "category": "input-validation",
+      "finding": "HTTP body size limit prevents DoS on unauthenticated endpoint",
+      "detail": "MAX_BODY = 1 MiB; _body() caps read at min(Content-Length, MAX_BODY) to prevent unbounded allocation on /auth/login."
+    },
+    {
+      "category": "path-traversal",
+      "finding": "Path traversal protections using is_relative_to() checks",
+      "detail": "File-serving endpoints verify resolved path is within REPO_DIR/web or REPO_DIR/data. Prevents ../../../etc/passwd attacks."
+    },
+    {
+      "category": "data-handling",
+      "finding": "Garmin credentials never persisted or logged",
+      "detail": "Credentials held only during handshake (in-memory); tokens stored only in token dir; passwords never logged."
+    },
+    {
+      "category": "output-encoding",
+      "finding": "HTML entity escaping in Telegram notifications",
+      "detail": "telegram() function escapes <, >, & before sending to prevent HTML injection."
+    },
+    {
+      "category": "rate-limiting",
+      "finding": "Global rate limiting on failed login attempts",
+      "detail": "_LOGIN_BRAKE serializes failed-login sleeps. 1s sleep per attempt prevents rapid brute-force."
+    }
+  ],
+  "not_applicable": [
+    "SQL injection (no database)",
+    "Hardcoded secrets in code (secrets in env file only, not committed)",
+    "Remote code execution (no eval/exec of user input)",
+    "XXE attacks (XML parser handles only basic entities; no DOCTYPE/SYSTEM support)"
+  ],
+  "risk_score": 28,
+  "risk_score_summary": "Low-to-Medium. No high-severity vulnerabilities; 2 medium (RUNS memory leak, loose dependencies); 4 low. Mitigated by: file-based storage, scrypt auth, secure cookies, path traversal checks.",
+  "summary": "PaceForge backend (runner.py) is security-conscious: scrypt auth, secure cookies, path traversal guards, input validation, and no database eliminate SQL injection. Frontend bike modules properly escape HTML. Main issues are architectural (unbounded RUNS list in long-running systemd) and operational (loose dependency pins). Low-severity findings are present but context-mitigated (XML parsing on user uploads, CSRF requires active session).",
+  "recommendations": [
+    "1. Add max-size cap to RUNS list (keep last 200, archive older to disk). Trim after append.",
+    "2. Pin dependency versions: pydantic>=2.0,<3; httpx>=0.27,<0.28; etc. Use Poetry.lock.",
+    "3. Add CSRF tokens to state-changing POST endpoints. Generate on login, validate before dispatch.",
+    "4. Cap XML entity expansion: track depth (max 10) and unique entities (max 100).",
+    "5. Add client-side upload queue on intervals.icu/Strava with 5min throttle.",
+    "6. Whitelist SVG colors; validate against /^#[0-9a-fA-F]{6}$/ regex."
+  ]
+}

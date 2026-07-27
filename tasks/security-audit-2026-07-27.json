@@ -1,0 +1,64 @@
+{
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "file": "web/bike/upload.js",
+      "line": 7,
+      "description": "Information disclosure in error messages: uploadIntervalsIcu throws error with full response text (await res.text()) which could expose sensitive server data. Same issue in uploadStrava at line 23.",
+      "category": "information-disclosure"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/upload.js",
+      "line": 23,
+      "description": "Information disclosure in Strava upload error: throws error with full response text which could expose sensitive data from upstream API.",
+      "category": "information-disclosure"
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 760,
+      "description": "Sessions stored in plaintext JSON file without encryption at rest. Session tokens are stored in SESSIONS_FILE with timestamps. File permissions should be strictly controlled (600), verify umask and file creation.",
+      "category": "weak-storage"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/view.js",
+      "line": 126,
+      "description": "Unvalidated CSS color values directly interpolated into style attribute. While currently hardcoded from COGGAN_ZONES constant, this could be vulnerable if color parameter ever comes from user input. Use CSS custom properties or validate against allowed values.",
+      "category": "css-injection"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/workouts.js",
+      "line": 108,
+      "description": "Unicode code point generation via String.fromCodePoint() from user XML input could theoretically generate characters that cause rendering issues. Low risk as data is properly escaped on display, but consider validating numeric references.",
+      "category": "unicode-handling"
+    }
+  ],
+  "riskScore": 28,
+  "recommendations": [
+    "Replace await res.text() error messages with generic responses: catch errors, log full details server-side, return safe error to client",
+    "For Strava/Intervals.icu uploads: 'Upload failed' without leaking response details to browser console",
+    "Verify sessions.json file permissions are 0600 (user read-write only) at startup - add explicit chmod in runner.py main()",
+    "CSS colors: if ever accepting user input, validate against a whitelist (e.g., hex color regex ^#[0-9a-f]{6}$) or use CSS variables",
+    "XML entity decoder: add validation that numeric code points stay in valid ranges (U+0000 to U+10FFFF), reject surrogates (D800-DFFF)",
+    "Session storage: consider encryption-at-rest for sessions.json if storing sensitive data, though current TTL-based approach mitigates risk",
+    "Add Content-Security-Policy headers to prevent inline script/style injection in portal responses",
+    "Test and document file permission requirements (SESSIONS_FILE, STATE_DIR, REPO_DIR/data)"
+  ],
+  "strengths": [
+    "✓ Scrypt hashing with secure parameters (n=2^14, r=8, p=1)",
+    "✓ Constant-time password comparison using hmac.compare_digest",
+    "✓ Rate limiting on failed login attempts (global lock, 1 second delay per attempt)",
+    "✓ HTTP body size limit prevents DoS memory exhaustion (MAX_BODY = 1 MiB)",
+    "✓ Session cookie flags properly set (HttpOnly, Secure, SameSite=Lax)",
+    "✓ Trust model based on socket not foreable headers (X-Forwarded-For)",
+    "✓ Path traversal protection in static file serving (_static route checks is_relative_to)",
+    "✓ No SQL injection surface (file-based JSON storage, not SQL database)",
+    "✓ Comprehensive auth tests covering edge cases and bypass attempts",
+    "✓ Upload tokens stored in sessionStorage only (cleared on browser close)",
+    "✓ No hardcoded secrets in source code; all secrets via environment variables"
+  ],
+  "summary": "PaceForge demonstrates solid security foundations. Authentication uses scrypt hashing with proper constant-time comparison and rate limiting. Authorization is socket-based rather than header-based, preventing spoofing. Main weaknesses are information disclosure in upload error messages and plaintext session storage. Fix severity-medium issues and consider recommendations for defense-in-depth. Overall risk is moderate due to file-based architecture (no SQL injection) and effective rate limiting."
+}
