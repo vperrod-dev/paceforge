@@ -1,5 +1,28 @@
 [
   {
+    "activity_id": 23746777901,
+    "name": "Treadmill Running",
+    "activity_type": "treadmill_running",
+    "start_time": "2026-07-27T07:56:42",
+    "distance_meters": 7736.759765625,
+    "duration_seconds": 2128.9208984375,
+    "avg_hr": 145,
+    "max_hr": 169,
+    "avg_pace_sec_per_km": 275.2,
+    "calories": 604,
+    "training_effect_aerobic": 3.299999952316284,
+    "training_effect_anaerobic": 0.800000011920929,
+    "vo2_max_value": null,
+    "avg_running_cadence": 157.078125,
+    "avg_stride_length": 139.70999755859376,
+    "avg_ground_contact_time": 263.20001220703125,
+    "avg_vertical_oscillation": 10.430000305175781,
+    "avg_vertical_ratio": 7.489999771118164,
+    "avg_power": 475.0,
+    "elevation_gain": null,
+    "avg_respiration_rate": null
+  },
+  {
     "activity_id": 23699034014,
     "name": "Cardio",
     "activity_type": "indoor_cardio",
