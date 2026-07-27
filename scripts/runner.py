@@ -820,6 +820,10 @@ def run_json(rec: dict) -> dict:
 
 
 class Handler(BaseHTTPRequestHandler):
+    # A client that promises a body and never sends it must not hold a server
+    # thread forever (the 1 MiB read cap bounds memory, not wait time).
+    timeout = 30
+
     def _send(self, code: int, body=None, ctype="application/json"):
         raw = b"" if body is None else (body if isinstance(body, bytes)
                                         else json.dumps(body).encode())
