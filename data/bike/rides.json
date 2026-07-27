@@ -1,0 +1,19 @@
+{
+  "rides": [
+    {
+      "date": "2026-07-27T17:10:04",
+      "workout": "2x20 Sweet Spot",
+      "duration_sec": 3364,
+      "avg_power": 157.3,
+      "np": 167.1,
+      "if": 0.8,
+      "tss": 65.2,
+      "kj": 529.4,
+      "avg_hr": null,
+      "avg_cadence": 87.8,
+      "ftp": 200.0,
+      "notes": null,
+      "source": "web"
+    }
+  ]
+}
