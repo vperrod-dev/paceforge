@@ -308,6 +308,14 @@ def load_activities() -> list[RecentActivity]:
     return [RecentActivity.model_validate(a) for a in json.loads(p.read_text())]
 
 
+def load_bike_rides() -> list[dict]:
+    """App-recorded indoor rides (never on Garmin) — feed these into the load maths."""
+    p = _path("bike") / "rides.json"
+    if not p.exists():
+        return []
+    return json.loads(p.read_text()).get("rides", [])
+
+
 def save_activities(activities: list[RecentActivity]) -> None:
     """Merge a fresh activity window into the stored history (union by activity_id).
 

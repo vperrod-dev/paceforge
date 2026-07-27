@@ -78,6 +78,13 @@ def _srpe_load(duration_min: float, rpe: int) -> float:
     return duration_min * rpe * _SRPE_TO_TRIMP
 
 
+# Coggan TSS is also its own scale; 1.5 puts a 60-min IF-0.85 ride (72 TSS →
+# ~108) at the TRIMP of a comparable moderately-hard HR hour (~108 at HR 150
+# with rest 50 / max 190). Same re-scalable heuristic as _SRPE_TO_TRIMP —
+# the per-entry `method` tag ("tss") keeps the original unit recoverable.
+_TSS_TO_TRIMP = 1.5
+
+
 def _activity_date(act: Any) -> str:
     """Normalise an activity's start_time to a YYYY-MM-DD string."""
     st = getattr(act, "start_time", None)
@@ -87,13 +94,18 @@ def _activity_date(act: Any) -> str:
 
 
 def compute_daily_load(activities: list, resting_hr: int, max_hr: int,
-                       rpe_map: dict | None = None) -> dict[str, Any]:
+                       rpe_map: dict | None = None,
+                       bike_rides: list[dict] | None = None) -> dict[str, Any]:
     """Per-activity load (TRIMP, with sRPE fallback) and a daily-summed series.
 
     HR-based TRIMP underrates or drops strength/HYROX work (high muscular load,
     low-or-missing HR); an athlete RPE entry (rpe_map, keyed by activity_id)
     lets an HR-less session still count. Sessions with neither HR nor RPE are
     reported in `unloaded_activities` so the UI can ask for a rating.
+
+    bike_rides are the app-recorded indoor rides (data/bike/rides.json) — they
+    never reach Garmin, so they enter here: power-based TSS when present
+    (bridged via _TSS_TO_TRIMP), else TRIMP from the strap HR.
     """
     rpe_map = rpe_map or {}
     per_activity: list[ActivityLoad] = []
@@ -125,6 +137,33 @@ def compute_daily_load(activities: list, resting_hr: int, max_hr: int,
                 date=d,
                 trimp=round(load, 2),
                 activity_type=getattr(act, "activity_type", "unknown"),
+                method=method,
+            )
+        )
+        daily[d] = daily.get(d, 0.0) + load
+
+    for ride in bike_rides or []:
+        dur = ride.get("duration_sec") or 0
+        if dur <= 0:
+            continue
+        d = str(ride.get("date", ""))[:10]
+        tss_val, avg_hr = ride.get("tss"), ride.get("avg_hr")
+        if tss_val is not None:
+            load, method = tss_val * _TSS_TO_TRIMP, "tss"
+        elif avg_hr is not None:
+            load, method = _trimp(dur, avg_hr, resting_hr, max_hr), "trimp"
+        else:
+            unloaded.append({
+                "activity_id": f"bike:{ride.get('date')}", "date": d,
+                "activity_type": "indoor_cycling", "name": ride.get("workout"),
+            })
+            continue
+        per_activity.append(
+            ActivityLoad(
+                activity_id=f"bike:{ride.get('date')}",
+                date=d,
+                trimp=round(load, 2),
+                activity_type="indoor_cycling",
                 method=method,
             )
         )
@@ -772,7 +811,8 @@ def compute_garmin_native(profile: Any) -> dict[str, Any]:
 
 
 def compute_load_recovery(history: list, activities: list, profile,
-                          rpe_map: dict | None = None) -> dict:
+                          rpe_map: dict | None = None,
+                          bike_rides: list[dict] | None = None) -> dict:
     """Compute the full training-load / recovery / wellbeing report.
 
     Never raises on missing data. Each block carries an 'availability' tag of
@@ -781,7 +821,8 @@ def compute_load_recovery(history: list, activities: list, profile,
     resting_hr = getattr(profile, "resting_hr", None) or 50
     max_hr = getattr(profile, "max_hr", None) or 190
 
-    daily = compute_daily_load(activities, resting_hr, max_hr, rpe_map=rpe_map)
+    daily = compute_daily_load(activities, resting_hr, max_hr, rpe_map=rpe_map,
+                               bike_rides=bike_rides)
     load_series = daily.get("series", [])
 
     ctl = compute_ctl_atl_tsb(load_series)

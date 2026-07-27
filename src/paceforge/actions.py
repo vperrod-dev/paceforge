@@ -670,7 +670,8 @@ def fitness() -> dict:
     running = compute_running_metrics(activities, details, profile)
     running["pace_curves"] = compute_pace_curves(activities, details)
     load = compute_load_recovery(store.load_history(), activities, profile,
-                                 rpe_map=store.rpe_by_activity())
+                                 rpe_map=store.rpe_by_activity(),
+                                 bike_rides=store.load_bike_rides())
     hyrox_data = store.load_hyrox_results()
     gender = _hyrox_gender()
     strength = compute_strength_hyrox(
@@ -1215,7 +1216,8 @@ def adapt(dry_run: bool = False) -> dict:
 
     activities = store.load_activities()
     load = compute_load_recovery(store.load_history(), activities, profile,
-                                 rpe_map=store.rpe_by_activity())
+                                 rpe_map=store.rpe_by_activity(),
+                                 bike_rides=store.load_bike_rides())
     readiness = load.get("readiness_composite") or {}
     yesterday = (date.today() - timedelta(days=1)).isoformat()
     yesterday_rpe = max(

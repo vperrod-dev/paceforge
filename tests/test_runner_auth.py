@@ -127,6 +127,14 @@ def test_public_post_without_session_is_401(app):
     assert code == 401
 
 
+def test_oversized_login_body_is_rejected_not_buffered(app):
+    # An unauthenticated caller cannot force an unbounded allocation: a body past
+    # the cap is read only up to MAX_BODY, so it parses as invalid → 401.
+    big = {"user": "victor", "password": "x" * (runner.MAX_BODY + 1000)}
+    code, _, _ = _req(app.public + "/api/auth/login", "POST", big)
+    assert code == 401
+
+
 def test_check_login_rejects_when_config_missing(monkeypatch):
     monkeypatch.delenv("PF_WEB_PASS_SCRYPT", raising=False)
     monkeypatch.setenv("PF_WEB_USER", "victor")

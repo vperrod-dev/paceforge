@@ -344,6 +344,38 @@ class TestSRPEFallback:
         assert 0.6 < srpe / trimp < 1.6
 
 
+class TestBikeRideLoad:
+    def test_ride_tss_contributes_load(self):
+        ride = {"date": "2026-01-01T17:10:04", "workout": "2x20 Sweet Spot",
+                "duration_sec": 3364, "tss": 65.2, "avg_hr": None}
+        from paceforge.engine.load import compute_daily_load
+        out = compute_daily_load([], 50, 190, bike_rides=[ride])
+        entry = out["per_activity"][0]
+        assert entry["method"] == "tss" and entry["trimp"] == round(65.2 * 1.5, 2)
+
+    def test_ride_falls_back_to_strap_hr(self):
+        ride = {"date": "2026-01-01T17:10:04", "duration_sec": 3600,
+                "tss": None, "avg_hr": 150}
+        from paceforge.engine.load import compute_daily_load
+        out = compute_daily_load([], 50, 190, bike_rides=[ride])
+        assert out["per_activity"][0]["method"] == "trimp"
+
+    def test_ride_without_tss_or_hr_is_reported_unloaded(self):
+        ride = {"date": "2026-01-01T17:10:04", "duration_sec": 3600,
+                "tss": None, "avg_hr": None}
+        from paceforge.engine.load import compute_daily_load
+        out = compute_daily_load([], 50, 190, bike_rides=[ride])
+        assert out["unloaded_activities"][0]["activity_type"] == "indoor_cycling"
+
+    def test_ride_sums_into_same_day_as_run(self):
+        run = FakeActivity(1, _DAY0, 3600, 10000, avg_hr=150)
+        ride = {"date": "2026-01-01T17:10:04", "duration_sec": 3364, "tss": 65.2}
+        from paceforge.engine.load import compute_daily_load
+        out = compute_daily_load([run], 50, 190, bike_rides=[ride])
+        assert len(out["series"]) == 1
+        assert out["series"][0]["load"] > max(e["trimp"] for e in out["per_activity"])
+
+
 # ── 10. Respiration / SpO2 / illness watch ───────────────────────────
 
 
