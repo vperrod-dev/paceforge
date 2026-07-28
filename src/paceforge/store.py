@@ -9,12 +9,17 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import time
 from pathlib import Path
 
 from paceforge.models.plan import TrainingPlan
 from paceforge.models.profile import RecentActivity, UserFitnessProfile
 
 DATA_DIR = Path(os.getenv("PACEFORGE_DATA_DIR", "data"))
+
+_DETAILS_CACHE: dict[int, dict] | None = None
+_DETAILS_CACHE_TIME = 0.0
+_DETAILS_CACHE_TTL = 300  # 5 minutes
 
 
 def _path(name: str) -> Path:
@@ -200,10 +205,20 @@ def save_sync_status(status: dict) -> None:
 
 
 def load_all_details() -> dict[int, dict]:
-    """Every stored per-activity detail, keyed by activity_id (for the fitness engines)."""
+    """Every stored per-activity detail, keyed by activity_id (for the fitness engines).
+
+    Cached with 5-minute TTL to avoid repeated full-directory scans on the Fitness tab.
+    """
+    global _DETAILS_CACHE, _DETAILS_CACHE_TIME
+    now = time.time()
+    if _DETAILS_CACHE is not None and (now - _DETAILS_CACHE_TIME) < _DETAILS_CACHE_TTL:
+        return _DETAILS_CACHE
+
     out: dict[int, dict] = {}
     ddir = _path("details")
     if not ddir.exists():
+        _DETAILS_CACHE = out
+        _DETAILS_CACHE_TIME = now
         return out
     for f in ddir.glob("*.json"):
         try:
@@ -212,6 +227,8 @@ def load_all_details() -> dict[int, dict]:
                 out[int(d["activity_id"])] = d
         except (json.JSONDecodeError, ValueError, OSError):
             pass
+    _DETAILS_CACHE = out
+    _DETAILS_CACHE_TIME = now
     return out
 
 
@@ -349,3 +366,11 @@ def load_detail(activity_id: int | str) -> dict | None:
 
 def save_detail(activity_id: int | str, detail: dict) -> None:
     _write(_detail_path(activity_id), json.dumps(detail, indent=2, default=str))
+    invalidate_details_cache()
+
+
+def invalidate_details_cache() -> None:
+    """Clear the load_all_details() cache after writes."""
+    global _DETAILS_CACHE, _DETAILS_CACHE_TIME
+    _DETAILS_CACHE = None
+    _DETAILS_CACHE_TIME = 0.0

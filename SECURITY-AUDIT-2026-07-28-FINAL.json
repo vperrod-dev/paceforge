@@ -1,0 +1,91 @@
+{
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "file": "scripts/runner.py",
+      "line": 988,
+      "description": "Garmin password passed from request body to garmin_login_start(). While credentials are not persisted or logged, they transit through web request and exist in process memory during the handshake. MFA codes also held in memory.",
+      "category": "credential-handling",
+      "short_summary": "Passwords in process memory during interactive Garmin login handshake"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/upload.js",
+      "line": 7,
+      "description": "intervals.icu API key transmitted via Basic auth (Authorization header). While HTTPS ensures transit security, key is decoded from Authorization header in memory. No key rotation mechanism visible.",
+      "category": "credential-exposure",
+      "short_summary": "API key in Basic auth header (intervals.icu upload)"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/upload.js",
+      "line": 22,
+      "description": "Strava access token stored in sessionStorage (volatile) and transmitted in Bearer token Authorization header. SessionStorage is cleared on browser session end (good), but token can be accessed via devtools.",
+      "category": "token-storage",
+      "short_summary": "Strava OAuth token in sessionStorage (accessible via devtools)"
+    },
+    {
+      "severity": "medium",
+      "file": "scripts/runner.py",
+      "line": 791,
+      "description": "Session tokens persisted to disk (~/.local/state/paceforge-runner/runs.jsonl) in plaintext JSON. File relies on OS file permissions (likely 0644 or 0600). Session tokens are 32-byte random strings with 180-day TTL.",
+      "category": "session-storage",
+      "short_summary": "Session tokens persisted to disk without encryption"
+    },
+    {
+      "severity": "medium",
+      "file": "src/paceforge/actions.py",
+      "line": 58,
+      "description": "GARMIN_TOKEN (base64-encoded tar.gz of token dir) decoded via tarfile.extractall() with filter='data'. While filter prevents path traversal, a compromised token blob could include symlinks or device files if tar format is fuzzy.",
+      "category": "archive-extraction",
+      "short_summary": "Tar extraction of GARMIN_TOKEN blob with minimal validation"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/view.js",
+      "line": 285,
+      "description": "Upload tokens (INTERVALS_KEY, STRAVA_KEY) cleared from old localStorage versions via try-catch, but removal errors silently ignored. Potential for orphaned tokens if removal fails.",
+      "category": "cleanup",
+      "short_summary": "Silent failure when purging legacy tokens from localStorage"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/workouts.js",
+      "line": 73,
+      "description": "Hand-rolled XML parser decodes HTML entities including numeric entities (&#x...;). No DTD/external entity prevention needed (lightweight parser), but error messages include parsed content without sanitization.",
+      "category": "xml-parsing",
+      "short_summary": "XML entity decoding without error message sanitization"
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 970,
+      "description": "Failed login attempts trigger a global 1-second sleep (_LOGIN_BRAKE lock) per failed attempt. While this slows brute force, it's not exponential backoff. 10 parallel requests = 10 seconds total (not 1+2+4...). Timing attack risk on password comparison mitigated by hmac.compare_digest().",
+      "category": "rate-limiting",
+      "short_summary": "Linear (not exponential) backoff on failed login attempts"
+    }
+  ],
+  "riskScore": 32,
+  "scoreJustification": "Single-athlete file-based architecture eliminates database/SQL injection risk. No API keys hardcoded. Token handling follows security-conscious patterns (env-based secrets, constant-time comparison, session TTL). Main risks are operational: credentials in transient memory during interactive flows (unavoidable), tokens on disk relying on OS file permissions, and upload token accessibility in browser storage (isolated per origin/path).",
+  "recommendations": [
+    "Add NOPASSWD sudo path for Garmin token export CLI — avoids password prompt storage in env files. Use scrypt-verified file access instead.",
+    "Implement HMAC verification for GARMIN_TOKEN blob (sign base64 output with a server key) to detect tampering during tar extraction.",
+    "Add optional memory-locking for credentials in garmin_login_start() via mmap or ctypes to prevent core dump leakage (mlock-style, Python-only via resource module).",
+    "Upgrade failed login backoff to exponential (1s, 2s, 4s, ..., max 30s) to slow brute-force attempts from 10 parallel requests in 10 seconds to ~30+ seconds.",
+    "Document session token file permissions requirement (~/.local/state/paceforge-runner) — ensure created with 0600 mode (currently relies on umask).",
+    "Add Content-Security-Policy headers to prevent inline script injection in bike tab (escHtml is applied, but CSP as defense-in-depth).",
+    "Rotate Strava/intervals.icu tokens on each upload to minimize window of exposure if sessionStorage is dumped.",
+    "Add token-age warnings in /auth/whoami endpoint — surface token expiry to UI so stale Garmin OAuth tokens are surfaced before sync silently fails."
+  ],
+  "notes": {
+    "architecture": "Single-athlete per-instance; no shared backend. File-based data (JSON). VM runner at 127.0.0.1:8123 (public) + 127.0.0.1:8223 (internal/trusted). Caddy reverse-proxy fronts /paceforge/* with session requirement.",
+    "secrets_handling": "Environment-based (PACEFORGE_GARMIN_EMAIL, GARMIN_TOKEN, STRAVA_CLIENT_SECRET, etc.). .env files in .gitignore. Credentials never logged at INFO/DEBUG levels (verified via logging module usage).",
+    "crypto": "scrypt(n=2^14, r=8, p=1) for password hashing. hmac.compare_digest() for constant-time comparison. base64+gzip for token portability.",
+    "session_management": "Sessions dict in-memory + persisted to ~/.local/state/paceforge-runner/runs.jsonl. TTL 180 days. HTTPS-only transmission (Secure flag set). SameSite=Lax prevents cross-site cookie leakage.",
+    "garmin_oauth": "~1-year refresh token (warns at 350 days). Stored in ~/.garminconnect/*.json. Materialized from GARMIN_TOKEN env var on startup (idempotent).",
+    "sql_injection": "Not applicable — no SQL database (file-based JSON).",
+    "xss": "escHtml() function in view.js for HTML escaping. Portal code reviewed for DOM injection — no obvious sinks. Needs CSP headers as additional layer.",
+    "csrf": "Session cookie scoped to PF_COOKIE_PATH (/paceforge or /pf/<name>). POST endpoints require session token. No explicit CSRF token needed due to same-site session isolation.",
+    "dependencies": "python-garminconnect, pydantic, requests (via garminconnect). No vendored secrets. Dependencies reviewed via pip audit (recommend: add to CI)."
+  }
+}
