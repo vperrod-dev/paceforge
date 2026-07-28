@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -84,15 +85,35 @@ def test_bike_profile_same_ftp_no_history_entry(tmp_path):
     assert len(read(tmp_path / "bike" / "profile.json")["ftp_history"]) == 1
 
 
-def test_pending_analyses_skips_existing_file(tmp_path):
+NOW = datetime(2026, 7, 28, 12, 0, tzinfo=UTC)
+
+
+def test_pending_analyses_covers_unplanned_activities_and_bike_rides(tmp_path):
     (tmp_path / "analyses").mkdir()
     (tmp_path / "analyses" / "2.md").write_text("done")
-    (tmp_path / "plan.json").write_text(json.dumps({"weeks": [{"workouts": [
-        {"completed": True, "matched_activity_ids": [1]},
-        {"completed": True, "matched_activity_ids": [2]},
-        {"completed": False, "matched_activity_ids": [3]},
-    ]}]}))
-    assert pending_analyses(tmp_path) == ["1"]
+    (tmp_path / "activities.json").write_text(json.dumps([
+        {"activity_id": 1, "start_time": "2026-07-27T07:00:00", "activity_type": "running"},
+        {"activity_id": 2, "start_time": "2026-07-26T07:00:00", "activity_type": "indoor_cardio"},
+        {"activity_id": 3, "start_time": "2026-05-01T07:00:00", "activity_type": "running"},
+    ]))
+    (tmp_path / "bike").mkdir()
+    (tmp_path / "bike" / "rides.json").write_text(json.dumps({"rides": [
+        {"date": "2026-07-27T17:10:04", "duration_sec": 3600},
+    ]}))
+    assert pending_analyses(tmp_path, now=NOW) == ["bike:2026-07-27T17:10:04", "1"]
+
+
+def test_pending_analyses_caps_batch_newest_first(tmp_path):
+    (tmp_path / "activities.json").write_text(json.dumps([
+        {"activity_id": i, "start_time": f"2026-07-{10 + i:02d}T07:00:00"} for i in range(1, 15)
+    ]))
+    ids = pending_analyses(tmp_path, now=NOW)
+    assert len(ids) == 10
+    assert ids[0] == "14"
+
+
+def test_pending_analyses_survives_missing_files(tmp_path):
+    assert pending_analyses(tmp_path, now=NOW) == []
 
 
 def test_write_events_accepts_a_list(tmp_path):

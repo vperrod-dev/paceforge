@@ -12,3 +12,14 @@ into training load only and listed the remaining surfaces as "say if wanted"
 — he had already said it. When he asks for X to be treated like Y, port the
 FULL treatment (load, lists, Today, detail views) in one turn; offering the
 remainder as follow-up reads as not doing the job.
+
+## 2026-07-28 — "evaluate all workouts" means ALL, not the plan-matched subset
+Third time Victor asked for automatic coach evaluation of every workout
+(running, cardio, bike). The gate was `pending_analyses` walking plan.json:
+only completed workouts with `matched_activity_ids` qualified, so every
+unplanned session (indoor cardio, off-plan runs, bike rides) fell through —
+and the coach skill doctrine ("auto for planned workouts") reinforced it.
+When a selection filter decides what automation touches, check the filter
+against the user's stated universe ("all X") — not against what the pipeline
+happens to index. Coverage complaints repeated 3× = the selector is wrong,
+not the executor.

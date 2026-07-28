@@ -47,7 +47,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -434,16 +434,36 @@ def write_benchmarks(benchmarks: object, data_dir: Path) -> None:
     (data_dir / "benchmarks.json").write_text(json.dumps(benchmarks, indent=2))
 
 
-def pending_analyses(data_dir: Path) -> list[str]:
-    plan = json.loads((data_dir / "plan.json").read_text())
-    ids = []
-    for wk in plan.get("weeks", []):
-        for wo in wk.get("workouts", []):
-            if wo.get("completed") and wo.get("matched_activity_ids"):
-                aid = wo["matched_activity_ids"][0]
-                if not (data_dir / "analyses" / f"{aid}.md").exists():
-                    ids.append(str(aid))
-    return ids
+ANALYSIS_LOOKBACK_DAYS = 30   # don't churn through the whole multi-year backlog
+ANALYSIS_BATCH = 10           # per pass; sync runs 3×/day so the rest follows shortly
+
+
+def pending_analyses(data_dir: Path, now: datetime | None = None) -> list[str]:
+    """Every completed session without a coach analysis yet — ALL Garmin activities
+    (running, cardio, strength, …) plus app-recorded bike rides. Plan matching is
+    deliberately irrelevant: unplanned work gets coached too. Newest first."""
+    cutoff = ((now or datetime.now(UTC)) - timedelta(days=ANALYSIS_LOOKBACK_DAYS)
+              ).strftime("%Y-%m-%dT%H:%M:%S")
+    done = {p.stem for p in (data_dir / "analyses").glob("*.md")}
+    pending: list[tuple[str, str]] = []
+    try:
+        acts = json.loads((data_dir / "activities.json").read_text())
+    except FileNotFoundError:
+        acts = []
+    for a in acts:
+        start, aid = str(a.get("start_time") or ""), str(a.get("activity_id") or "")
+        if aid and start >= cutoff and aid not in done:
+            pending.append((start, aid))
+    try:
+        rides = json.loads((data_dir / "bike" / "rides.json").read_text()).get("rides") or []
+    except FileNotFoundError:
+        rides = []
+    for r in rides:
+        date = str(r.get("date") or "")
+        if date >= cutoff and f"bike:{date}" not in done:
+            pending.append((date, f"bike:{date}"))
+    pending.sort(reverse=True)
+    return [aid for _, aid in pending[:ANALYSIS_BATCH]]
 
 
 def reconcile_garmin(run: Run) -> None:
@@ -516,10 +536,14 @@ def job_analyze(run: Run, inputs: dict) -> None:
     run.step("Write analyses with the coach")
     claude_step(run, (
         'Use the coach skill in .claude/skills/coach/ — the "Per-activity analysis" '
-        f"section. Write data/analyses/{{id}}.md for each of these Garmin activity ids "
+        f"section. Write data/analyses/{{id}}.md for each of these activity ids "
         f"that doesn't have one yet: {','.join(ids)}. "
-        "Use data/activities.json, data/details/{id}.json, the matched plan workout "
-        "in data/plan.json, and data/profile.json. Be specific (real pace/HR/distance "
+        "Garmin ids: use data/activities.json, data/details/{id}.json, the matched plan "
+        "workout in data/plan.json IF one matches (unplanned sessions get analysed on "
+        "their own merits — never skip one for being unplanned), and data/profile.json. "
+        "Ids starting with 'bike:' are app-recorded indoor rides — use their entry in "
+        "data/bike/rides.json (summary, trace, ftp) and data/bike/profile.json instead; "
+        "there is no details/ file for them. Be specific (real pace/power/HR/distance "
         "numbers). Then commit the new data/analyses/*.md files and push to master."
     ), tools="Bash(git:*),Read,Write,Glob,Grep,TodoWrite")
     publish(run)

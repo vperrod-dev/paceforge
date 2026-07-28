@@ -152,8 +152,11 @@ nudge the athlete to rate them.
 ## Per-activity analysis → `data/analyses/{activity_id}.md`
 The web detail view renders a Markdown analysis per activity. Generate them so the
 meaningful sessions already have one:
-1. For every plan workout that is `completed` with `matched_activity_ids` and has **no**
-   `data/analyses/{id}.md` yet, write one (this is the "auto for planned workouts" path).
+1. **Every completed session gets one** — all Garmin activities (running, cardio,
+   strength, …) and app-recorded bike rides (`bike:{date}` ids, from
+   `data/bike/rides.json`), planned or not. The runner's `pending_analyses` computes the
+   worklist; being unplanned is never a reason to skip. For bike ids use the ride's
+   summary + `trace` + FTP against `data/bike/profile.json`; there is no `details/` file.
 2. When asked on-demand (a `Coach: analyze activity {id}` issue), analyse that specific id.
 3. For each: read the activity in `data/activities.json` (incl. `avg_running_cadence`,
    `avg_stride_length`, GCT, vertical ratio), its `data/details/{id}.json` — per-km splits

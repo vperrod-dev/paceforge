@@ -80,3 +80,13 @@ runner's own contract now (owner/repo ignored, no token); rewriting the wire wou
 
 Note: yesterday's ride (2026-07-27) predates trace capture — its detail view shows stats
 only. The duplicate "pending" copy of it disappears on first page load with the new code.
+
+## Coach auto-analysis for ALL workouts (2026-07-28)
+
+- [x] Root cause: `pending_analyses` only returned plan-matched activity ids →
+      unplanned cardio/runs and bike rides never analysed
+- [x] Rewritten: all Garmin activities (any sport, 30-day lookback) + bike rides
+      minus existing analyses, newest first, batch 10/pass (sync fires it 3×/day)
+- [x] job_analyze prompt + coach SKILL.md §Per-activity updated (unplanned + bike: ids)
+- [x] Tests: 3 new pending_analyses tests (coverage, cap/order, missing files); 18 passed
+- [x] Runner restarted, nunoduarte updated, analyze dispatched for the 8-session backlog
