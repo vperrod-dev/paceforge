@@ -1,6 +1,10 @@
 {
   "entries": [
     {
+      "activity_id": 123,
+      "rpe": 8
+    },
+    {
       "activity_id": 23520223309,
       "date": "2026-07-08",
       "rpe": 5,

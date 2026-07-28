@@ -1,0 +1,90 @@
+{
+  "auditDate": "2026-07-28",
+  "codebaseContext": "PaceForge — serverless running coach, file-based storage, Web Bluetooth indoor cycling",
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "file": "web/bike/zwift-ride.js",
+      "line": 44,
+      "cwe": "CWE-125",
+      "title": "Protobuf varint decoder lacks bounds checking",
+      "description": "The varint() function in decodeControllerNotification() reads bytes[i++] without validating i < bytes.length. A malformed Zwift Ride message with a varint extending to or past the array end will read undefined values. Subsequent bitwise operations (b & 0x7f) and loop condition (b & 0x80) on undefined become 0, allowing out-of-bounds reads without throwing.",
+      "codeSnippet": "const varint = () => {\n  let v = 0, s = 0, b;\n  do { b = bytes[i++]; v += (b & 0x7f) * 2 ** s; s += 7; } while (b & 0x80);\n  return v;\n};",
+      "failureScenario": "Attacker sends a malformed Zwift Ride BLE notification with a truncated varint field (e.g., bytes ending with 0xFF without terminator 0x80). The decoder reads past array bounds, potentially leaking adjacent memory or causing denial of service.",
+      "recommendation": "Add bounds check: `if (i >= bytes.length) throw new Error('varint: unexpected EOF'); before each bytes[i++] access, or check after incrementing: `if (i > bytes.length) return null;`"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/zwift-ride.js",
+      "line": 50,
+      "cwe": "CWE-125",
+      "title": "Skip function missing bounds validation in protobuf decoder",
+      "description": "The skip(wire) function increments index i by fixed amounts (8 bytes for wire 1, 4 for wire 5) and calls varint() (wire 0, 2) without confirming i won't exceed bytes.length. Wire type 2 (length-delimited) calls varint() to read the length, then skips that many bytes — if the varint() returns a value larger than remaining bytes, the skip will advance i beyond the array.",
+      "codeSnippet": "const skip = wire => {\n  if (wire === 0) varint();\n  else if (wire === 1) i += 8;\n  else if (wire === 2) i += varint();\n  else if (wire === 5) i += 4;\n};",
+      "failureScenario": "Message with field type 2 (wire type 2) specifies a length longer than the remaining bytes. The skip() call advances i past bytes.length, and the next varint() or field read accesses undefined memory.",
+      "recommendation": "Validate after each skip: `if (i > bytes.length) throw new Error('skip: overflow'); or guard varint() calls: `if (i >= bytes.length) throw new Error('varint: EOF');`"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/ns.js",
+      "line": 3,
+      "cwe": "CWE-327",
+      "title": "Storage namespace suffix derived from URL pathname without normalization",
+      "description": "The NS constant uses location.pathname to create a storage key suffix (e.g., '@/paceforge' or '@/pf/alice'). While this prevents key collision between multiple PaceForge instances on the same origin, a malicious or misconfigured origin path containing path traversal sequences (e.g., '/../other') could theoretically influence the namespace. In practice, the browser normalizes pathname before any script access, and this is an extremely low-risk edge case.",
+      "codeSnippet": "export const NS = typeof location === 'undefined'\n  ? '' : '@' + (location.pathname.replace(/\\/(index\\.html)?$/, '') || '/');",
+      "failureScenario": "Extremely unlikely: an origin path like 'http://host/../admin' (which browsers normalize away) could theoretically bypass namespace isolation if the application made additional assumptions about the suffix.",
+      "recommendation": "No change needed; browser pathname normalization makes this theoretical. If needed, add explicit validation: `const parts = location.pathname.split('/'); if (parts.some(p => p === '..')) throw new Error('invalid path');`"
+    }
+  ],
+  "clearedRisks": [
+    {
+      "category": "SQL Injection",
+      "status": "N/A",
+      "rationale": "Application uses file-based JSON storage (no database). No SQL queries present in codebase."
+    },
+    {
+      "category": "XXE (XML External Entity)",
+      "status": "PASS",
+      "rationale": "workouts.js hand-rolled XML parser only handles predefined HTML entities (amp, lt, gt, quot, apos) and numeric character references. No DTD or external entity support. Safe from XXE attacks."
+    },
+    {
+      "category": "XSS (Cross-Site Scripting)",
+      "status": "PASS",
+      "rationale": "User-controlled content (ride names, workout labels) escaped via escHtml() utility before HTML injection (view.js, confirmed in bike/view.js usage). Namespace-isolated DOM prevents cross-instance XSS."
+    },
+    {
+      "category": "Credential Storage",
+      "status": "PASS",
+      "rationale": "Upload tokens (intervals.icu API key, Strava access token) stored in sessionStorage only, cleared on browser close. Garmin credentials stored in ~/.config/paceforge/env with 0600 perms (file-system level isolation). No persistent disk storage of sensitive tokens in browser."
+    },
+    {
+      "category": "Authentication/Authorization",
+      "status": "PASS",
+      "rationale": "Session cookie-based auth with checked permissions on protected endpoints. Portal login required. Garmin login handled in background daemon thread, never persisted to state. CLI uses OAuth2 tokens with refresh. Rate limiting and MFA timeout defense present."
+    },
+    {
+      "category": "Path Traversal",
+      "status": "PASS",
+      "rationale": "All file reads protected via resolve() + is_relative_to() validation. Documented in CLAUDE.md; enforced at system boundaries."
+    },
+    {
+      "category": "Insecure Dependencies",
+      "status": "PASS",
+      "rationale": "Code uses standard Web APIs (Bluetooth, Fetch, localStorage) with no exotic npm dependencies visible. FIT encoder, metrics, and protobuf reader hand-implemented. urllib3 emscripten worker is third-party but read-only network code with no untrusted deserialization."
+    },
+    {
+      "category": "Hardcoded Secrets",
+      "status": "PASS",
+      "rationale": ".env.example shows no secrets, only placeholder variable names. Actual secrets stored in environment files (0600 perms) and sessionStorage, never committed."
+    }
+  ],
+  "riskScore": 28,
+  "riskScoreRationale": "Two medium-severity bounds-checking gaps in protobuf decoder (lines 44, 50) reachable only via malformed Zwift Ride BLE notifications — requires attacker-controlled BLE device or MITM on pairing. One low-severity theoretical namespace issue (extremely unlikely due to browser normalization). All other major attack surfaces (XSS, auth, credential storage, path traversal, SQL injection) verified secure. Risk score calculated as: 2×medium (20pt ea) + 1×low (4pt) + codebase security practices buffer (-12pt) = 28/100.",
+  "recommendations": [
+    "**HIGH PRIORITY**: Add bounds checking in zwift-ride.js lines 44–52. Before each bytes[i++] access in varint(), assert i < bytes.length. Before each skip() call, validate i + (expected bytes) ≤ bytes.length. This prevents out-of-bounds reads on malformed BLE messages.",
+    "Add unit tests for truncated/malformed protobuf messages: varint terminating at array end, wire type 2 with length > remaining bytes, etc. Use existing node selftests (web/bike/selftest-*.mjs pattern).",
+    "Consider adding a decode timeout or max-iterations guard in varint() to prevent algorithmic DoS if a message contains an infinite-length varint (though BLE packet size limits this in practice).",
+    "No changes needed for: XML parsing (safe from XXE), XSS (escHtml in use), credential storage (sessionStorage + file perms), path traversal (resolve/is_relative_to), SQL injection (N/A)."
+  ],
+  "summary": "PaceForge demonstrates strong security hygiene: session-based auth, ephemeral token storage, HTML escaping, path validation, and no database. Two medium-severity issues identified in the Zwift Ride protobuf decoder where malformed BLE messages can trigger out-of-bounds reads. Fixes are straightforward (bounds checks before array access). All other major attack surfaces (XSS, auth, credentials, path traversal) verified secure. Risk is localized to the Bluetooth input path and mitigated by device pairing model."
+}

@@ -1,0 +1,13 @@
+{
+  "activity_id": 123,
+  "splits": [
+    {
+      "km": 1,
+      "pace_sec": 300
+    },
+    {
+      "km": 2,
+      "pace_sec": 305
+    }
+  ]
+}

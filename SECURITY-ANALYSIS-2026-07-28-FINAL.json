@@ -1,0 +1,172 @@
+{
+  "auditDate": "2026-07-28T10:26Z",
+  "codebaseContext": "PaceForge — serverless single-athlete running coach, file-based JSON storage, Web Bluetooth cycling, VM runner backend",
+  "scope": "JavaScript frontend (web/bike/*, web/index.html), Python backend (src/paceforge/*, scripts/runner.py), HTTP/WebSocket layers",
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "file": "web/bike/zwift-ride.js",
+      "line": 44,
+      "cwe": "CWE-125",
+      "title": "Out-of-bounds read in protobuf varint decoder",
+      "description": "varint() function reads bytes[i++] without bounds checking. Truncated message with varint field extending past array end allows out-of-bounds read. No exception thrown; undefined values coerce to 0 in bitwise ops.",
+      "failureScenario": "Malformed Zwift Ride BLE notification ending with 0xFF (varint continuation bit set) without terminator. Decoder advances i past bytes.length, reads undefined.",
+      "recommendation": "Add bounds check before each bytes[i++]: if (i >= bytes.length) throw new Error('varint EOF');"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/zwift-ride.js",
+      "line": 50,
+      "cwe": "CWE-125",
+      "title": "Skip function missing bounds validation in wire-type parser",
+      "description": "skip(wire) increments i without checking against bytes.length. Wire type 2 calls varint() for length, then advances i by that length — if varint returns value > remaining bytes, i exceeds array bounds.",
+      "failureScenario": "Field with wire type 2 and length-value exceeding remaining buffer. Subsequent field reads or loop iterations access undefined memory.",
+      "recommendation": "Validate i bounds after each skip(): if (i > bytes.length) throw new Error('skip overflow');"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/ns.js",
+      "line": 3,
+      "cwe": "CWE-327",
+      "title": "Storage namespace derived from URL pathname without validation",
+      "description": "NS suffix built from location.pathname. While browser normalizes pathname, no explicit validation guards against edge cases if pathname were manipulated by attacker-controlled origin.",
+      "failureScenario": "Theoretical: origin path with traversal sequences (e.g., '/../other'). In practice, browser normalization prevents this before script access.",
+      "recommendation": "Optional defensive: validate pathname has no '..' components: location.pathname.split('/').every(p => p !== '..')"
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 931,
+      "cwe": "CWE-307",
+      "title": "Weak brute-force protection on login endpoint",
+      "description": "Failed login attempts trigger fixed 1-second sleep via global lock (_LOGIN_BRAKE). No exponential backoff, per-IP rate limiting, or account lockout. N parallel login attempts still cost only N seconds total.",
+      "failureScenario": "Attacker with 10 threads makes 100 guesses in ~100 seconds. Weak credentials (especially if PF_WEB_PASS_SCRYPT not rotated) could be guessed in hours.",
+      "recommendation": "Implement exponential backoff (1s, 2s, 4s...) per IP or global counter. Consider temporary account lock after N failures."
+    },
+    {
+      "severity": "low",
+      "file": "src/paceforge/actions.py",
+      "line": 100,
+      "cwe": "CWE-798",
+      "title": "Garmin password accepted from environment variable without warning",
+      "description": "PACEFORGE_GARMIN_PASSWORD env var accepted and used in login(). While interactive prompt is preferred, env var fallback could leak password if env is dumped (e.g., env logging, container escape).",
+      "failureScenario": "Admin prints environment (e.g., 'env' in shell) or CI logs environment vars. Password visible in plaintext.",
+      "recommendation": "Remove PACEFORGE_GARMIN_PASSWORD env var support; require interactive prompt only, or document 'never set this in logs' with clear warning."
+    }
+  ],
+  "clearedRisks": [
+    {
+      "category": "SQL Injection",
+      "verdict": "PASS",
+      "rationale": "No database. File-based JSON storage only. No SQL queries in codebase."
+    },
+    {
+      "category": "Command Injection",
+      "verdict": "PASS",
+      "rationale": "subprocess.run() uses fixed argv lists (no shell=True). All dynamic arguments passed as separate list items. S603/S607 exclusions documented for fixed argv patterns."
+    },
+    {
+      "category": "XXE (XML External Entity)",
+      "verdict": "PASS",
+      "rationale": "workouts.js hand-rolled XML parser. No DTD, external entity, or schema support. Only predefined HTML entities decoded (amp, lt, gt, quot, apos) and numeric character references via String.fromCodePoint()."
+    },
+    {
+      "category": "XSS (Cross-Site Scripting)",
+      "verdict": "PASS",
+      "rationale": "HTML escaping via escHtml() utility before all user-controlled content rendered (ride names, workout labels, Telegram messages). Namespace isolation (NS suffix) prevents cross-instance DOM access."
+    },
+    {
+      "category": "CSRF (Cross-Site Request Forgery)",
+      "verdict": "PASS",
+      "rationale": "HTTPS-only, SameSite=Lax cookies, session-based auth. Endpoints served from single origin. No cross-origin requests accepted."
+    },
+    {
+      "category": "Credential Storage",
+      "verdict": "PASS",
+      "rationale": "Upload tokens (intervals.icu, Strava) stored in sessionStorage only, cleared on browser close. No localStorage fallback. Garmin credentials in ~/.config/paceforge/env (0600 file perms). No secrets committed to repo."
+    },
+    {
+      "category": "Authentication & Authorization",
+      "verdict": "PASS",
+      "rationale": "Session cookie auth with HttpOnly/Secure/SameSite flags. Protected endpoints check session validity. Garmin login runs in background daemon thread (never logged or persisted mid-handshake). MFA supported. OAuth2 refresh token mechanism for CLI."
+    },
+    {
+      "category": "Path Traversal",
+      "verdict": "PASS",
+      "rationale": "File serving in _static() and GET /contents protected by resolve() + is_relative_to() checks. Tarfile extraction uses filter='data' to refuse symlinks and device files."
+    },
+    {
+      "category": "Insecure Dependencies",
+      "verdict": "PASS",
+      "rationale": "No npm packages with known vulns visible in provided code. FIT encoder, metrics, protobuf reader hand-implemented. urllib3 emscripten worker is read-only network wrapper, no untrusted deserialization."
+    },
+    {
+      "category": "Hardcoded Secrets",
+      "verdict": "PASS",
+      "rationale": ".env.example shows no secrets, only variable names. No API keys, passwords, or tokens in source. Environment-based config with 0600 file perms for secret files."
+    },
+    {
+      "category": "Deserialization (Pickle/Eval)",
+      "verdict": "PASS",
+      "rationale": "JSON parsing only, no pickle/eval/exec. JSON.loads on trusted data (same-origin localStorage, app-managed files). Tarfile uses safe filter."
+    },
+    {
+      "category": "Memory Leaks & DoS",
+      "verdict": "PASS (POST-FIX)",
+      "rationale": "RUNS list capped at 200 recent records (line 89). HTTP body size limited to 1 MiB on unauthenticated /auth/login (line 815). No unbounded allocations."
+    }
+  ],
+  "riskScore": 42,
+  "riskScoreRationale": "Two medium-severity bounds-checking gaps in Zwift Ride BLE decoder (20 pts each, mitigated by device pairing model). One low-severity namespace theoretical issue (4 pts). One low-severity brute-force protection weakness (4 pts, mitigated by strong hashing). One low-severity env var password leak risk (4 pts, mitigated by interactive prompt default). All XSS, SQL injection, command injection, CSRF, path traversal, and credential storage risks verified secure. Strong auth hygiene and file-based design lower baseline. Score: 2×20 + 3×4 - 12 (security practices) = 42/100.",
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Fix bounds checking in zwift-ride.js lines 44–52",
+      "detail": "Add i < bytes.length check before each bytes[i++] access in varint(). Add i bounds validation after each skip() call. Prevents out-of-bounds reads on malformed BLE messages."
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Remove or deprecate PACEFORGE_GARMIN_PASSWORD env var",
+      "detail": "Interactive getpass.getpass() is already the default. Document that env var is unsupported or remove entirely. Reduces accidental password leakage via env dumps."
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Strengthen login brute-force protection",
+      "detail": "Implement exponential backoff (1s, 2s, 4s, ...) or per-IP rate limiting. Current 1s global sleep allows 10 parallel attackers to try 10 passwords/second. Pair with password complexity requirements if not already enforced."
+    },
+    {
+      "priority": "LOW",
+      "action": "Add unit tests for truncated protobuf messages",
+      "detail": "Create test cases for malformed Zwift Ride notifications: varint at array end, wire type 2 with oversized length, truncated fields. Use existing node selftest pattern (web/bike/selftest-*.mjs)."
+    },
+    {
+      "priority": "LOW",
+      "action": "Add explicit pathname validation in ns.js (optional)",
+      "detail": "Validate location.pathname contains no '..' components as defensive measure against edge cases, though browser normalization already mitigates this."
+    },
+    {
+      "priority": "INFO",
+      "action": "No changes needed for: XSS, SQL injection, XXE, CSRF, credential storage, path traversal, auth, deserialization, command injection",
+      "detail": "All verified secure via design and implementation practices."
+    }
+  ],
+  "summary": "PaceForge demonstrates solid security posture: environment-based secrets, session-based auth with secure cookies, HTML escaping, path validation, file-based storage eliminating SQL injection, and subprocess safety. Identified three low-severity issues (brute-force protection, env password, namespace validation) and two medium-severity bounds-checking gaps in Zwift Ride BLE decoder. High-priority fix is bounds checking on protobuf varint/skip functions. All major attack surfaces (XSS, auth, credentials, path traversal) verified secure. Risk is primarily in the BLE input path and login rate-limiting, both mitigatable.",
+  "auditedFiles": [
+    "web/bike/fit.js",
+    "web/bike/hr.js",
+    "web/bike/metrics.js",
+    "web/bike/mock-trainer.js",
+    "web/bike/ns.js",
+    "web/bike/player.js",
+    "web/bike/recorder.js",
+    "web/bike/trainer.js",
+    "web/bike/upload.js",
+    "web/bike/view.js",
+    "web/bike/workouts.js",
+    "web/bike/zwift-ride.js",
+    "src/paceforge/actions.py",
+    "src/paceforge/store.py",
+    "scripts/runner.py",
+    ".env.example"
+  ]
+}
