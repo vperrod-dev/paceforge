@@ -1,90 +1,134 @@
 {
   "auditDate": "2026-07-28",
-  "codebaseContext": "PaceForge — serverless running coach, file-based storage, Web Bluetooth indoor cycling",
+  "codebase": "paceforge",
   "vulnerabilities": [
     {
-      "severity": "medium",
-      "file": "web/bike/zwift-ride.js",
-      "line": 44,
-      "cwe": "CWE-125",
-      "title": "Protobuf varint decoder lacks bounds checking",
-      "description": "The varint() function in decodeControllerNotification() reads bytes[i++] without validating i < bytes.length. A malformed Zwift Ride message with a varint extending to or past the array end will read undefined values. Subsequent bitwise operations (b & 0x7f) and loop condition (b & 0x80) on undefined become 0, allowing out-of-bounds reads without throwing.",
-      "codeSnippet": "const varint = () => {\n  let v = 0, s = 0, b;\n  do { b = bytes[i++]; v += (b & 0x7f) * 2 ** s; s += 7; } while (b & 0x80);\n  return v;\n};",
-      "failureScenario": "Attacker sends a malformed Zwift Ride BLE notification with a truncated varint field (e.g., bytes ending with 0xFF without terminator 0x80). The decoder reads past array bounds, potentially leaking adjacent memory or causing denial of service.",
-      "recommendation": "Add bounds check: `if (i >= bytes.length) throw new Error('varint: unexpected EOF'); before each bytes[i++] access, or check after incrementing: `if (i > bytes.length) return null;`"
+      "severity": "critical",
+      "file": "scripts/runner.py",
+      "line": 278,
+      "cwe": "CWE-532",
+      "description": "Garmin login exception handler exposes password. If GarminClient() raises exception containing password, full exception message is transmitted via Telegram without sanitization. Malicious garminconnect library or network error with credentials in message leaks password to Telegram.",
+      "impact": "Credential exposure to Telegram channel",
+      "remediation": "Catch exceptions by type only; never include full message when credentials involved. Use msg='Garmin login failed'; telegram(msg) without exception object."
+    },
+    {
+      "severity": "high",
+      "file": "web/bike/upload.js",
+      "line": 15,
+      "cwe": "CWE-209",
+      "description": "API key and access token exposure via error responses. If intervals.icu or Strava returns error response containing the API key/token, it gets exposed in thrown errors and potentially logged to browser console/dev tools.",
+      "impact": "API credentials exposed in error logs accessible to browser dev tools",
+      "remediation": "Strip sensitive headers/tokens from error response bodies before exposing. Use generic error message instead of res.text() verbatim."
+    },
+    {
+      "severity": "high",
+      "file": "web/bike/upload.js",
+      "line": 33,
+      "cwe": "CWE-209",
+      "description": "Strava access token exposure via error response body. Same as intervals.icu issue — error text not sanitized before throwing.",
+      "impact": "Strava token exposed in error logs",
+      "remediation": "Sanitize error responses; do not expose third-party API error messages directly."
     },
     {
       "severity": "medium",
-      "file": "web/bike/zwift-ride.js",
-      "line": 50,
-      "cwe": "CWE-125",
-      "title": "Skip function missing bounds validation in protobuf decoder",
-      "description": "The skip(wire) function increments index i by fixed amounts (8 bytes for wire 1, 4 for wire 5) and calls varint() (wire 0, 2) without confirming i won't exceed bytes.length. Wire type 2 (length-delimited) calls varint() to read the length, then skips that many bytes — if the varint() returns a value larger than remaining bytes, the skip will advance i beyond the array.",
-      "codeSnippet": "const skip = wire => {\n  if (wire === 0) varint();\n  else if (wire === 1) i += 8;\n  else if (wire === 2) i += varint();\n  else if (wire === 5) i += 4;\n};",
-      "failureScenario": "Message with field type 2 (wire type 2) specifies a length longer than the remaining bytes. The skip() call advances i past bytes.length, and the next varint() or field read accesses undefined memory.",
-      "recommendation": "Validate after each skip: `if (i > bytes.length) throw new Error('skip: overflow'); or guard varint() calls: `if (i >= bytes.length) throw new Error('varint: EOF');`"
+      "file": "scripts/runner.py",
+      "line": 944,
+      "cwe": "CWE-770",
+      "description": "No rate limiting on /garmin/login endpoint. Unlike /auth/login (1-second sleep enforced), Garmin login allows unlimited concurrent attempts. Authenticated user could spam endpoint to trigger 429s and exhaust Garmin retry budget.",
+      "impact": "Denial of service against Garmin API quota",
+      "remediation": "Apply _LOGIN_BRAKE pattern to Garmin login endpoint. Add 1-second delay between attempts per session/email."
+    },
+    {
+      "severity": "medium",
+      "file": "scripts/runner.py",
+      "line": 952,
+      "cwe": "CWE-770",
+      "description": "No rate limiting on /garmin/mfa endpoint. MFA code submission has no braking, allowing unlimited brute-force attempts against 6-digit TOTP codes.",
+      "impact": "Brute-force attack on MFA codes (1 in 1,000,000 odds per attempt)",
+      "remediation": "Add rate limiting per email/session. Max 3-5 attempts per minute. Lock session after 10 failures for 15 minutes."
     },
     {
       "severity": "low",
-      "file": "web/bike/ns.js",
-      "line": 3,
-      "cwe": "CWE-327",
-      "title": "Storage namespace suffix derived from URL pathname without normalization",
-      "description": "The NS constant uses location.pathname to create a storage key suffix (e.g., '@/paceforge' or '@/pf/alice'). While this prevents key collision between multiple PaceForge instances on the same origin, a malicious or misconfigured origin path containing path traversal sequences (e.g., '/../other') could theoretically influence the namespace. In practice, the browser normalizes pathname before any script access, and this is an extremely low-risk edge case.",
-      "codeSnippet": "export const NS = typeof location === 'undefined'\n  ? '' : '@' + (location.pathname.replace(/\\/(index\\.html)?$/, '') || '/');",
-      "failureScenario": "Extremely unlikely: an origin path like 'http://host/../admin' (which browsers normalize away) could theoretically bypass namespace isolation if the application made additional assumptions about the suffix.",
-      "recommendation": "No change needed; browser pathname normalization makes this theoretical. If needed, add explicit validation: `const parts = location.pathname.split('/'); if (parts.some(p => p === '..')) throw new Error('invalid path');`"
+      "file": "web/bike/view.js",
+      "line": 243,
+      "cwe": "CWE-602",
+      "description": "sessionStorage credentials readable by XSS within same origin. API keys and Strava tokens stored in sessionStorage (correctly ephemeral), but XSS in bike module could read and exfiltrate tokens.",
+      "impact": "XSS in bike tab could steal API credentials for current browser session",
+      "remediation": "Acceptable trade-off for serverless app. SessionStorage prevents disk persistence. Further mitigation requires server-side token proxy (adds backend). Monitor for XSS vulnerabilities in bike module code."
+    },
+    {
+      "severity": "low",
+      "file": "scripts/runner.py",
+      "line": 779,
+      "cwe": "CWE-831",
+      "description": "Unconventional use of bitwise operators in check_login() password verification. While technically constant-time correct (both checks use | and &), using bitwise operators on booleans instead of logical operators is confusing and fragile.",
+      "impact": "Code maintainability risk; timing-safe comparison could regress if refactored",
+      "remediation": "Use logical 'and'/'or' operators for clarity; verify timing-safety is maintained. Add comment explaining timing-attack mitigation."
     }
   ],
-  "clearedRisks": [
-    {
-      "category": "SQL Injection",
-      "status": "N/A",
-      "rationale": "Application uses file-based JSON storage (no database). No SQL queries present in codebase."
-    },
-    {
-      "category": "XXE (XML External Entity)",
-      "status": "PASS",
-      "rationale": "workouts.js hand-rolled XML parser only handles predefined HTML entities (amp, lt, gt, quot, apos) and numeric character references. No DTD or external entity support. Safe from XXE attacks."
-    },
-    {
-      "category": "XSS (Cross-Site Scripting)",
-      "status": "PASS",
-      "rationale": "User-controlled content (ride names, workout labels) escaped via escHtml() utility before HTML injection (view.js, confirmed in bike/view.js usage). Namespace-isolated DOM prevents cross-instance XSS."
-    },
-    {
-      "category": "Credential Storage",
-      "status": "PASS",
-      "rationale": "Upload tokens (intervals.icu API key, Strava access token) stored in sessionStorage only, cleared on browser close. Garmin credentials stored in ~/.config/paceforge/env with 0600 perms (file-system level isolation). No persistent disk storage of sensitive tokens in browser."
-    },
-    {
-      "category": "Authentication/Authorization",
-      "status": "PASS",
-      "rationale": "Session cookie-based auth with checked permissions on protected endpoints. Portal login required. Garmin login handled in background daemon thread, never persisted to state. CLI uses OAuth2 tokens with refresh. Rate limiting and MFA timeout defense present."
-    },
-    {
-      "category": "Path Traversal",
-      "status": "PASS",
-      "rationale": "All file reads protected via resolve() + is_relative_to() validation. Documented in CLAUDE.md; enforced at system boundaries."
-    },
-    {
-      "category": "Insecure Dependencies",
-      "status": "PASS",
-      "rationale": "Code uses standard Web APIs (Bluetooth, Fetch, localStorage) with no exotic npm dependencies visible. FIT encoder, metrics, and protobuf reader hand-implemented. urllib3 emscripten worker is third-party but read-only network code with no untrusted deserialization."
-    },
-    {
-      "category": "Hardcoded Secrets",
-      "status": "PASS",
-      "rationale": ".env.example shows no secrets, only placeholder variable names. Actual secrets stored in environment files (0600 perms) and sessionStorage, never committed."
-    }
-  ],
-  "riskScore": 28,
-  "riskScoreRationale": "Two medium-severity bounds-checking gaps in protobuf decoder (lines 44, 50) reachable only via malformed Zwift Ride BLE notifications — requires attacker-controlled BLE device or MITM on pairing. One low-severity theoretical namespace issue (extremely unlikely due to browser normalization). All other major attack surfaces (XSS, auth, credential storage, path traversal, SQL injection) verified secure. Risk score calculated as: 2×medium (20pt ea) + 1×low (4pt) + codebase security practices buffer (-12pt) = 28/100.",
+  "riskScore": 72,
+  "riskLevel": "High",
   "recommendations": [
-    "**HIGH PRIORITY**: Add bounds checking in zwift-ride.js lines 44–52. Before each bytes[i++] access in varint(), assert i < bytes.length. Before each skip() call, validate i + (expected bytes) ≤ bytes.length. This prevents out-of-bounds reads on malformed BLE messages.",
-    "Add unit tests for truncated/malformed protobuf messages: varint terminating at array end, wire type 2 with length > remaining bytes, etc. Use existing node selftests (web/bike/selftest-*.mjs pattern).",
-    "Consider adding a decode timeout or max-iterations guard in varint() to prevent algorithmic DoS if a message contains an infinite-length varint (though BLE packet size limits this in practice).",
-    "No changes needed for: XML parsing (safe from XXE), XSS (escHtml in use), credential storage (sessionStorage + file perms), path traversal (resolve/is_relative_to), SQL injection (N/A)."
+    {
+      "priority": 1,
+      "action": "Fix Garmin password exposure in runner.py:278",
+      "effort": "15 min",
+      "details": "Replace exception message transmission with generic error string. Never pass exception object to Telegram."
+    },
+    {
+      "priority": 2,
+      "action": "Sanitize error responses in upload.js",
+      "effort": "20 min",
+      "details": "Parse response.status only. Use generic 'Upload failed' message instead of response.text(). Log errors internally (console) without exposing to user-facing throws."
+    },
+    {
+      "priority": 3,
+      "action": "Add rate limiting to Garmin endpoints",
+      "effort": "45 min",
+      "details": "Implement token bucket or sliding window on /garmin/login and /garmin/mfa. Max 3 attempts/min per session. Track by session ID and email. Return 429 Too Many Requests."
+    },
+    {
+      "priority": 4,
+      "action": "Add MFA attempt lockout",
+      "effort": "30 min",
+      "details": "After 10 failed MFA code entries, lock session for 15 minutes. Notify user of lockout. Clear lock after successful login."
+    },
+    {
+      "priority": 5,
+      "action": "Document sessionStorage XSS risk",
+      "effort": "10 min",
+      "details": "Add comment to view.js explaining trade-off: sessionStorage clears on browser close (good) but is readable by same-origin XSS (acceptable for serverless, requires server proxy for mitigation)."
+    },
+    {
+      "priority": 6,
+      "action": "Clarify password verification timing logic",
+      "effort": "10 min",
+      "details": "Replace bitwise operators with logical operators in check_login(). Add 'constant-time comparison' comment explaining why 'and' is used instead of short-circuit evaluation."
+    }
   ],
-  "summary": "PaceForge demonstrates strong security hygiene: session-based auth, ephemeral token storage, HTML escaping, path validation, and no database. Two medium-severity issues identified in the Zwift Ride protobuf decoder where malformed BLE messages can trigger out-of-bounds reads. Fixes are straightforward (bounds checks before array access). All other major attack surfaces (XSS, auth, credentials, path traversal) verified secure. Risk is localized to the Bluetooth input path and mitigated by device pairing model."
+  "statistics": {
+    "totalVulnerabilities": 7,
+    "critical": 1,
+    "high": 2,
+    "medium": 2,
+    "low": 2,
+    "filesAffected": 3,
+    "sqlInjection": 0,
+    "xss": 0,
+    "pathTraversal": 0,
+    "hardcodedSecrets": 0,
+    "authorizationBypass": 0
+  },
+  "positiveFindings": [
+    "No SQL injection (no SQL used)",
+    "No path traversal (proper .resolve() + .is_relative_to() checks)",
+    "No XSS in browser code (escHtml() applied consistently)",
+    "No CSRF (stateful server sessions with SameSite cookies)",
+    "Session tokens use secrets.token_urlsafe(32) with HttpOnly + Secure flags",
+    "Password verification uses constant-time comparison (hmac.compare_digest)",
+    "API credentials stored in ephemeral sessionStorage, not localStorage",
+    "Credentials never persisted to state (per design)",
+    "No dangerous deserialization patterns"
+  ],
+  "summary": "Garmin password exposure in exception handling is critical and requires immediate fix. API error response sanitization is high priority. Rate limiting gaps on Garmin auth endpoints are the most actionable hardening opportunity. Overall security posture is strong for a serverless application; no SQL injection, XSS, or path traversal vulnerabilities found."
 }
