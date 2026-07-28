@@ -13,6 +13,8 @@ import { uploadIntervalsIcu, uploadStrava } from './upload.js';
 import { RidePlayer } from './player.js';
 import { NS } from './ns.js';
 
+const MAX_TRACE_POINTS = 2000; // bounds the power-trace polyline so long rides stay O(1) per tick
+
 const PROFILE_KEY = 'pf-bike-profile' + NS;
 const PENDING_KEY = 'pf-bike-rides-pending' + NS;
 const IMPORTS_KEY = 'pf-bike-imports' + NS;
@@ -39,7 +41,9 @@ const S = {
   steps: [],
   gear: 12,
   result: null,        // { startTimeMs, data:{records,laps,summary}, ftpUsed, best60, recovered }
-  trace: [],           // player actual-power polyline points
+  trace: [],           // player actual-power polyline points, decimated to stay bounded on long rides
+  traceStride: 1,      // keep every Nth sample once trace hits MAX_TRACE_POINTS
+  traceTick: 0,
   ui: {},              // live element refs for the player screen
   wakeLock: null,
   keyHandler: null,
@@ -427,6 +431,8 @@ async function startRide(workout, mode, name) {
   S.steps = steps;
   S.gear = S.profile?.virtual_gears?.current_default || 12;
   S.trace = [];
+  S.traceStride = 1;
+  S.traceTick = 0;
   S.player = new RidePlayer({
     steps, ftp: ftp(), wprimeJ: S.profile?.wprime_j || 20000,
     trainer: S.trainer, hrm: S.hrm, mode,
@@ -703,8 +709,15 @@ function updatePlayer(snap) {
     u.dim.setAttribute('width', x);
     if (!snap.paused) {
       const y = 180 - Math.min(snap.power3s / u.graphMaxW, 1) * 178;
-      S.trace.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-      u.trace.setAttribute('points', S.trace.join(' '));
+      S.traceTick++;
+      if (S.traceTick % S.traceStride === 0) {
+        S.trace.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+        if (S.trace.length > MAX_TRACE_POINTS) {
+          S.trace = S.trace.filter((_, i) => i % 2 === 0);
+          S.traceStride *= 2;
+        }
+        u.trace.setAttribute('points', S.trace.join(' '));
+      }
     }
   }
 }

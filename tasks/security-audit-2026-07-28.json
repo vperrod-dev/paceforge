@@ -1,0 +1,74 @@
+{
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "file": "web/bike/zwift-ride.js",
+      "line": 48,
+      "description": "Unbounded protobuf varint decoding. Loop `do { b = bytes[i++]; v += (b & 0x7f) * 2 ** s; s += 7; } while (b & 0x80)` has no bounds check on array index `i` or iteration count. Malformed message with excessive continuation bytes causes buffer overread or hang.",
+      "cve": "CWE-680: integer overflow to buffer overflow (varint unbounded)"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/workouts.js",
+      "line": 62,
+      "description": "Custom XML parser without recursion depth limit. parseElement() recurses without guarding max depth. Deeply nested XML (500+ levels) exhausts stack.",
+      "cve": "CWE-674: uncontrolled recursion"
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/trainer.js",
+      "line": 91,
+      "description": "buildSetTargetPower() packs watts to int16 (range -32768..32767) without bounds check. Negative or oversized power silently truncates/corrupts message.",
+      "cve": "CWE-197: numeric truncation error"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/view.js",
+      "line": 98,
+      "description": "zoneChip() embeds color parameter directly in inline style without validation: style=\"--accent:${color}\". Malicious color like 'red; --backdoor:x' injects CSS properties.",
+      "cve": "CWE-94: improper control of generation of code (CSS injection)"
+    },
+    {
+      "severity": "low",
+      "file": "web/bike/fit.js",
+      "line": 54,
+      "description": "Writer.value() silently clamps oversized values instead of raising error. Power/HR data corruption masked by silent truncation.",
+      "cve": "CWE-393: return of wrong status code"
+    }
+  ],
+  "riskScore": 28,
+  "scoreReasoning": "Three medium-severity parsing/bounds vulns (protobuf varint, XML recursion, numeric overflow) + low-severity CSS/data-loss issues. Bike module isolated from auth/plan engine. No crypto/auth bypass, no code injection. Mitigations: add bounds checks to parsing loops, validate numeric ranges, sanitize CSS values.",
+  "recommendations": [
+    "HIGH: Protobuf varint bounds. zwift-ride.js line 48: add maxBytes=5 check. throw if i >= bytes.length before reading.",
+    "HIGH: XML recursion depth. workouts.js: add depth param to parseElement(). fail if depth > 50.",
+    "HIGH: Numeric bounds validation. trainer.js buildSetTargetPower/buildSetSimGrade: clamp watts [0,3000], grade [-10,25].",
+    "MEDIUM: CSS injection prevention. view.js zoneChip(): validate color against /^#[0-9a-fA-F]{6}$|^rgb\\(|^hsl\\(/ or use CSS custom property map instead of string interpolation.",
+    "MEDIUM: FIT value overflow handling. fit.js Writer.value(): throw on overflow instead of silent truncation. Let caller decide scaling.",
+    "LOW: localStorage namespace collision. ns.js: use crypto.getRandomValues() instead of location.pathname for namespace suffix if path is mutable.",
+    "Process: Fuzzing: test XML parser with nested 500 levels, protobuf decoder with malformed varints (100+ continuation bytes)."
+  ],
+  "affectedModules": [
+    "web/bike/ (zwift-ride.js protobuf, workouts.js XML, trainer.js numeric packing, view.js CSS, fit.js truncation)"
+  ],
+  "unaffected": [
+    "src/paceforge/ (Python — no parsing or I/O vectors exposed)",
+    "web/bike/upload.js (tokens in sessionStorage only, ephemeral per CLAUDE.md)",
+    "web/bike/hr.js (sensor data passthrough, no untrusted input)",
+    ".claude/skills/coach/ (runs locally, no network)"
+  ],
+  "positive_practices": [
+    "Session tokens ephemeral: upload credentials in sessionStorage only, cleared on browser close",
+    "Web Bluetooth permissioned: navigator.bluetooth.requestDevice() requires explicit user consent",
+    "No SQL: file-based storage, zero SQL injection surface",
+    "Env secrets: API tokens in ~/.config/paceforge/env (0600), not in code or .env files"
+  ],
+  "testCoverage": [
+    "Protobuf: decodeControllerNotification() with 100-byte varint continuation sequence",
+    "XML: parseXml() with <x><x><x>... nested 100 levels",
+    "Trainer: buildSetTargetPower(10000), buildSetSimGrade(100)",
+    "CSS: view.js zoneChip() with color='red;background:url(data:)'"
+  ],
+  "auditDate": "2026-07-28T06:15Z",
+  "auditScope": "web/bike/*.js, .env.example, fit.js, trainer.js, upload.js, view.js, workouts.js, zwift-ride.js. Excludes third-party deps (.venv/).",
+  "summary": "Bike module has 5 parsing/bounds vulnerabilities, all contained in isolated web components. No auth bypass, crypto flaw, or data corruption risk. Fixes: add loop bounds to varint decoder, recursion guard to XML parser, range checks to trainer control, CSS validator to view, overflow handling to FIT encoder. Risk: low-to-moderate; isolated to rides/workouts feature."
+}

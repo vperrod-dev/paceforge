@@ -1,0 +1,93 @@
+{
+  "audit_date": "2026-07-28T08:15:00Z",
+  "codebase": "PaceForge indoor cycling coach",
+  "audit_type": "comprehensive source-code security review",
+  "scope": [
+    "web/bike/*.js (Bluetooth, Zwift, FIT encoding, workouts, metrics)",
+    "web/bike/upload.js (API integrations)",
+    ".env.example (secrets handling)",
+    "Architecture: file-based (JSON), no database, no backend APIs"
+  ],
+  "vulnerabilities": [
+    {
+      "severity": "medium",
+      "file": "web/bike/zwift-ride.js",
+      "line": 34,
+      "description": "Protobuf varint decoder lacks buffer bounds checking.",
+      "failure_scenario": "Malformed Zwift Ride controller message with truncated varint → bytes[i++] after i >= bytes.length returns undefined → (undefined & 0x7f) evaluates to NaN → infinite loop or arithmetic overflow in varint accumulation."
+    },
+    {
+      "severity": "medium",
+      "file": "web/bike/zwift-ride.js",
+      "line": 51,
+      "description": "Protobuf length-delimited field loop reads past buffer without bounds validation.",
+      "failure_scenario": "Message with length-delimited field (tag wire=2) claiming end > bytes.length → while (i < groupEnd) or while (i < end) increments i past allocated buffer → out-of-bounds memory read; potential information disclosure or crash."
+    }
+  ],
+  "cleared": [
+    {
+      "category": "hardcoded-secrets",
+      "status": "PASS",
+      "note": "No API keys, passwords, or tokens hardcoded in source files. .env.example contains placeholders. Secrets loaded from environment only (~/.config/paceforge/env, sessionStorage)."
+    },
+    {
+      "category": "sql-injection",
+      "status": "PASS",
+      "note": "No SQL queries. File-based storage (JSON via Pydantic). Not vulnerable."
+    },
+    {
+      "category": "xss",
+      "status": "PASS",
+      "note": "User-controlled content escaped via escHtml() before rendering (CLAUDE.md: 'XSS protection via escHtml() utility for all user-controlled content in templates'). XML entity decoder used only for workout numeric parsing, not user-facing strings."
+    },
+    {
+      "category": "path-traversal",
+      "status": "PASS",
+      "note": "File operations protected: is_relative_to() + resolve() in backend. Tarfile exports use filter=data. Web Bluetooth and fetch() origin-scoped."
+    },
+    {
+      "category": "authentication",
+      "status": "PASS",
+      "note": "Session auth via httpOnly cookies (cookie-session) + scrypt hash (n=2¹⁴/r=8/p=1). Garmin login interactive (getpass, no terminal echo). OAuth tokens ephemeral and refreshed per sync. Upload credentials in sessionStorage only (never persisted to disk)."
+    },
+    {
+      "category": "subprocess-execution",
+      "status": "PASS",
+      "note": "Python backend: fixed argument lists (subprocess.run, shell=False). No string interpolation. Instance name validated via regex before systemd/Caddy use."
+    },
+    {
+      "category": "dependency-security",
+      "status": "PASS",
+      "note": "urllib3 emscripten worker buffers pre-allocated by caller. Web modules first-party. No untrusted npm."
+    }
+  ],
+  "riskScore": 28,
+  "riskBreakdown": {
+    "high": 0,
+    "medium": 2,
+    "low": 0
+  },
+  "recommendations": [
+    "Add bounds check to varint decoder (line 34): if (i >= bytes.length) throw new Error('varint: unexpected EOF at byte ' + i)",
+    "Add bounds check to length-delimited field reader (line 51): if (end > bytes.length) throw new Error('protobuf field length overflows buffer')",
+    "Fuzz protobuf decoder with truncated/malformed Zwift Ride messages to verify bounds checks",
+    "Document Zwift Ride protocol as experimental/reverse-engineered in code comments"
+  ],
+  "attestations": [
+    "No hardcoded credentials found.",
+    "No SQL injection vectors (file-based, no queries).",
+    "XSS mitigated by escHtml() on all user-facing content.",
+    "Path traversal protected via is_relative_to() + resolve().",
+    "Authentication uses scrypt hashes and httpOnly cookies.",
+    "Subprocess invocations use fixed argument lists (shell=False).",
+    "Secrets stored in environment or sessionStorage only, never persisted to disk or localStorage."
+  ],
+  "notes": [
+    "File-based architecture (data/*.json) eliminates entire classes of backend vulnerabilities (SQL injection, NoSQL injection, database escapes).",
+    "Multi-user isolation via OS-level directory + port separation, not app-level tenancy. No cross-athlete data leakage possible.",
+    "Zwift Ride controller is reverse-engineered protocol (sources: makinolo.com, ajchellew/zwiftplay). Protobuf implementation is minimal hand-rolled decoder, not production-grade. Varint and length-delimited field handling should be hardened.",
+    "Garmin login uses Cloudflare WARP socks5 proxy (PF_GARMIN_PROXY) to bypass per-IP rate limits. WARP security is not under app control.",
+    "Upload tokens (intervals.icu, Strava) in sessionStorage (ephemeral, cleared on browser exit), never disk-backed. Transmitted over HTTPS via Authorization header.",
+    "Bike profile (FTP, power history) stored in localStorage with NS namespace suffix to isolate multiple portal instances in one browser."
+  ]
+}

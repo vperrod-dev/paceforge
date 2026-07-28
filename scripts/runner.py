@@ -86,6 +86,7 @@ class Run:
                 "created_at": now(), "run_started_at": None, "steps": [],
             }
             RUNS.append(self.rec)
+            del RUNS[:-200]
         self.log_path = STATE_DIR / f"run-{self.id}-{name}.log"
 
     def log(self, text: str) -> None:
