@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "last_attempt": "2026-07-28T05:45:02+00:00",
-  "last_success": "2026-07-28T05:45:02+00:00",
+  "last_attempt": "2026-07-28T12:00:00+00:00",
+  "last_success": "2026-07-28T12:00:00+00:00",
   "result": "ok",
   "error": null,
   "endpoints": {
@@ -58,8 +58,8 @@
     }
   },
   "counters": {
-    "activities": 71,
-    "new_details": 0,
+    "activities": 72,
+    "new_details": 1,
     "detail_failures": 0,
     "matched_workouts": 6,
     "history_written": true,
