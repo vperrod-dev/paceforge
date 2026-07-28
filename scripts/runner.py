@@ -821,6 +821,10 @@ def check_login(user: str, password: str) -> bool:
 
 LOGIN_HTML = """<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="/paceforge/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/paceforge/pf-180.png">
+<meta name="apple-mobile-web-app-title" content="PaceForge">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>PaceForge — sign in</title><style>
 body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
 background:#0b0f14;color:#e6edf3;font:16px/1.5 system-ui,-apple-system,sans-serif}
@@ -911,6 +915,10 @@ class Handler(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(query)
         if path == "/healthz":
             return self._send(200, {"ok": True})
+        # PWA identity must be readable signed-out, or iOS falls back to the
+        # root workspace app and the home-screen icon opens the wrong portal
+        if path in ("/manifest.webmanifest", "/pf-180.png", "/pf-512.png"):
+            return self._static(REPO_DIR / "web" / path.lstrip("/"))
         if not self._authed():
             if path.startswith(("/gh/", "/garmin/", "/runs", "/run/")):
                 return self._send(401, {"message": "sign in first"})
