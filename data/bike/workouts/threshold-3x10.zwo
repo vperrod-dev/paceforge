@@ -1,0 +1,24 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>3x10 Threshold</name>
+    <description>Three 10-minute efforts right at FTP with full recoveries. The classic threshold builder — less daunting than 2x15, same adaptation.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="threshold"/>
+        <tag name="ftp"/>
+    </tags>
+    <workout>
+        <Warmup Duration="720" PowerLow="0.40" PowerHigh="0.80" Cadence="90">
+            <textevent timeoffset="30" message="Solid warmup — threshold work needs ready legs."/>
+            <textevent timeoffset="600" message="First 10-minute effort in 2 minutes."/>
+        </Warmup>
+        <IntervalsT Repeat="3" OnDuration="600" OffDuration="300" OnPower="1.00" OffPower="0.50" Cadence="90" CadenceResting="85">
+            <textevent timeoffset="60" message="Right at FTP — controlled discomfort, steady breathing."/>
+            <textevent timeoffset="480" message="2 min left. Don't let the power sag."/>
+            <textevent timeoffset="600" message="Recovery. Full 5 minutes — use all of it."/>
+        </IntervalsT>
+        <Cooldown Duration="480" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Done. Easy spin."/>
+        </Cooldown>
+    </workout>
+</workout_file>

@@ -1,0 +1,24 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Big Gear 5x5</name>
+    <description>Five 5-minute low-cadence strength blocks at sweet spot — 55-60 rpm, seated, driving from the hips. On-the-bike strength work without touching a squat rack.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="strength"/>
+        <tag name="sweetspot"/>
+        <tag name="lowcadence"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.75" Cadence="90">
+            <textevent timeoffset="30" message="Normal cadence warmup — the grinding starts later."/>
+        </Warmup>
+        <IntervalsT Repeat="5" OnDuration="300" OffDuration="180" OnPower="0.88" OffPower="0.50" Cadence="58" CadenceResting="90">
+            <textevent timeoffset="10" message="Shift up, drop to 55-60 rpm. Stay seated, core braced."/>
+            <textevent timeoffset="240" message="1 min left. Smooth force through the whole pedal stroke."/>
+            <textevent timeoffset="300" message="Back to normal cadence. Spin light."/>
+        </IntervalsT>
+        <Cooldown Duration="480" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Done. High-cadence flush."/>
+        </Cooldown>
+    </workout>
+</workout_file>

@@ -1,0 +1,33 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>30/30s 3x10</name>
+    <description>Three sets of ten 30-second surges above threshold with 30 seconds float between. Accumulates big time near VO2max without the dread of long intervals.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="vo2"/>
+        <tag name="microbursts"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.75" Cadence="90">
+            <textevent timeoffset="30" message="Build steadily — first set of 30/30s after the warmup."/>
+        </Warmup>
+        <IntervalsT Repeat="10" OnDuration="30" OffDuration="30" OnPower="1.18" OffPower="0.55" Cadence="95" CadenceResting="85">
+            <textevent timeoffset="5" message="Punchy but repeatable — the last one should match the first."/>
+        </IntervalsT>
+        <SteadyState Duration="300" Power="0.50" Cadence="85">
+            <textevent timeoffset="10" message="Set done. Easy 5 minutes."/>
+        </SteadyState>
+        <IntervalsT Repeat="10" OnDuration="30" OffDuration="30" OnPower="1.18" OffPower="0.55" Cadence="95" CadenceResting="85">
+            <textevent timeoffset="5" message="Set 2. Same power, same smoothness."/>
+        </IntervalsT>
+        <SteadyState Duration="300" Power="0.50" Cadence="85">
+            <textevent timeoffset="10" message="One set to go. Spin easy."/>
+        </SteadyState>
+        <IntervalsT Repeat="10" OnDuration="30" OffDuration="30" OnPower="1.18" OffPower="0.55" Cadence="95" CadenceResting="85">
+            <textevent timeoffset="5" message="Last set — empty the tank across all ten."/>
+        </IntervalsT>
+        <Cooldown Duration="480" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Done. Long easy spin down."/>
+        </Cooldown>
+    </workout>
+</workout_file>

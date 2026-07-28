@@ -147,7 +147,9 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
   (crash-safe recording → valid .FIT, fitdecode-verified), `upload.js`
   (intervals.icu + Strava). Node selftests: `node web/bike/selftest-*.mjs`.
   State: `data/bike/` (profile with FTP history, workout library, rides.json)
-  written via the `save-ride` / `save-bike-profile` jobs. Rides are digested
+  written via the `save-ride` / `save-bike-profile` jobs; each saved ride carries a
+  downsampled `trace` ([sec, watts, hr] ≤400 points, sanitized in `append_ride`)
+  that powers the clickable ride-detail view (power/HR chart + time-in-zone). Rides are digested
   like Garmin work: `store.load_bike_rides()` feeds `compute_daily_load`
   (power TSS × `_TSS_TO_TRIMP` onto the TRIMP scale, `method="tss"`; strap-HR
   TRIMP fallback) at both `compute_load_recovery` call sites, and the web's

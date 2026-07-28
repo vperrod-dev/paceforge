@@ -66,6 +66,7 @@ async function draw() {
   if (!S.page) return;
   if (S.screen === 'player') renderPlayer();
   else if (S.screen === 'post') renderPost();
+  else if (S.screen === 'ride') renderRideDetail();
   else await renderHome();
 }
 
@@ -146,8 +147,12 @@ async function renderHome() {
   const hasBt = !!navigator.bluetooth;
   const recovered = RideRecorder.recover();
   const zones = powerZones(profile.ftp || 200);
-  const pending = ls(PENDING_KEY, []);
+  // Drop pending entries once the save-ride job has landed them in rides.json.
+  const saved = new Set((rides.rides || []).map(r => r.date));
+  const pending = ls(PENDING_KEY, []).filter(p => !saved.has(p.date));
+  lsSet(PENDING_KEY, pending);
   const allRides = [...pending.map(r => ({ ...r, pending: true })), ...(rides.rides || []).slice().reverse()].slice(0, 8);
+  S.hist = allRides;
   const imports = ls(IMPORTS_KEY, []);
   const suggestion = suggestNext(allRides, index.workouts || []);
 
@@ -226,8 +231,8 @@ async function renderHome() {
     </div>
     <div class="card span-5">
       <div class="card-h"><div class="card-title"><span class="ico">${bikeIcons.history}</span>Ride history</div></div>
-      ${allRides.length ? `<div class="divlist">${allRides.map(r => `
-        <div class="bk-hist-row">
+      ${allRides.length ? `<div class="divlist">${allRides.map((r, i) => `
+        <div class="bk-hist-row" data-ride="${i}" role="button" tabindex="0" style="cursor:pointer">
           <div style="flex:1;min-width:0">
             <div class="act-name">${H.escHtml(r.workout || 'Ride')}${r.pending ? ' <span class="chip" style="--accent:var(--amber);--accent-d:var(--amber-d)">pending</span>' : ''}</div>
             <div class="act-meta">${H.escHtml((r.date || '').slice(0, 16).replace('T', ' '))}</div>
@@ -377,6 +382,17 @@ function bindHome(recovered) {
       }
     } catch (e) { H.toast('err', 'Could not start', H.escHtml(e.message)); }
   }));
+
+  document.querySelectorAll('[data-ride]').forEach(el => {
+    const open = () => {
+      S.rideView = S.hist?.[Number(el.dataset.ride)];
+      if (!S.rideView) return;
+      S.screen = 'ride';
+      renderRideDetail();
+    };
+    el.addEventListener('click', open);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+  });
 
   if (recovered) {
     document.getElementById('bk-recover')?.addEventListener('click', () => recoverRide(recovered));
@@ -732,6 +748,99 @@ function showPrompt(message) {
   promptTimer = setTimeout(() => { el.hidden = true; }, 10000);
 }
 
+// ═══════════ RIDE DETAIL ═══════════
+
+// Bucket-average the raw samples into ≤240 [sec, watts, hr] points — small enough
+// to live inside the rides.json entry, dense enough for a readable trace.
+function downsampleTrace(recs, n = 240) {
+  if (!recs?.length) return null;
+  n = Math.min(recs.length, n);
+  const t0 = recs[0].tMs;
+  const span = Math.max(recs[recs.length - 1].tMs - t0, 1);
+  const buckets = Array.from({ length: n }, () => ({ p: 0, pc: 0, h: 0, hc: 0 }));
+  for (const rec of recs) {
+    const b = buckets[Math.min(n - 1, Math.floor(((rec.tMs - t0) / span) * n))];
+    if (rec.power != null) { b.p += rec.power; b.pc += 1; }
+    if (rec.hr != null) { b.h += rec.hr; b.hc += 1; }
+  }
+  return buckets.map((b, i) => [
+    Math.round(((i + 0.5) / n) * span / 1000),
+    b.pc ? Math.round(b.p / b.pc) : 0,
+    b.hc ? Math.round(b.h / b.hc) : null,
+  ]);
+}
+
+function renderRideDetail() {
+  const r = S.rideView;
+  if (!r) { S.screen = 'home'; return renderHome(); }
+  H.setTopbar('Bike', 'Ride detail');
+  const rideFtp = r.ftp || ftp();
+  const trace = (r.trace || []).filter(p => Array.isArray(p) && p.length >= 2);
+  const stat = (label, v, unit = '') => `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${v}<span class="unit">${unit}</span></div></div>`;
+
+  let chart = '';
+  if (trace.length > 1) {
+    const W = 1000, Hh = 220;
+    const total = trace[trace.length - 1][0] || 1;
+    const maxW = Math.max(rideFtp * 1.2, ...trace.map(p => p[1]));
+    const x = t => (t / total) * W;
+    const y = w => Hh - Math.min(w / maxW, 1) * (Hh - 4);
+    const bands = COGGAN_ZONES.map(z => {
+      const yHi = y(Math.min(z.hi * rideFtp, maxW)), yLo = y(z.lo * rideFtp);
+      return yLo - yHi > 0.5 ? `<rect x="0" y="${yHi.toFixed(1)}" width="${W}" height="${(yLo - yHi).toFixed(1)}" fill="${z.color}" opacity=".12"/>` : '';
+    }).join('');
+    const powerPts = trace.map(p => `${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
+    const hrPts = trace.filter(p => p[2] != null)
+      .map(p => `${x(p[0]).toFixed(1)},${(Hh - (p[2] / 220) * (Hh - 4)).toFixed(1)}`).join(' ');
+    const ftpY = y(rideFtp);
+    // time-in-zone from the trace buckets
+    const zoneSec = COGGAN_ZONES.map(() => 0);
+    const dt = total / trace.length;
+    for (const p of trace) {
+      const zi = COGGAN_ZONES.findIndex(z => p[1] / rideFtp <= z.hi);
+      zoneSec[zi < 0 ? COGGAN_ZONES.length - 1 : zi] += dt;
+    }
+    const zoneTotal = zoneSec.reduce((a, b) => a + b, 0) || 1;
+    chart = `
+      <svg viewBox="0 0 ${W} ${Hh}" preserveAspectRatio="none" style="width:100%;height:220px;display:block" aria-label="Power trace">
+        ${bands}
+        <line x1="0" y1="${ftpY.toFixed(1)}" x2="${W}" y2="${ftpY.toFixed(1)}" stroke="var(--amber)" stroke-width="1" stroke-dasharray="6 5" opacity=".7"/>
+        ${hrPts ? `<polyline points="${hrPts}" fill="none" stroke="#e0475b" stroke-width="1.5" opacity=".6"/>` : ''}
+        <polyline points="${powerPts}" fill="none" stroke="var(--sky, #3da5d9)" stroke-width="2"/>
+      </svg>
+      <div class="act-meta" style="margin-top:6px">Blue = power · dashed = FTP ${Math.round(rideFtp)} W${hrPts ? ' · red = heart rate' : ''}</div>
+      <div class="bk-zonebar" role="img" aria-label="Time in zone" style="margin-top:14px">
+        ${COGGAN_ZONES.map((z, i) => zoneSec[i] / zoneTotal > 0.005 ? `<div class="bk-zoneseg" style="background:${z.color};flex:${(zoneSec[i] / zoneTotal).toFixed(3)}" title="Z${z.z} ${z.name}: ${fmtDur(zoneSec[i])}"></div>` : '').join('')}
+      </div>
+      <div class="bk-zonelegend">${COGGAN_ZONES.map((z, i) => zoneSec[i] / zoneTotal > 0.005 ? `<span><i style="background:${z.color}"></i>Z${z.z} ${fmtDur(zoneSec[i])}</span>` : '').join('')}</div>`;
+  }
+
+  S.page.innerHTML = `
+  <div class="dash-grid">
+    <div class="card span-12">
+      <div class="card-h">
+        <div class="card-title"><span class="ico">${bikeIcons.bike}</span>${H.escHtml(r.workout || 'Ride')}${r.pending ? ' <span class="chip" style="--accent:var(--amber);--accent-d:var(--amber-d)">pending</span>' : ''}</div>
+        <button class="btn btn-sm btn-outline" id="bk-ride-back">Back</button>
+      </div>
+      <div class="act-meta" style="margin-bottom:16px">${H.escHtml((r.date || '').slice(0, 16).replace('T', ' '))}</div>
+      <div class="grid stat-row" style="margin-bottom:18px">
+        ${stat('Duration', fmtDur(r.duration_sec || 0))}
+        ${stat('Avg power', r.avg_power != null ? Math.round(r.avg_power) : '—', ' W')}
+        ${stat('NP', r.np != null ? Math.round(r.np) : '—', ' W')}
+        ${stat('IF', r.if != null ? Number(r.if).toFixed(2) : '—')}
+        ${stat('TSS', r.tss != null ? Math.round(r.tss) : '—')}
+        ${stat('Energy', r.kj != null ? Math.round(r.kj) : '—', ' kJ')}
+        ${stat('Avg HR', r.avg_hr != null ? Math.round(r.avg_hr) : '—', ' bpm')}
+        ${stat('Avg cadence', r.avg_cadence != null ? Math.round(r.avg_cadence) : '—', ' rpm')}
+      </div>
+      ${chart || H.emptyState('No power trace', 'This ride was saved before trace recording existed — newer rides show the full power curve here.')}
+      ${r.notes ? `<div class="card-h" style="margin:18px 0 8px"><div class="card-title">Notes</div></div><div class="act-meta">${H.escHtml(r.notes)}</div>` : ''}
+    </div>
+  </div>`;
+
+  document.getElementById('bk-ride-back').addEventListener('click', () => { S.rideView = null; S.screen = 'home'; renderHome(); });
+}
+
 // ═══════════ POST-RIDE ═══════════
 
 function renderPost() {
@@ -843,6 +952,7 @@ function renderPost() {
       avg_power: s.avgPower, np: s.np, if: s.if_, tss: s.tss, kj: s.kj,
       avg_hr: s.avgHr, avg_cadence: s.avgCadence, ftp: r.ftpUsed,
       notes: document.getElementById('bk-notes').value.trim() || null,
+      trace: downsampleTrace(recs),
     };
     H.withBusy(this, 'Saving…', async () => {
       const res = await fetch(`${H.API}/repos/${H.REPO}/actions/workflows/save-ride.yml/dispatches`, {

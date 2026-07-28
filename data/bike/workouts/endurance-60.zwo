@@ -1,0 +1,23 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Endurance 60</name>
+    <description>A time-crunched aerobic hour: 45 steady minutes in upper Zone 2. The pace should feel almost too easy for the first 20 minutes — that is the point.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="endurance"/>
+        <tag name="z2"/>
+    </tags>
+    <workout>
+        <Warmup Duration="480" PowerLow="0.40" PowerHigh="0.65" Cadence="90">
+            <textevent timeoffset="30" message="Easy build — let the legs wake up."/>
+        </Warmup>
+        <SteadyState Duration="2700" Power="0.68" Cadence="90">
+            <textevent timeoffset="60" message="Settle in. Conversational effort, smooth circles."/>
+            <textevent timeoffset="1350" message="Halfway. Check posture — relax shoulders, light grip."/>
+            <textevent timeoffset="2520" message="3 min left. Keep it steady to the line."/>
+        </SteadyState>
+        <Cooldown Duration="420" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Done. Spin it out."/>
+        </Cooldown>
+    </workout>
+</workout_file>

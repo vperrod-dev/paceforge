@@ -364,6 +364,21 @@ def append_ride(entry: dict, data_dir: Path) -> None:
         "notes": (str(entry.get("notes") or "")[:500] or None),
         "source": "web",
     }
+    # Downsampled [sec, watts, hr|null] points from the web recorder — powers the
+    # ride-detail chart. Bounded to 400 points; malformed points are dropped.
+    raw_trace = entry.get("trace")
+    if isinstance(raw_trace, list):
+        trace = []
+        for p in raw_trace[:400]:
+            try:
+                sec, watts = int(p[0]), int(p[1])
+                hr = int(p[2]) if len(p) > 2 and p[2] is not None else None
+            except (TypeError, ValueError, IndexError):
+                continue
+            if 0 <= sec <= 86400 and 0 <= watts <= 3000:
+                trace.append([sec, watts, hr if hr is not None and 0 <= hr <= 250 else None])
+        if trace:
+            clean["trace"] = trace
     path = data_dir / "bike" / "rides.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     try:

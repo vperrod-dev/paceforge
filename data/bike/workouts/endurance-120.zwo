@@ -1,0 +1,26 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Endurance 120</name>
+    <description>The long aerobic ride: two hours in Zone 2. Fuel from the start — a bottle an hour and something to eat at 45 minutes. Builds the engine everything else sits on.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="endurance"/>
+        <tag name="z2"/>
+        <tag name="long"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.65" Cadence="90">
+            <textevent timeoffset="30" message="Long one today — start easy, drink early."/>
+        </Warmup>
+        <SteadyState Duration="6000" Power="0.68" Cadence="90">
+            <textevent timeoffset="60" message="Settle into your all-day rhythm."/>
+            <textevent timeoffset="2700" message="45 min in — eat something now, not when you feel empty."/>
+            <textevent timeoffset="3000" message="Halfway. Stand and stretch for 10 pedal strokes."/>
+            <textevent timeoffset="4800" message="Final stretch. Hold the same effort even as it starts to bite."/>
+            <textevent timeoffset="5820" message="3 min left. Strong to the end."/>
+        </SteadyState>
+        <Cooldown Duration="600" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Great work. Easy spin, big recovery meal."/>
+        </Cooldown>
+    </workout>
+</workout_file>

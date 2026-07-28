@@ -1,0 +1,23 @@
+<workout_file>
+    <author>PaceForge</author>
+    <name>Tempo 60</name>
+    <description>A continuous 40-minute tempo block — the "comfortably uncomfortable" zone. Builds fatigue resistance and mental patience for long sustained efforts.</description>
+    <sportType>bike</sportType>
+    <tags>
+        <tag name="tempo"/>
+        <tag name="z3"/>
+    </tags>
+    <workout>
+        <Warmup Duration="600" PowerLow="0.40" PowerHigh="0.70" Cadence="90">
+            <textevent timeoffset="30" message="Steady build — 40 minutes of tempo ahead."/>
+        </Warmup>
+        <SteadyState Duration="2400" Power="0.83" Cadence="90">
+            <textevent timeoffset="60" message="Settle in. Breathing deeper but controlled."/>
+            <textevent timeoffset="1200" message="Halfway. Check in: smooth pedaling, relaxed upper body."/>
+            <textevent timeoffset="2160" message="4 min left. Finish as steady as you started."/>
+        </SteadyState>
+        <Cooldown Duration="600" PowerLow="0.60" PowerHigh="0.40">
+            <textevent timeoffset="30" message="Done. Easy spin."/>
+        </Cooldown>
+    </workout>
+</workout_file>

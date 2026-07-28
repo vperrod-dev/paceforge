@@ -28,6 +28,42 @@
       "description": "The classic five-by-five: 5 minutes hard, 5 minutes easy, five times. Simple to remember, brutally effective at raising your aerobic ceiling."
     },
     {
+      "file": "anaerobic-6x1.zwo",
+      "name": "6x1 Anaerobic",
+      "durationSec": 3120,
+      "tss": 50.1,
+      "if": 0.76,
+      "zones": "Z6",
+      "description": "Six 1-minute efforts well above threshold with long recoveries. Trains the capacity to attack, close gaps and survive surges — quality over quantity, every rep full gas."
+    },
+    {
+      "file": "big-gear-5x5.zwo",
+      "name": "Big Gear 5x5",
+      "durationSec": 3480,
+      "tss": 53.2,
+      "if": 0.742,
+      "zones": "Z3-Z4",
+      "description": "Five 5-minute low-cadence strength blocks at sweet spot — 55-60 rpm, seated, driving from the hips. On-the-bike strength work without touching a squat rack."
+    },
+    {
+      "file": "endurance-120.zwo",
+      "name": "Endurance 120",
+      "durationSec": 7200,
+      "tss": 87.5,
+      "if": 0.662,
+      "zones": "Z2",
+      "description": "The long aerobic ride: two hours in Zone 2. Fuel from the start — a bottle an hour and something to eat at 45 minutes. Builds the engine everything else sits on."
+    },
+    {
+      "file": "endurance-60.zwo",
+      "name": "Endurance 60",
+      "durationSec": 3600,
+      "tss": 42.5,
+      "if": 0.652,
+      "zones": "Z2",
+      "description": "A time-crunched aerobic hour: 45 steady minutes in upper Zone 2. The pace should feel almost too easy for the first 20 minutes — that is the point."
+    },
+    {
       "file": "endurance-90.zwo",
       "name": "Endurance 90",
       "durationSec": 5400,
@@ -35,6 +71,15 @@
       "if": 0.67,
       "zones": "Z2",
       "description": "Ninety minutes of steady Zone 2 with cadence variety: high-cadence spin-ups and low-cadence strength blocks keep it engaging while the aerobic engine does its quiet work."
+    },
+    {
+      "file": "microbursts-30-30.zwo",
+      "name": "30/30s 3x10",
+      "durationSec": 3480,
+      "tss": 62.2,
+      "if": 0.802,
+      "zones": "Z5",
+      "description": "Three sets of ten 30-second surges above threshold with 30 seconds float between. Accumulates big time near VO2max without the dread of long intervals."
     },
     {
       "file": "over-unders-3x9.zwo",
@@ -73,6 +118,15 @@
       "description": "Eight 30-second sprints at 150% with long, full recoveries. Trains raw power and the snap to close a gap — quality over quantity, every rep from fresh-ish legs."
     },
     {
+      "file": "sweet-spot-3x12.zwo",
+      "name": "3x12 Sweet Spot",
+      "durationSec": 3960,
+      "tss": 69.3,
+      "if": 0.794,
+      "zones": "Z3-Z4",
+      "description": "Three 12-minute sweet-spot blocks — the stepping stone toward 2x20. Same pressure, shorter bites, generous recovery."
+    },
+    {
       "file": "tempo-3x15.zwo",
       "name": "Tempo 3x15",
       "durationSec": 4800,
@@ -82,6 +136,15 @@
       "description": "Three 15-minute tempo blocks at a comfortably hard pace. Builds the muscular endurance that makes long threshold work possible later in the season."
     },
     {
+      "file": "tempo-60.zwo",
+      "name": "Tempo 60",
+      "durationSec": 3600,
+      "tss": 58.9,
+      "if": 0.768,
+      "zones": "Z3",
+      "description": "A continuous 40-minute tempo block — the \"comfortably uncomfortable\" zone. Builds fatigue resistance and mental patience for long sustained efforts."
+    },
+    {
       "file": "threshold-2x15.zwo",
       "name": "Threshold 2x15",
       "durationSec": 3600,
@@ -89,6 +152,15 @@
       "if": 0.859,
       "zones": "Z4",
       "description": "Two 15-minute efforts right at FTP with 5 minutes between. The most honest workout there is — if FTP is set right, this is hard but doable."
+    },
+    {
+      "file": "threshold-3x10.zwo",
+      "name": "3x10 Threshold",
+      "durationSec": 3900,
+      "tss": 77.5,
+      "if": 0.846,
+      "zones": "Z4",
+      "description": "Three 10-minute efforts right at FTP with full recoveries. The classic threshold builder — less daunting than 2x15, same adaptation."
     }
   ]
 }

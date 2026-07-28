@@ -50,6 +50,18 @@ def test_append_ride_requires_duration(tmp_path):
         append_ride({"date": "2026-07-21T18:00:00"}, tmp_path)
 
 
+def test_append_ride_keeps_valid_trace_points_only(tmp_path):
+    trace = [[0, 150, 120], [5, 210, None], ["bad"], [10, 9999, 100], [15, 180, 999]]
+    append_ride({"date": "2026-07-21T18:00:00", "duration_sec": 3600, "trace": trace}, tmp_path)
+    ride = read(tmp_path / "bike" / "rides.json")["rides"][0]
+    assert ride["trace"] == [[0, 150, 120], [5, 210, None], [15, 180, None]]
+
+
+def test_append_ride_omits_trace_key_when_absent(tmp_path):
+    append_ride({"date": "2026-07-21T18:00:00", "duration_sec": 3600}, tmp_path)
+    assert "trace" not in read(tmp_path / "bike" / "rides.json")["rides"][0]
+
+
 def test_append_ride_rejects_out_of_range_ftp(tmp_path):
     with pytest.raises(ValueError):
         append_ride({"date": "2026-07-21T18:00:00", "duration_sec": 3600, "ftp": 5000}, tmp_path)

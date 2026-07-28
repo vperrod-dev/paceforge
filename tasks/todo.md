@@ -64,3 +64,19 @@ next real sync was verified to touch `data/` only.
 **Left deliberately:** the `/gh/repos/<o>/<r>/…` URL shapes on both sides. They are the
 runner's own contract now (owner/repo ignored, no token); rewriting the wire would touch
 ~20 call sites and two route tables to change nothing a user sees.
+
+## Bike history + workout library (2026-07-28)
+
+- [x] Fix stuck "pending" ride duplicates: reconcile localStorage pending list against
+      rides.json on every home render (matched by date, the runner's idempotency key)
+- [x] Ride-detail view: history rows clickable → power/HR chart with zone bands, FTP line,
+      time-in-zone bar, stats + notes; rides saved from now on carry a downsampled `trace`
+      ([sec, watts, hr] ≤400 pts, sanitized server-side in `append_ride`)
+- [x] Workout library 10 → 18: Endurance 60/120, 3x12 Sweet Spot, 3x10 Threshold,
+      30/30s 3x10, 6x1 Anaerobic, Tempo 60, Big Gear 5x5 (stats computed by the app's own
+      parser; selftest-formats requires index sorted by filename and recomputes every entry)
+- [x] Verified: ruff + pytest (35 passed), node selftests (126 passed), runner restarted,
+      served view.js/index.json checked on 8223, nunoduarte instance updated (8224)
+
+Note: yesterday's ride (2026-07-27) predates trace capture — its detail view shows stats
+only. The duplicate "pending" copy of it disappears on first page load with the new code.
