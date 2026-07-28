@@ -606,7 +606,11 @@ async function profileMeta() {
 // Garmin activities + app-recorded bike rides (data/bike/rides.json) as one
 // list. Rides never reach Garmin, so they get pseudo-activity entries here —
 // same ids ("bike:<date>") the load engine uses.
+let _actsCache = null, _actsCacheAt = 0;
+const ACTS_CACHE_TTL = 15_000; // 15s cache invalidates on data changes
+
 async function allActivities() {
+  if (_actsCache && Date.now() - _actsCacheAt < ACTS_CACHE_TTL) return _actsCache;
   const [acts, rides] = await Promise.all([
     loadJSON('activities.json').catch(() => []),
     loadJSON('bike/rides.json').then(r => r.rides || []).catch(() => []),
@@ -617,7 +621,9 @@ async function allActivities() {
     duration_seconds: r.duration_sec, avg_hr: r.avg_hr,
     calories: r.kj ? Math.round(r.kj) : null, bike: r,
   }));
-  return [...acts, ...bike].sort((a, b) => String(b.start_time || '').localeCompare(String(a.start_time || '')));
+  _actsCache = [...acts, ...bike].sort((a, b) => String(b.start_time || '').localeCompare(String(a.start_time || '')));
+  _actsCacheAt = Date.now();
+  return _actsCache;
 }
 
 async function feedFromActivities() {
@@ -631,6 +637,11 @@ async function feedFromActivities() {
       elevation_gain: a.elevation_gain, training_effect_aerobic: a.training_effect_aerobic,
     },
   }));
+}
+
+// Invalidate allActivities cache — call after save-ride, sync, or any data mutation.
+function invalidateActivitiesCache() {
+  _actsCache = null;
 }
 
 // ═══════════════════════════════════════════════════════
