@@ -1,0 +1,7 @@
+{
+ "name": "PaceForge", "short_name": "PaceForge",
+ "id": "/paceforge/", "start_url": "/paceforge/", "scope": "/paceforge/", "display": "minimal-ui",
+ "background_color": "#0E3B3B", "theme_color": "#0E3B3B",
+ "icons": [{"src": "/paceforge/pf-180.png", "sizes": "180x180", "type": "image/png"},
+           {"src": "/paceforge/pf-512.png", "sizes": "512x512", "type": "image/png"}]
+}
