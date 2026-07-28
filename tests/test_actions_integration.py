@@ -51,7 +51,14 @@ class TestSyncDetailsLoop:
         """_sync_details(limit=N) only fetches N most recent."""
         mock_client = MagicMock()
         activities = [
-            RecentActivity(activity_id=i, distance_meters=10000, duration_seconds=2400)
+            RecentActivity(
+                activity_id=i,
+                name=f"Activity {i}",
+                activity_type="running",
+                start_time=datetime.now(),
+                distance_meters=10000,
+                duration_seconds=2400
+            )
             for i in range(100)
         ]
 
@@ -73,8 +80,22 @@ class TestSyncDetailsLoop:
         """_sync_details() skips activities deleted from Garmin."""
         mock_client = MagicMock()
         activities = [
-            RecentActivity(activity_id=1, distance_meters=10000, duration_seconds=2400),
-            RecentActivity(activity_id=2, distance_meters=10000, duration_seconds=2400),
+            RecentActivity(
+                activity_id=1,
+                name="Activity 1",
+                activity_type="running",
+                start_time=datetime.now(),
+                distance_meters=10000,
+                duration_seconds=2400
+            ),
+            RecentActivity(
+                activity_id=2,
+                name="Activity 2",
+                activity_type="running",
+                start_time=datetime.now(),
+                distance_meters=10000,
+                duration_seconds=2400
+            ),
         ]
 
         with patch('paceforge.actions.store.load_activities') as mock_load_acts:
@@ -251,10 +272,16 @@ class TestRecalibratePaceDelta:
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.store.save_plan') as mock_save:
                 plan = TrainingPlan(
+                    name="Test Plan",
+                    goal_type="MARATHON",
+                    target_date=date(2026, 10, 4),
+                    total_weeks=12,
+                    vdot=50.0,
                     weeks=[{
+                        "week_number": 1,
                         "workouts": [{
-                            "pace_low_sec": 300,
-                            "pace_high_sec": 310,
+                            "name": "Easy",
+                            "workout_type": WorkoutType.EASY_RUN,
                         }]
                     }]
                 )
@@ -269,10 +296,16 @@ class TestRecalibratePaceDelta:
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.store.save_plan'):
                 plan = TrainingPlan(
+                    name="Test Plan",
+                    goal_type="MARATHON",
+                    target_date=date(2026, 10, 4),
+                    total_weeks=12,
+                    vdot=50.0,
                     weeks=[{
+                        "week_number": 1,
                         "workouts": [{
-                            "pace_low_sec": 300,
-                            "pace_high_sec": 310,
+                            "name": "Easy",
+                            "workout_type": WorkoutType.EASY_RUN,
                         }]
                     }]
                 )
@@ -284,7 +317,21 @@ class TestRecalibratePaceDelta:
         """recalibrate(force=False) only shifts accepted future weeks."""
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.store.save_plan'):
-                plan = TrainingPlan(accepted_week=1)
+                plan = TrainingPlan(
+                    name="Test Plan",
+                    goal_type="MARATHON",
+                    target_date=date(2026, 10, 4),
+                    total_weeks=12,
+                    vdot=50.0,
+                    accepted=False,
+                    weeks=[{
+                        "week_number": 1,
+                        "workouts": [{
+                            "name": "Easy",
+                            "workout_type": WorkoutType.EASY_RUN,
+                        }]
+                    }]
+                )
                 mock_load.return_value = plan
 
                 result = actions.recalibrate(delta_vdot=0.5, force=False)
@@ -299,11 +346,15 @@ class TestPushToGarmin:
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.validate_plan') as mock_validate:
                 from paceforge.models.plan import Workout, WorkoutType
-                w = Workout(name="Easy", workout_type=WorkoutType.EASY,
+                w = Workout(name="Easy", workout_type=WorkoutType.EASY_RUN,
                            sport="run", scheduled_date=date.today(),
                            estimated_duration_seconds=3600)
                 plan = TrainingPlan(
-                    weeks=[{"workouts": [w]}],
+                    name="Test Plan",
+                    goal_type="MARATHON",
+                    target_date=date(2026, 10, 4),
+                    total_weeks=12,
+                    weeks=[{"week_number": 1, "workouts": [w]}],
                     pace_bands={},
                 )
                 mock_load.return_value = plan
@@ -317,11 +368,15 @@ class TestPushToGarmin:
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.validate_plan') as mock_validate:
                 from paceforge.models.plan import Workout, WorkoutType
-                w = Workout(name="Easy", workout_type=WorkoutType.EASY,
+                w = Workout(name="Easy", workout_type=WorkoutType.EASY_RUN,
                            sport="run", scheduled_date=date.today(),
                            estimated_duration_seconds=3600)
                 plan = TrainingPlan(
-                    weeks=[{"workouts": [w]} for _ in range(4)],
+                    name="Test Plan",
+                    goal_type="MARATHON",
+                    target_date=date(2026, 10, 4),
+                    total_weeks=12,
+                    weeks=[{"week_number": i+1, "workouts": [w]} for i in range(4)],
                     pace_bands={},
                 )
                 mock_load.return_value = plan
@@ -335,11 +390,15 @@ class TestPushToGarmin:
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.validate_plan') as mock_validate:
                 from paceforge.models.plan import Workout, WorkoutType
-                w = Workout(name="Easy", workout_type=WorkoutType.EASY,
+                w = Workout(name="Easy", workout_type=WorkoutType.EASY_RUN,
                            sport="run", scheduled_date=date.today(),
                            estimated_duration_seconds=3600)
                 plan = TrainingPlan(
-                    weeks=[{"workouts": [w]}],
+                    name="Test Plan",
+                    goal_type="MARATHON",
+                    target_date=date(2026, 10, 4),
+                    total_weeks=12,
+                    weeks=[{"week_number": 1, "workouts": [w]}],
                     pace_bands={},
                 )
                 mock_load.return_value = plan
@@ -361,11 +420,15 @@ class TestAutoSync:
 
         with patch('paceforge.actions.store.load_plan') as mock_load:
             from paceforge.models.plan import Workout, WorkoutType
-            w = Workout(name="Easy", workout_type=WorkoutType.EASY,
+            w = Workout(name="Easy", workout_type=WorkoutType.EASY_RUN,
                        sport="run", scheduled_date=date.today(),
                        estimated_duration_seconds=3600)
             plan = TrainingPlan(
-                weeks=[{"workouts": [w]} for _ in range(4)],
+                name="Test Plan",
+                goal_type="MARATHON",
+                target_date=date(2026, 10, 4),
+                total_weeks=12,
+                weeks=[{"week_number": i+1, "workouts": [w]} for i in range(4)],
                 accepted=True,
                 pace_bands={},
             )
@@ -383,12 +446,16 @@ class TestAutoSync:
 
         with patch('paceforge.actions.store.load_plan') as mock_load:
             from paceforge.models.plan import Workout, WorkoutType
-            w = Workout(name="Easy", workout_type=WorkoutType.EASY,
+            w = Workout(name="Easy", workout_type=WorkoutType.EASY_RUN,
                        sport="run", scheduled_date=date.today() + timedelta(days=7),
                        estimated_duration_seconds=3600,
                        garmin_workout_id=None)
             plan = TrainingPlan(
-                weeks=[{"workouts": [w]}],
+                name="Test Plan",
+                goal_type="MARATHON",
+                target_date=date(2026, 10, 4),
+                total_weeks=12,
+                weeks=[{"week_number": 1, "workouts": [w]}],
                 accepted=True,
                 pace_bands={},
             )
@@ -406,17 +473,21 @@ class TestAdaptMissedSessions:
         from paceforge.models.plan import Workout, WorkoutType
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.store.save_plan'):
-                w1 = Workout(name="Mon", workout_type=WorkoutType.EASY,
+                w1 = Workout(name="Mon", workout_type=WorkoutType.EASY_RUN,
                             sport="run", scheduled_date=date.today(),
                             estimated_duration_seconds=3600)
-                w2 = Workout(name="Tue", workout_type=WorkoutType.EASY,
+                w2 = Workout(name="Tue", workout_type=WorkoutType.EASY_RUN,
                             sport="run", scheduled_date=date.today() + timedelta(days=1),
                             estimated_duration_seconds=3600)
-                w3 = Workout(name="Wed", workout_type=WorkoutType.EASY,
+                w3 = Workout(name="Wed", workout_type=WorkoutType.EASY_RUN,
                             sport="run", scheduled_date=date.today() + timedelta(days=2),
                             estimated_duration_seconds=3600)
                 plan = TrainingPlan(
-                    weeks=[{"workouts": [w1, w2, w3]}],
+                    name="Test Plan",
+                    goal_type="MARATHON",
+                    target_date=date(2026, 10, 4),
+                    total_weeks=12,
+                    weeks=[{"week_number": 1, "workouts": [w1, w2, w3]}],
                     pace_bands={},
                 )
                 mock_load.return_value = plan
@@ -433,7 +504,11 @@ class TestAdaptMissedSessions:
                            sport="run", scheduled_date=date.today(),
                            estimated_duration_seconds=3600)
                 plan = TrainingPlan(
-                    weeks=[{"workouts": [w]}],
+                    name="Test Plan",
+                    goal_type="MARATHON",
+                    target_date=date(2026, 10, 4),
+                    total_weeks=12,
+                    weeks=[{"week_number": 1, "workouts": [w]}],
                     pace_bands={},
                 )
                 mock_load.return_value = plan

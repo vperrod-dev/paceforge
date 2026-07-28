@@ -292,7 +292,7 @@ class TestGarminUploadWorkout:
         workout = Workout(
             name="Workout",
             sport="run",
-            workout_type=WorkoutType.EASY,
+            workout_type=WorkoutType.EASY_RUN,
             scheduled_date=date.today(),
             estimated_duration_seconds=3600,
         )
@@ -307,7 +307,7 @@ class TestGarminUploadWorkout:
 
         mock_client = MagicMock()
         mock_garmin_class.return_value = mock_client
-        mock_client.upload_workout.side_effect = Exception("403 Forbidden")
+        mock_client.upload_running_workout.side_effect = Exception("403 Forbidden")
 
         garmin = GarminClient(email="test@example.com", password="test")
         garmin._client = mock_client
@@ -315,7 +315,7 @@ class TestGarminUploadWorkout:
         workout = Workout(
             name="Workout",
             sport="run",
-            workout_type=WorkoutType.EASY,
+            workout_type=WorkoutType.EASY_RUN,
             scheduled_date=date.today(),
             estimated_duration_seconds=3600
         )
