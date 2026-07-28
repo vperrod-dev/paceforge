@@ -174,7 +174,11 @@ coach-analysed the same day; the morning pass (and only that one) pushes
 `paceforge brief --telegram` (`TG_TOKEN` + `TG_CHAT_ID`; skipped when unset)
 and dispatches `daily` — the coach's morning read → `data/daily-brief.json`,
 rendered as the lead card on the Today page. Every sync dispatches `analyze`
-(per-activity coach analyses).
+(per-activity coach analyses). Its worklist is `pending_analyses`: **every** completed
+session — all Garmin activity types plus app bike rides (`bike:<date>` ids) — over a
+30-day lookback, newest first, 10 per pass; plan matching deliberately does NOT gate
+it (unplanned work gets coached too — never reintroduce that filter, thrice-repeated
+athlete requirement).
 `autosync` (daily 06:20 UTC) reconciles the Garmin calendar with the accepted
 plan — pushes current + next 2 weeks, deletes stale completed copies and orphaned
 scheduled entries (the runner also reconciles after every plan-mutating job);

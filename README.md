@@ -16,7 +16,8 @@ It runs three ways, all free beyond a Claude subscription:
 - the **Claude desktop app** via a local MCP server.
 
 The runner also owns the schedule: a Garmin sync three times a day, an auto-analysis
-of each completed workout, a daily calendar reconcile and a weekly review.
+of **every** completed workout — running, cardio, strength or bike, planned or not —
+a daily calendar reconcile and a weekly review.
 
 ## How it works
 
@@ -106,12 +107,15 @@ after each sync:
   structured workouts in **ERG mode** with a TrainerRoad-style player (zone-coloured
   interval graph, live power trace, coaching prompts, intensity ±1%, live
   NP/IF/TSS/W′bal), take a **ramp test** (FTP = 75% of best 1-min, one-click apply),
-  free-ride with virtual gears, or import any `.zwo`/`.erg`/`.mrc` file (a 10-workout
-  library is built in, and whatsonzwift.com's ~3,100 workouts import directly).
+  free-ride with virtual gears, or import any `.zwo`/`.erg`/`.mrc` file (an 18-workout
+  library is built in — endurance to anaerobic, incl. low-cadence strength work —
+  and whatsonzwift.com's ~3,100 workouts import directly).
   Rides record **crash-safe** and export as standard **.FIT** — download, or upload
-  to **intervals.icu / Strava** with one click; summaries persist to `data/bike/`
-  via the `save-ride` job and feed the ride history + a rule-based
-  *suggested next ride*. Saved rides are **first-class training**: they join the
+  to **intervals.icu / Strava** with one click; summaries plus a downsampled
+  power/HR trace persist to `data/bike/` via the `save-ride` job and feed the ride
+  history + a rule-based *suggested next ride*. History rows **open into a ride-detail
+  view**: power curve over Coggan zone bands with the FTP line, HR overlay,
+  time-in-zone bar, and notes. Saved rides are **first-class training**: they join the
   activity feed, Calendar and Today's "Done today" card (power-tile detail view),
   count into CTL/ATL/TSB, ACWR and monotony (power TSS bridged onto the TRIMP
   scale), and get their own coach analysis. A **Demo mode** (simulated trainer)
