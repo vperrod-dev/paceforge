@@ -2679,6 +2679,7 @@ async function renderCalendar(page) {
     planStore.get().catch(() => null),
     cached('activities', () => apiJson('/activities').catch(() => [])),
     loadJSON('events.json').catch(() => []),
+    loadJSON('extra_activities.json').catch(() => []),
   ]);
 
   for (const ev of events || []) {
@@ -2774,17 +2775,39 @@ async function renderCalendar(page) {
     const details = document.getElementById('cal-details');
     const entries = calEntries[ds] || [];
     const dateLabel = new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
-    if (!entries.length) { details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div><div class="empty" style="border:none;padding:24px 0">Nothing scheduled.</div>`; return; }
+    let extrasHtml = '';
+    for (const ex of (window.__extraActivities || [])) {
+      if (ex.date !== ds) continue;
+      extrasHtml += `<div class="act-item" style="border:1px solid var(--border-s);border-radius:10px;padding:10px 12px"><div class="act-bar" style="background:var(--violet)"></div>
+        <div class="act-info"><div class="act-name">${escHtml(ex.name || ex.sport || 'Cardio')}</div><div class="act-meta">${escHtml(ex.sport || 'Cardio')}${ex.minutes ? ' · ' + escHtml(String(ex.minutes)) + 'min' : ''}</div></div></div>`;
+    }
+    if (!entries.length && !extrasHtml) {
+      details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div><div class="empty" style="border:none;padding:24px 0">Nothing scheduled.</div>` + `<div id="extra-form-wrap"><button class="btn btn-ghost btn-block" onclick="showExtraForm()" id="extra-show" style="margin-bottom:10px">+ Add cardio session</button>
+        <div id="extra-form" style="display:none;padding:14px 0 0">
+          <div class="field"><label>Sport</label><select id="ex-sport"><option>Cardio</option><option>HYROX</option><option>Swim</option><option>Bike</option></select></div>
+          <div class="field"><label>Date</label><input id="ex-date" type="date" value="${ds}"></div>
+          <div class="field"><label>Minutes</label><input id="ex-min" type="number" min="1" value="45"></div>
+          <div class="field"><label>Name</label><input id="ex-name" placeholder="Training center session"></div>
+          <button class="btn btn-ghost" onclick="hideExtraForm()" id="extra-cancel">Cancel</button>
+          <button class="btn btn-primary" onclick="saveExtra()" id="extra-save">Save session</button>
+        </div></div>`;
+      
+      return;
+    }
     details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">` + entries.map((e, i) => `
       <div class="act-item" data-cal-idx="${i}" style="border:1px solid var(--border-s);border-radius:10px;padding:10px 12px"><div class="act-bar" style="background:${e.color}"></div>
-        <div class="act-info"><div class="act-name">${escHtml(e.title)}</div>${e.sub ? `<div class="act-meta">${escHtml(e.sub)}</div>` : ''}</div></div>`).join('') + `</div>`;
-    details.querySelectorAll('[data-cal-idx]').forEach(c => c.addEventListener('click', () => {
-      const e = entries[+c.dataset.calIdx];
-      if (e.type === 'activity' && e.activity) renderActivityDetail(details, e.activity, { onBack: () => showDay(ds) });
-      else if (e.type === 'planned' && e.wo) renderWorkoutDetail(details, e.wo, { onBack: () => showDay(ds) });
-    }));
-  }
+        <div class="act-info"><div class="act-name">${escHtml(e.title)}</div>${e.sub ? `<div class="act-meta">${escHtml(e.sub)}</div>` : ''}</div></div>`).join('') + extrasHtml + `</div>` + `<div id="extra-form-wrap"><button class="btn btn-ghost btn-block" onclick="showExtraForm()" id="extra-show" style="margin-top:10px">+ Add cardio session</button>
+        <div id="extra-form" style="display:none;padding:14px 0 0">
+          <div class="field"><label>Sport</label><select id="ex-sport"><option>Cardio</option><option>HYROX</option><option>Swim</option><option>Bike</option></select></div>
+          <div class="field"><label>Date</label><input id="ex-date" type="date" value="${ds}"></div>
+          <div class="field"><label>Minutes</label><input id="ex-min" type="number" min="1" value="45"></div>
+          <div class="field"><label>Name</label><input id="ex-name" placeholder="Training center session"></div>
+          <button class="btn btn-ghost" onclick="hideExtraForm()" id="extra-cancel">Cancel</button>
+          <button class="btn btn-primary" onclick="saveExtra()" id="extra-save">Save session</button>
+        </div></div>`;
+    }
+    
 
   function reDraw() {
     page.innerHTML = drawMonth();
@@ -2810,6 +2833,31 @@ async function loadText(file) {
   return res.text();
 }
 
+window.showExtraForm = function() {
+  const form = document.getElementById('extra-form');
+  const show = document.getElementById('extra-show');
+  if (form && show) { form.style.display = 'block'; show.style.display = 'none'; }
+};
+window.hideExtraForm = function() {
+  const form = document.getElementById('extra-form');
+  const show = document.getElementById('extra-show');
+  if (form && show) { form.style.display = 'none'; show.style.display = 'block'; }
+};
+window.saveExtra = async function() {
+  const saveBtn = document.getElementById('extra-save');
+  if (!saveBtn) return;
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+  try {
+    const r = await fetch('/paceforge/extra_activities', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: Array.isArray(window.__extraActivities) ? window.__extraActivities : [] })
+    });
+    if (!r.ok) throw new Error('save failed: ' + r.status);
+    location.reload();
+    toast('ok', 'Session saved');
+  } catch (e) { toast('err', 'Not saved', e.message); }
+  finally { saveBtn.disabled = false; saveBtn.textContent = 'Save session'; }
+};
 function formatMarkdown(md) {
   return escHtml(md)
     .replace(/^#{1,3} (.*)$/gm, '<div style="font-weight:700;color:var(--text);margin:12px 0 4px">$1</div>')

@@ -915,6 +915,13 @@ class Handler(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(query)
         if path == "/healthz":
             return self._send(200, {"ok": True})
+        if path == "/extra_activities":
+            f = REPO_DIR / "data" / "extra_activities.json"
+            try:
+                data = json.loads(f.read_text() or "[]")
+            except Exception:
+                data = []
+            return self._send(200, data)
         # PWA identity must be readable signed-out, or iOS falls back to the
         # root workspace app and the home-screen icon opens the wrong portal
         if path in ("/manifest.webmanifest", "/pf-180.png", "/pf-512.png"):
@@ -972,6 +979,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self._route()
+        if path == "/extra_activities":
+            b = self._body() or {}
+            items = b.get("items") if isinstance(b, dict) else None
+            if not isinstance(items, list):
+                return self._send(400, {"message": "items list required"})
+            f = REPO_DIR / "data" / "extra_activities.json"
+            f.write_text(json.dumps(items, ensure_ascii=True))
+            return self._send(200, {"ok": True, "count": len(items)})
         if path == "/auth/login":
             b = self._body()
             if not check_login(str(b.get("user") or ""), str(b.get("password") or "")):
