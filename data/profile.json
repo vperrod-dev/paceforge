@@ -1,7 +1,7 @@
 {
   "garmin_display_name": "857c1d55-4e18-4355-982c-f17af0487ab2",
   "vo2_max": 53.4,
-  "resting_hr": 48,
+  "resting_hr": 47,
   "max_hr": 195,
   "hr_zones": [],
   "training_readiness": 66.0,
@@ -1605,7 +1605,7 @@
     }
   ],
   "profile_date": "2026-07-29",
-  "body_battery_current": 39,
+  "body_battery_current": 41,
   "body_battery_high": null,
   "body_battery_low": null,
   "sleep_score": 70,
@@ -1614,8 +1614,8 @@
   "sleep_light_seconds": 13320.0,
   "sleep_rem_seconds": 2400.0,
   "sleep_awake_seconds": 480.0,
-  "stress_avg": 22,
-  "stress_high": 69,
+  "stress_avg": 25,
+  "stress_high": 99,
   "stress_low": null,
   "training_load_7day": 457.0,
   "load_focus": "Balanced",
