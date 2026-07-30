@@ -12,12 +12,12 @@
       "total_distance_km": null,
       "workouts": [
         {
-          "session_id": "505dd35e",
+          "session_id": "2afaad85",
           "workout_type": "easy_run",
           "sport": "run",
           "name": "Easy",
           "description": "",
-          "scheduled_date": "2026-08-05",
+          "scheduled_date": "2026-08-06",
           "estimated_duration_seconds": 3600.0,
           "estimated_distance_meters": null,
           "steps": [],
@@ -31,7 +31,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1647937569,
+          "garmin_workout_id": null,
           "user_rpe": null,
           "user_notes": null
         }
@@ -40,7 +40,7 @@
       "intro": ""
     }
   ],
-  "created_at": "2026-07-29",
+  "created_at": "2026-07-30",
   "easy_pace": null,
   "marathon_pace": null,
   "threshold_pace": null,
