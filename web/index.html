@@ -2876,17 +2876,15 @@ window.openExtra = function(xi, ds) {
   const ex = (window.__extraActivities || [])[xi];
   const details = document.getElementById('cal-details');
   if (!ex || !details) return;
-  const dateLabel = new Date(ex.date + 'T00:00:00').toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
-  details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${escHtml(ex.name || ex.sport || 'Cardio')}</div></div>
-    <div style="padding:10px 2px">
-      <div class="act-meta">📅 ${dateLabel}</div>
-      <div class="act-meta">🏷 ${escHtml(ex.sport || 'Cardio')}</div>
-      ${ex.minutes ? `<div class="act-meta">⏱ ${escHtml(String(ex.minutes))} min</div>` : ''}
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-ghost" onclick="backToDay('${ds}')">Back</button>
-      <button class="btn btn-primary" style="background:var(--rose)" onclick="delExtra(${xi})">Delete</button>
-    </div>`;
+  renderWorkoutDetail(details, {
+    name: ex.name || ex.sport || 'Cardio',
+    workout_type: String(ex.sport || 'cardio').toLowerCase(),
+    estimated_duration_seconds: (ex.minutes || 0) * 60,
+    steps: [],
+    notes: ex.notes || ''
+  }, { onBack: () => backToDay(ds) });
+  details.querySelector('.fade-in')?.insertAdjacentHTML('beforeend',
+    `<div style="margin-top:16px"><button class="btn btn-ghost" style="color:var(--rose)" onclick="delExtra(${xi})">Delete session</button></div>`);
 };
 window.backToDay = function(ds) {
   document.querySelector(`.cal-day[data-date="${ds}"]`)?.click();
