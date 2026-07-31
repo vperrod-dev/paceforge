@@ -2675,12 +2675,13 @@ async function renderCalendar(page) {
   let viewYear = now.getFullYear(), viewMonth = now.getMonth();
   const calEntries = {};
 
-  const [plan, activities, events] = await Promise.all([
+  const [plan, activities, events, extrasJson] = await Promise.all([
     planStore.get().catch(() => null),
     cached('activities', () => apiJson('/activities').catch(() => [])),
     loadJSON('events.json').catch(() => []),
     loadJSON('extra_activities.json').catch(() => []),
   ]);
+  window.__extraActivities = Array.isArray(extrasJson) ? extrasJson : [];
 
   for (const ev of events || []) {
     if (!ev.date) continue;
@@ -2806,6 +2807,11 @@ async function renderCalendar(page) {
           <button class="btn btn-ghost" onclick="hideExtraForm()" id="extra-cancel">Cancel</button>
           <button class="btn btn-primary" onclick="saveExtra()" id="extra-save">Save session</button>
         </div></div>`;
+        details.querySelectorAll('[data-cal-idx]').forEach(c => c.addEventListener('click', () => {
+          const e = entries[+c.dataset.calIdx];
+          if (e.type === 'activity' && e.activity) renderActivityDetail(details, e.activity, { onBack: () => showDay(ds) });
+          else if (e.type === 'planned' && e.wo) renderWorkoutDetail(details, e.wo, { onBack: () => showDay(ds) });
+        }));
     }
     
 
@@ -2848,9 +2854,17 @@ window.saveExtra = async function() {
   if (!saveBtn) return;
   saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
   try {
-    const r = await fetch('/paceforge/extra_activities', {
+    const extras = Array.isArray(window.__extraActivities) ? [...window.__extraActivities] : [];
+    extras.push({
+      date: document.getElementById('ex-date')?.value || '',
+      sport: document.getElementById('ex-sport')?.value || 'Cardio',
+      minutes: parseInt(document.getElementById('ex-min')?.value || '0', 10) || 0,
+      name: document.getElementById('ex-name')?.value || '',
+    });
+    window.__extraActivities = extras;
+    const r = await fetch('api/extra_activities', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: Array.isArray(window.__extraActivities) ? window.__extraActivities : [] })
+      body: JSON.stringify({ items: extras })
     });
     if (!r.ok) throw new Error('save failed: ' + r.status);
     location.reload();
