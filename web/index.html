@@ -2777,11 +2777,11 @@ async function renderCalendar(page) {
     const entries = calEntries[ds] || [];
     const dateLabel = new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
     let extrasHtml = '';
-    for (const ex of (window.__extraActivities || [])) {
-      if (ex.date !== ds) continue;
-      extrasHtml += `<div class="act-item" style="border:1px solid var(--border-s);border-radius:10px;padding:10px 12px"><div class="act-bar" style="background:var(--violet)"></div>
+    (window.__extraActivities || []).forEach((ex, xi) => {
+      if (ex.date !== ds) return;
+      extrasHtml += `<div class="act-item" onclick="openExtra(${xi}, '${ds}')" style="cursor:pointer;border:1px solid var(--border-s);border-radius:10px;padding:10px 12px"><div class="act-bar" style="background:var(--violet)"></div>
         <div class="act-info"><div class="act-name">${escHtml(ex.name || ex.sport || 'Cardio')}</div><div class="act-meta">${escHtml(ex.sport || 'Cardio')}${ex.minutes ? ' · ' + escHtml(String(ex.minutes)) + 'min' : ''}</div></div></div>`;
-    }
+    });
     if (!entries.length && !extrasHtml) {
       details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div><div class="empty" style="border:none;padding:24px 0">Nothing scheduled.</div>` + `<div id="extra-form-wrap"><button class="btn btn-ghost btn-block" onclick="showExtraForm()" id="extra-show" style="margin-bottom:10px">+ Add cardio session</button>
         <div id="extra-form" style="display:none;padding:14px 0 0">
@@ -2871,6 +2871,39 @@ window.saveExtra = async function() {
     toast('ok', 'Session saved');
   } catch (e) { toast('err', 'Not saved', e.message); }
   finally { saveBtn.disabled = false; saveBtn.textContent = 'Save session'; }
+};
+window.openExtra = function(xi, ds) {
+  const ex = (window.__extraActivities || [])[xi];
+  const details = document.getElementById('cal-details');
+  if (!ex || !details) return;
+  const dateLabel = new Date(ex.date + 'T00:00:00').toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
+  details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${escHtml(ex.name || ex.sport || 'Cardio')}</div></div>
+    <div style="padding:10px 2px">
+      <div class="act-meta">📅 ${dateLabel}</div>
+      <div class="act-meta">🏷 ${escHtml(ex.sport || 'Cardio')}</div>
+      ${ex.minutes ? `<div class="act-meta">⏱ ${escHtml(String(ex.minutes))} min</div>` : ''}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-ghost" onclick="backToDay('${ds}')">Back</button>
+      <button class="btn btn-primary" style="background:var(--rose)" onclick="delExtra(${xi})">Delete</button>
+    </div>`;
+};
+window.backToDay = function(ds) {
+  document.querySelector(`.cal-day[data-date="${ds}"]`)?.click();
+};
+window.delExtra = async function(xi) {
+  const extras = Array.isArray(window.__extraActivities) ? [...window.__extraActivities] : [];
+  if (!extras[xi]) return;
+  extras.splice(xi, 1);
+  try {
+    const r = await fetch('api/extra_activities', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: extras })
+    });
+    if (!r.ok) throw new Error('delete failed: ' + r.status);
+    window.__extraActivities = extras;
+    location.reload();
+  } catch (e) { toast('err', 'Not deleted', e.message); }
 };
 function formatMarkdown(md) {
   return escHtml(md)
