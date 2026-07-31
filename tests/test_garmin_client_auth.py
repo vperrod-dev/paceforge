@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -255,7 +255,6 @@ class TestGarminUploadWorkout:
     def test_upload_structured_workout_with_pace_bands(self, mock_garmin_class):
         """push_workout() creates pace zone steps."""
         from paceforge.models.plan import Workout, WorkoutType
-        from datetime import date
 
         mock_client = MagicMock()
         mock_garmin_class.return_value = mock_client
@@ -280,7 +279,6 @@ class TestGarminUploadWorkout:
     def test_upload_workout_constraint_validation(self, mock_garmin_class):
         """push_workout() validates pace bounds."""
         from paceforge.models.plan import Workout, WorkoutType
-        from datetime import date
 
         mock_client = MagicMock()
         mock_garmin_class.return_value = mock_client
@@ -303,7 +301,6 @@ class TestGarminUploadWorkout:
     def test_upload_workout_403_permission_denied(self, mock_garmin_class):
         """push_workout() on 403 → device/permissions issue."""
         from paceforge.models.plan import Workout, WorkoutType
-        from datetime import date
 
         mock_client = MagicMock()
         mock_garmin_class.return_value = mock_client
@@ -340,16 +337,16 @@ class TestGarminDeleteWorkout:
         mock_client.delete_workout.assert_called_once_with(123)
 
     @patch('garminconnect.Garmin')
-    def test_delete_workout_404_already_gone(self, mock_garmin_class):
-        """delete_workout() on 404 returns False (idempotent)."""
+    def test_delete_workout_api_error_raises(self, mock_garmin_class):
+        """delete_workout() raises on API error — callers keep the id and retry."""
         mock_client = MagicMock()
         mock_garmin_class.return_value = mock_client
         mock_client.delete_workout.side_effect = Exception("404 Not found")
 
         garmin = GarminClient(email="test@example.com", password="test")
         garmin._client = mock_client
-        result = garmin.delete_workout(999)
-        assert result is False
+        with pytest.raises(Exception, match="404"):
+            garmin.delete_workout(999)
 
     @patch('garminconnect.Garmin')
     def test_delete_all_workouts(self, mock_garmin_class):

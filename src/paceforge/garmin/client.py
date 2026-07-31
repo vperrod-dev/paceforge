@@ -793,14 +793,11 @@ class GarminClient:
     def delete_workout(self, workout_id: int | str) -> bool:
         """Delete a workout from Garmin Connect by ID.
 
-        Returns False on failure — callers must keep their ``garmin_workout_id``
-        so the delete is retried instead of leaving a stale copy on the watch.
+        Raises on failure — callers must catch it, keep their
+        ``garmin_workout_id`` and record/retry instead of leaving a stale
+        copy on the watch.
         """
-        try:
-            self.client.delete_workout(int(workout_id))
-        except Exception:
-            logger.warning("Failed to delete Garmin workout %s", workout_id, exc_info=True)
-            return False
+        self.client.delete_workout(int(workout_id))
         logger.info("Deleted Garmin workout %s", workout_id)
         return True
 
@@ -926,10 +923,21 @@ class GarminClient:
         if not active:
             return {"pushed": [], "failed": []}
 
-        # Delete-by-id for previously pushed copies…
+        pushed: list[dict] = []
+        failed: list[dict] = []
+        # Delete-by-id for previously pushed copies. A failed delete keeps the
+        # id, is recorded and skips that workout's upload — the alternative is
+        # a duplicate on the watch with the stale copy still there.
+        delete_failed: set[int] = set()
         for w in active:
             if w.garmin_workout_id:
-                self.delete_workout(w.garmin_workout_id)
+                try:
+                    self.delete_workout(w.garmin_workout_id)
+                except Exception as e:
+                    logger.warning("Delete failed for %s (Garmin id %s) — skipping its upload",
+                                   w.name, w.garmin_workout_id, exc_info=True)
+                    delete_failed.add(id(w))
+                    failed.append({"name": w.name, "error": f"{type(e).__name__}: {e}"})
         # …then the legacy name+date sweep for anything pushed before ids existed.
         dates = [w.scheduled_date for w in active if w.scheduled_date]
         untracked = {w.name for w in active if not w.garmin_workout_id}
@@ -945,9 +953,9 @@ class GarminClient:
             except Exception:
                 logger.warning("Could not clean up existing workouts before push", exc_info=True)
 
-        pushed: list[dict] = []
-        failed: list[dict] = []
         for w in active:
+            if id(w) in delete_failed:
+                continue
             try:
                 r = self.push_workout(w, schedule_date=w.scheduled_date,
                                       plan_paces=plan_paces, pace_bands=pace_bands)

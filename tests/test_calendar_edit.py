@@ -23,7 +23,7 @@ class _FakeClient:
 
     def delete_workout(self, workout_id: int) -> bool:
         if workout_id in self.fail_ids:
-            return False
+            raise RuntimeError("garmin down")
         self.deleted.append(workout_id)
         return True
 

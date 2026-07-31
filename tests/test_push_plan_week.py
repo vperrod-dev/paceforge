@@ -25,8 +25,9 @@ class _FakeGarmin:
 
     def upload_running_workout(self, gw):  # noqa: ANN001
         sport = gw.sportType["sportTypeKey"]
-        self.calls.append(("upload", gw.workoutName, sport))
-        if sport in self.reject_sports or gw.workoutName in self.reject_names:
+        name = gw.workoutName
+        self.calls.append(("upload", name, sport))
+        if sport in self.reject_sports or name in self.reject_names:
             raise RuntimeError("upload rejected")
         self._next_id += 1
         return {"workoutId": self._next_id}
@@ -35,7 +36,22 @@ class _FakeGarmin:
         self.calls.append(("schedule", workout_id, date_str))
 
     def get_workouts(self, start=0, limit=200):  # noqa: ANN001
-        return self.library if start == 0 else []
+        if start == 0:
+            return self.library
+        return []
+
+
+class _FailDeleteGarmin(_FakeGarmin):
+    def __init__(self, *args, fail_delete_ids=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fail_delete_ids = fail_delete_ids or set()
+
+    def delete_workout(self, workout_id):  # noqa: ANN001
+        # Record the attempt before failing — the real API call is observable
+        # even when it fails, and callers are tested on seeing the attempt.
+        self.calls.append(("delete", int(workout_id)))
+        if int(workout_id) in self.fail_delete_ids:
+            raise RuntimeError("garmin down")
 
 
 def _client(fake: _FakeGarmin) -> GarminClient:
@@ -79,6 +95,21 @@ def test_same_name_outside_week_dates_is_kept():
                                  "calendarDate": far_away}])
     _client(fake).push_plan_week([_workout()])
     assert ("delete", 99) not in fake.calls
+
+
+# ── dedup-by-id ────────────────────────────────────────────────────
+
+
+def test_all_new_ids_are_pushed_once():
+    fake = _FakeGarmin()
+    workouts = [_workout("New A"), _workout("New B")]
+    _client(fake).push_plan_week(workouts)
+    assert sorted(c for c in fake.calls if c[0] == "upload") == [
+        ("upload", "New A", "running"),
+        ("upload", "New B", "running"),
+    ]
+    for w in workouts:
+        assert w.garmin_workout_id is not None
 
 
 def test_push_stamps_new_garmin_id_on_workout():
@@ -131,3 +162,48 @@ def test_push_workout_schedules_on_the_given_date():
     when = date.today() + timedelta(days=3)
     _client(fake).push_workout(_workout(), schedule_date=when)
     assert ("schedule", 501, when.isoformat()) in fake.calls
+
+
+# ── failed delete regression ───────────────────────────────────────
+
+
+def test_push_plan_week_keeps_id_when_delete_fails():
+    workouts = [_workout("Keep", garmin_workout_id=42)]
+    fake = _FailDeleteGarmin(fail_delete_ids={42})
+    result = _client(fake).push_plan_week(workouts)
+
+    assert workouts[0].garmin_workout_id == 42
+    assert ("delete", 42) in fake.calls
+    assert [f["name"] for f in result["failed"]] == ["Keep"]
+    assert result["pushed"] == []
+
+
+def test_push_plan_week_reports_delete_failure():
+    fake = _FailDeleteGarmin(fail_delete_ids={42})
+    workouts = [_workout("Keep", garmin_workout_id=42)]
+    result = _client(fake).push_plan_week(workouts)
+
+    assert result["failed"][0]["name"] == "Keep"
+    assert "RuntimeError" in result["failed"][0]["error"]
+
+
+def test_push_plan_week_skips_upload_after_failed_delete():
+    fake = _FailDeleteGarmin(fail_delete_ids={42})
+    workouts = [_workout("Keep", garmin_workout_id=42)]
+    _client(fake).push_plan_week(workouts)
+
+    assert [c for c in fake.calls if c[0] == "upload"] == []
+
+
+def test_push_plan_week_mixed_delete_failure_continues_with_uploadable():
+    fake = _FailDeleteGarmin(fail_delete_ids={42})
+    workouts = [
+        _workout("FailDelete", garmin_workout_id=42),
+        _workout("Fresh"),
+    ]
+    result = _client(fake).push_plan_week(workouts)
+
+    assert workouts[0].garmin_workout_id == 42
+    assert workouts[1].garmin_workout_id is not None
+    assert [f["name"] for f in result["failed"]] == ["FailDelete"]
+    assert [p["name"] for p in result["pushed"]] == ["Fresh"]

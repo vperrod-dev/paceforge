@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from paceforge import actions, store
-from paceforge.models.profile import UserFitnessProfile, RecentActivity, TrainingGoal, GoalType
+from paceforge import actions
 from paceforge.models.plan import TrainingPlan, WorkoutType
+from paceforge.models.profile import RecentActivity, UserFitnessProfile
 
 
 class TestSyncDetailsLoop:
@@ -271,25 +269,26 @@ class TestRecalibratePaceDelta:
         """recalibrate(delta_vdot=0.5) increases all paces."""
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.store.save_plan') as mock_save:
-                plan = TrainingPlan(
-                    name="Test Plan",
-                    goal_type="MARATHON",
-                    target_date=date(2026, 10, 4),
-                    total_weeks=12,
-                    vdot=50.0,
-                    weeks=[{
-                        "week_number": 1,
-                        "workouts": [{
-                            "name": "Easy",
-                            "workout_type": WorkoutType.EASY_RUN,
+                with patch('paceforge.actions.store.load_profile', return_value=None):
+                    plan = TrainingPlan(
+                        name="Test Plan",
+                        goal_type="MARATHON",
+                        target_date=date(2026, 10, 4),
+                        total_weeks=12,
+                        vdot=50.0,
+                        weeks=[{
+                            "week_number": 1,
+                            "workouts": [{
+                                "name": "Easy",
+                                "workout_type": WorkoutType.EASY_RUN,
+                            }]
                         }]
-                    }]
-                )
-                mock_load.return_value = plan
+                    )
+                    mock_load.return_value = plan
 
-                result = actions.recalibrate(delta_vdot=0.5, force=False)
-                assert result is not None
-                mock_save.assert_called_once()
+                    result = actions.recalibrate(delta_vdot=0.5, force=False)
+                    assert result is not None
+                    mock_save.assert_called_once()
 
     def test_recalibrate_negative_delta(self):
         """recalibrate(delta_vdot=-0.5) decreases all paces."""
@@ -317,25 +316,26 @@ class TestRecalibratePaceDelta:
         """recalibrate(force=False) only shifts accepted future weeks."""
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.store.save_plan'):
-                plan = TrainingPlan(
-                    name="Test Plan",
-                    goal_type="MARATHON",
-                    target_date=date(2026, 10, 4),
-                    total_weeks=12,
-                    vdot=50.0,
-                    accepted=False,
-                    weeks=[{
-                        "week_number": 1,
-                        "workouts": [{
-                            "name": "Easy",
-                            "workout_type": WorkoutType.EASY_RUN,
+                with patch('paceforge.actions.store.load_profile', return_value=None):
+                    plan = TrainingPlan(
+                        name="Test Plan",
+                        goal_type="MARATHON",
+                        target_date=date(2026, 10, 4),
+                        total_weeks=12,
+                        vdot=50.0,
+                        accepted=False,
+                        weeks=[{
+                            "week_number": 1,
+                            "workouts": [{
+                                "name": "Easy",
+                                "workout_type": WorkoutType.EASY_RUN,
+                            }]
                         }]
-                    }]
-                )
-                mock_load.return_value = plan
+                    )
+                    mock_load.return_value = plan
 
-                result = actions.recalibrate(delta_vdot=0.5, force=False)
-                assert result is not None
+                    result = actions.recalibrate(delta_vdot=0.5, force=False)
+                    assert result is not None
 
 
 class TestPushToGarmin:

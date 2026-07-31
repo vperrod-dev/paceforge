@@ -68,6 +68,49 @@ def _export_token(token_dir: Path) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
+def _purge_token(token_dir: Path) -> None:
+    """Remove any persisted Garmin token files so the next login is real."""
+    if not token_dir.exists():
+        return
+    for f in list(token_dir.glob("*")):
+        if f.is_file():
+            f.unlink(missing_ok=True)
+
+
+def _auto_login() -> None:
+    """Refresh a missing/expired Garmin token using PACEFORGE_GARMIN_PASSWORD.
+
+    This is the migration-period recovery path that removes the dependency on
+    manual portal logins or external secrets. If the credentials require MFA,
+    the function raises with a clear human instruction so the job can alert
+    the runner instead of failing silently for reasons no one understands.
+    """
+    token_dir = _token_dir()
+    _purge_token(token_dir)
+    email = _garmin_email()
+    password = os.environ.get("PACEFORGE_GARMIN_PASSWORD")
+    if not password:
+        raise RuntimeError(
+            "GARMIN_TOKEN is not valid and PACEFORGE_GARMIN_PASSWORD is not set. "
+            "Set PACEFORGE_GARMIN_EMAIL/PASSWORD in the runner env to enable "
+            "autonomous token refresh, or run `paceforge login` once."
+        )
+    token_dir.mkdir(parents=True, exist_ok=True)
+    client = GarminClient(email, password, token_dir=str(token_dir))
+    result = client.login()
+    if result == "mfa_required":
+        raise RuntimeError(
+            "Can not perform a fully autonomous GARMIN_TOKEN refresh right now: "
+            "MFA is required. Run `paceforge login` once, then this job resumes "
+            "autonomously."
+        )
+    try:
+        client.dump_tokens(str(token_dir))
+    except Exception:
+        logger.debug("Token re-dump after auto-login failed", exc_info=True)
+    store.save_token_meta({"login_date": date.today().isoformat()})
+
+
 def _garmin_email() -> str:
     """The athlete's Garmin login. Env first (Victor's instance sets it); otherwise
     the address the portal login was made with — a friend's instance has no email
@@ -84,7 +127,13 @@ def garmin_connect() -> GarminClient:
     _materialize_token(token_dir)
     client = GarminClient.try_reconnect(email, str(token_dir))
     if client is None:
-        raise RuntimeError("No valid Garmin token — run `paceforge login` once to create one.")
+        _auto_login()
+        client = GarminClient.try_reconnect(email, str(token_dir))
+    if client is None:
+        raise RuntimeError(
+            "No valid Garmin token — set PACEFORGE_GARMIN_EMAIL/PASSWORD and restart, "
+            "or run `paceforge login` once."
+        )
     return client
 
 
@@ -127,6 +176,20 @@ def export_token() -> str:
     if not _has_token(token_dir):
         raise RuntimeError("No token on disk to export — run `paceforge sync` (or `login`) first.")
     return _export_token(token_dir)
+
+
+def refresh_token() -> dict:
+    """Refresh the stored Garmin token without user interaction.
+
+    On success returns ``{"result": "ok", "refreshed": True}``. If refresh is
+    unnecessary or impossible because MFA/login is required, a non-success
+    result is returned with a short reason so the caller/user can react.
+    """
+    try:
+        _auto_login()
+        return {"result": "ok", "refreshed": True}
+    except RuntimeError as exc:
+        return {"result": "failed", "refreshed": False, "error": str(exc)}
 
 
 # ── Sync / analyse / push ────────────────────────────────────────────
@@ -1026,10 +1089,13 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
             if (w.garmin_workout_id and w.completed
                     and w.scheduled_date and w.scheduled_date < today):
                 # Keep the id on failure so tomorrow's reconcile retries the delete.
-                if client.delete_workout(w.garmin_workout_id):
+                try:
+                    client.delete_workout(w.garmin_workout_id)
                     w.garmin_workout_id = None
                     stale_deleted += 1
-                else:
+                except Exception:
+                    logger.warning("Reconcile: stale delete failed for Garmin id %s",
+                                   w.garmin_workout_id, exc_info=True)
                     delete_failed += 1
 
     # (b) Push/refresh the upcoming window.
@@ -1056,9 +1122,11 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
         seen.add(int(wid))
         if int(wid) in owned:
             continue
-        if client.delete_workout(int(wid)):
+        try:
+            client.delete_workout(int(wid))
             orphans_deleted += 1
-        else:
+        except Exception:
+            logger.warning("Reconcile: orphan delete failed for Garmin id %s", wid, exc_info=True)
             delete_failed += 1
 
     store.save_plan(plan)  # persist garmin_workout_id changes
@@ -1088,10 +1156,13 @@ def garmin_delete(client: GarminClient | None = None) -> dict:
         for w in week.workouts:
             if w.garmin_workout_id:
                 # Keep the id on failure so a re-run retries the delete.
-                if client.delete_workout(w.garmin_workout_id):
+                try:
+                    client.delete_workout(w.garmin_workout_id)
                     w.garmin_workout_id = None
                     deleted += 1
-                else:
+                except Exception:
+                    logger.warning("garmin_delete: failed for Garmin id %s",
+                                   w.garmin_workout_id, exc_info=True)
                     failed += 1
     if deleted:
         store.save_plan(plan)
@@ -1125,7 +1196,13 @@ def garmin_clear_calendar(
     if dry_run:
         return {"dry_run": True, "from": today, "count": len(targets), "workouts": targets}
 
-    failed_ids = {t["id"] for t in targets if not client.delete_workout(t["id"])}
+    failed_ids: set[int] = set()
+    for t in targets:
+        try:
+            client.delete_workout(t["id"])
+        except Exception:
+            logger.warning("clear_calendar: delete failed for Garmin id %s", t["id"], exc_info=True)
+            failed_ids.add(t["id"])
 
     plan = store.load_plan()
     if plan:
@@ -1171,11 +1248,14 @@ def calendar_edit(
 
     client = client or garmin_connect()
     if action == "delete":
-        if workout.garmin_workout_id and not client.delete_workout(workout.garmin_workout_id):
-            raise RuntimeError(
-                f"Garmin refused to delete workout {workout.garmin_workout_id} — "
-                "session kept in the plan; retry when Garmin is reachable."
-            )
+        if workout.garmin_workout_id:
+            try:
+                client.delete_workout(workout.garmin_workout_id)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Garmin refused to delete workout {workout.garmin_workout_id} — "
+                    "session kept in the plan; retry when Garmin is reachable."
+                ) from e
         week.workouts.remove(workout)
     elif action == "reschedule":
         if not new_date:

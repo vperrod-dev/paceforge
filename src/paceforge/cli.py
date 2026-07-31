@@ -101,6 +101,8 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("export-token", help="print current on-disk token as a GARMIN_TOKEN blob")
 
+    sub.add_parser("refresh-token", help="refresh Garmin token with local credentials/regenerate blob")
+
     p_hp = sub.add_parser("hyrox-import-profile",
                           help="import every race from a hyresult.com athlete profile")
     p_hp.add_argument("slug", help="hyresult athlete slug, e.g. victor-perez-rodriguez")
@@ -116,6 +118,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.cmd == "export-token":
             print(actions.export_token())
+            return 0
+        if args.cmd == "refresh-token":
+            _emit(actions.refresh_token())
             return 0
         if args.cmd == "sync":
             _emit(actions.sync(lookback_days=args.lookback_days, details_limit=args.details))

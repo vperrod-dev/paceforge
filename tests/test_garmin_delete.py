@@ -23,7 +23,7 @@ class _FakeClient:
 
     def delete_workout(self, workout_id: int) -> bool:
         if workout_id in self.fail_ids:
-            return False
+            raise RuntimeError("garmin down")
         self.deleted.append(workout_id)
         return True
 
@@ -78,12 +78,13 @@ def _garmin_client(inner) -> GarminClient:
     return client
 
 
-def test_client_delete_workout_returns_false_on_api_error():
+def test_client_delete_workout_raises_on_api_error():
     class _Boom:
         def delete_workout(self, wid):  # noqa: ANN001
             raise RuntimeError("garmin down")
 
-    assert _garmin_client(_Boom()).delete_workout(42) is False
+    with pytest.raises(RuntimeError, match="garmin down"):
+        _garmin_client(_Boom()).delete_workout(42)
 
 
 def test_client_delete_workout_returns_true_on_success():
