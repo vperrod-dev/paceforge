@@ -40,10 +40,12 @@ src/paceforge/
 │   └── limiters.py           # ranks limiters → coach_input contract
 ├── garmin/client.py  # reads metrics + per-sample series (per-endpoint failure
 │                     # report), uploads workouts (fitness_equipment sport for HYROX
-│                     # with running fallback, delete-by-id dedup)
+│                     # with running fallback, delete-by-id dedup; delete_workout
+│                     # RAISES on API error — callers catch, keep the id, record the
+│                     # failure, retry next run; push_plan_week reports `failed[]`)
 └── hyrox/            # hyresult.py (per-race ranks+splits via hyresult.com),
                       # analyzer.py + benchmarks.py (cohort gender/division/age tables)
-web/index.html        # the dashboard (reads data/*.json, dispatches runner jobs)
+`web/index.html`         # the dashboard (reads data/*.json, dispatches runner jobs)
 scripts/build_site_data.py  # precomputes analytics/fitness/hyrox_analysis.json for the web
 scripts/runner.py           # the backend: serves the portal, runs every job, owns the timers
 scripts/users.py            # per-athlete instances (see CLAUDE.md §Multi-user)
@@ -54,6 +56,19 @@ data/                 # profile.json, plan.json, activities.json, history.jsonl,
                       # sync-status.json (last sync outcome), token-meta.json,
                       # weekly.json, fitness.json, analytics.json
 ```
+
+## Sensitive data policy
+
+These files MUST NOT leak outside the athlete's private checkout — not via git
+artifacts, PRs, patches, screenshots, or CI bundles:
+
+- `data/profile.json`, `data/history.jsonl`, `data/hyrox.json`,
+  `data/hyrox_preview.json`, `data/token-meta.json`, `data/sync-status.json`,
+  `data/rpe.json`, `data/fitness.json`, `data/details/`
+
+`.gitignore` enforces this for Victor's private checkout. Friends' instances have
+no remote, so `git push` is impossible; still redact before sharing any diff.
+For extra safety, run jobs with `PACEFORGE_DATA_DIR` pointing outside the repo.
 
 ## Browser-driven writes (HYROX + events + everything else)
 The page never writes files. It dispatches a **job** to the local runner
@@ -69,6 +84,11 @@ rebuilds the derived JSON and serves it back. Mirror this for any new write:
 - `save-benchmarks` → `data/benchmarks.json` (Strength-tab form).
 - `save-rpe` → upserts one entry into `data/rpe.json` (the RPE pills on activity
   detail / workout sheet / Today's check-in).
+- `extra_activities` (manually logged cardio sessions) is the one exception to the
+  job pattern: direct `GET/POST /extra_activities` on the runner, auth-exempt like
+  the data reads, writes `data/extra_activities.json` under `store._WRITE_LOCK`, no
+  commit. Frontend fetch URLs must stay relative (`api/...`) or the request escapes
+  the per-athlete path prefix (`/pf/<name>/`) and hits the wrong app.
 - `build_site_data.py` derives `data/hyrox_analysis.json` (`{races, priorities, progression}`)
   from `hyrox.json` after every data change.
 
@@ -96,3 +116,7 @@ other athletes' instances run their own copy of those directories.
 - Python 3.11+, ruff 100-char lines, `from __future__ import annotations` at top.
 - One behaviour module (`actions.py`) — keep CLI/MCP as thin wrappers, no duplicated logic.
 - Commit messages: `area: short description`. Run ruff + pytest before committing.
+- Tests never touch the network or real Garmin: fakes mirror the real client
+  interface (delete raises, upload returns `{"workoutId": N}`). `tests/conftest.py`
+  stubs `garminconnect` ONLY when the real package is absent — an unconditional
+  stub shadows the installed pinned fork and breaks every test importing its enums.

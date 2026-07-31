@@ -81,6 +81,39 @@ Coach steps run the same `claude` CLI on Victor's account for everyone; the sync
 timers carry `RandomizedDelaySec` so instances don't pile onto the machine at
 06:45 together.
 
+## Sensitive data handling
+
+These files MUST NOT be committed to any repo (Victor's private repo, friends’
+no-remote checkouts, forks, CI artifacts, or patch/diff outputs):
+
+- `data/profile.json` — full fitness profile, real name, PII
+- `data/history.jsonl` — daily wellness + load + HRV + sleep, identifiable over time
+- `data/hyrox.json` — race history, split series, name
+- `data/hyrox_preview.json` — candidate scrape list with athlete names
+- `data/token-meta.json` — login email, token provenance
+- `data/sync-status.json` — sync outcomes paired with user state
+- `data/rpe.json` — logged session effort ratings with comments
+- `data/fitness.json` — computed fitness metrics over personal timeline
+- `data/details/` — per-activity JSON blobs with heart-rate/position traces
+
+### Enforcement
+
+- `.gitignore` blocks these paths; do NOT remove the sensitive-data block.
+- `store.py` defaults to `data/` but supports `PACEFORGE_DATA_DIR` for locating
+  private storage outside the public checkout when needed.
+- Victor’s instance keeps the existing git-tracked `data/` layout for his private
+  checkout only. Shared/public contexts should set `PACEFORGE_DATA_DIR` to an
+  untracked path before any job writes state.
+- `scripts/users.py` already provisions each friend with their own isolated checkout
+  and `data/` — no remote, so pushes cannot accidentally expose data.
+- Before attaching or publishing diffs, patches, or screenshots, sanitize/redact
+  these files. If history already contains sensitive commits, assume exposure and
+  rotate tokens / review access rather than depending on a simple history rewrite.
+
+Migration note (2026-07-30): these entries were added after a PII/health-telemetry
+audit. Existing checkouts should verify `.gitignore` covers the full sensitive set;
+older clones should be cleaned before sharing.
+
 ## Commands
 
 ```bash

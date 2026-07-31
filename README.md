@@ -9,6 +9,16 @@ database, and no LLM API bill**.
 One copy serves one athlete by design — a second athlete gets a second copy, not
 an account (see [Sharing it with other athletes](#sharing-it-with-other-athletes)).
 
+## Data handling and privacy
+
+Everything in `data/` is personal training, health telemetry, and/or authentication
+material. Some files are intentionally git-tracked in Victor's private checkout, but
+they **must never be committed to a public repo, fork, CI artifact, or shared patch**.
+The enforced policy and full sensitive-file list is in `CLAUDE.md §Sensitive data handling`.
+
+If your checkout is ever public or shared, keep state outside the repo root and set
+`PACEFORGE_DATA_DIR` to that location before any job writes state.
+
 It runs three ways, all free beyond a Claude subscription:
 - a **web dashboard**, served with its job runner (`scripts/runner.py`) from a small
   VM — every button (sync, plan, push to Garmin, ask the coach) runs a job there,

@@ -22,9 +22,17 @@ venv/
 .env
 .env.local
 
-# Garmin tokens (sensitive)
-garmin_tokens.json
-~/.garminconnect/
+# Sensitive personal / health telemetry — NEVER commit these
+data/hyrox.json
+data/profile.json
+data/history.jsonl
+data/hyrox_preview.json
+data/token-meta.json
+data/sync-status.json
+data/rpe.json
+data/analytics.json
+data/fitness.json
+data/details/
 
 # OS
 .DS_Store
