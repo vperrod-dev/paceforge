@@ -721,10 +721,12 @@ def job_hyrox(run: Run, inputs: dict) -> None:
 
 def _save_job(transform, commit_path: str, msg: str):
     def job(run: Run, inputs: dict) -> None:
+        from paceforge import store
         run.step(f"Update {commit_path} (validated)")
         data = inputs.get("data")
         entry = json.loads(data) if isinstance(data, str) else data
-        transform(entry, REPO_DIR / "data")
+        with store._WRITE_LOCK:
+            transform(entry, REPO_DIR / "data")
         run.step("Commit")
         commit_push(run, [commit_path], msg)
         publish(run)
@@ -984,8 +986,10 @@ class Handler(BaseHTTPRequestHandler):
             items = b.get("items") if isinstance(b, dict) else None
             if not isinstance(items, list):
                 return self._send(400, {"message": "items list required"})
+            from paceforge import store as _store
             f = REPO_DIR / "data" / "extra_activities.json"
-            f.write_text(json.dumps(items, ensure_ascii=True))
+            with _store._WRITE_LOCK:
+                f.write_text(json.dumps(items, ensure_ascii=True))
             return self._send(200, {"ok": True, "count": len(items)})
         if path == "/auth/login":
             b = self._body()
@@ -1019,6 +1023,9 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/run/([a-z0-9-]+)", path)
         if m and m.group(1) in JOBS:
             return self._send(200, {"id": dispatch(m.group(1), self._body())})
+        m = re.fullmatch(r"/run/refresh-token", path)
+        if m:
+            return self._send(200, {"id": dispatch("refresh-token", self._body())})
         m = re.fullmatch(r"/gh/repos/[^/]+/[^/]+/actions/workflows/([^/]+)/dispatches", path)
         if m:
             job = m.group(1).removesuffix(".yml")
@@ -1037,7 +1044,9 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> int:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     if "--publish" in sys.argv:
-        publish()
+        from paceforge import store as _store
+        with _store._WRITE_LOCK:
+            publish()
         return 0
     _load_sessions()
     global _NEXT_ID

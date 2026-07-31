@@ -9,6 +9,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -21,18 +22,37 @@ _DETAILS_CACHE: dict[int, dict] | None = None
 _DETAILS_CACHE_TIME = 0.0
 _DETAILS_CACHE_TTL = 300  # 5 minutes
 
+# Global serialization boundary for every data/ write.  This is process-wide and
+# is acquired in the runner's direct endpoints plus action/scheduler paths so
+# that concurrent mutations cannot interleave on the same file.
+_WRITE_LOCK_PATH = DATA_DIR / ".write.lock"
+_WRITE_LOCK = threading.RLock()
+
 
 def _path(name: str) -> Path:
     return DATA_DIR / name
 
 
-def _write(path: Path, payload: str) -> None:
+def _raw_write(path: Path, payload: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     # Atomic: write a sibling temp file, then rename — a crash mid-write must
     # never leave a truncated JSON file behind.
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(payload)
     os.replace(tmp, path)
+
+
+def _write(path: Path, payload: str) -> None:
+    """Serialized wrapper around the atomic writer.
+
+    Acquires ``store._WRITE_LOCK`` so that concurrent writes across endpoints,
+    jobs, or CLI entrypoints cannot interleave on the same file and produce torn
+    JSON. Group writes that must be atomic as one block (serialize then call
+    ``store._write`` once per file).
+    """
+    with _WRITE_LOCK:
+        _raw_write(path, payload)
+
 
 
 def load_profile() -> UserFitnessProfile | None:
