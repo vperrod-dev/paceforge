@@ -81,6 +81,16 @@ class TestPlanGeneration:
         assert plan.total_weeks == 10
         assert len(plan.weeks) == 10
 
+    def test_close_race_clips_weeks_to_today_not_the_past(self):
+        """A race closer than the template's default length (12wk half marathon)
+        must start this week, not back-date week 1 into the past."""
+        goal = _make_goal(GoalType.HALF_MARATHON, weeks_out=7)
+        plan = generate_plan(_make_profile(), goal)
+        first_workout_date = min(
+            w.scheduled_date for wk in plan.weeks for w in wk.workouts if w.scheduled_date
+        )
+        assert first_workout_date >= date.today() - timedelta(days=date.today().weekday())
+
     def test_plan_has_paces(self):
         plan = generate_plan(_make_profile(vo2_max=50), _make_goal())
         assert plan.easy_pace is not None

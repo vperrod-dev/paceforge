@@ -238,7 +238,7 @@ def _generate_template_plan(
     template = _load_template(goal)
     level = (goal.experience_level or _estimate_level(profile)).value
 
-    total_weeks = template["total_weeks"]
+    native_total_weeks = total_weeks = template["total_weeks"]
     race_date = goal.target_date
     # The race-week template schedules "RACE DAY" on a fixed weekday (e.g. Sunday)
     # within the final week, so the final week must be anchored to the Monday of
@@ -246,10 +246,13 @@ def _generate_template_plan(
     # and then Monday-aligning, which silently drops the remainder days and can
     # leave the plan (and its race day) up to 6 days short of the actual target_date.
     race_week_start = race_date - timedelta(days=race_date.weekday())
-    if goal.start_date:
-        start_monday = goal.start_date - timedelta(days=goal.start_date.weekday())
-        available_weeks = (race_week_start - start_monday).days // 7 + 1
-        total_weeks = min(total_weeks, max(available_weeks, 4))
+    # No explicit start_date means "start ASAP" (today), not "no limit on how far
+    # back the plan may reach" — without this, a race closer than the template's
+    # full length (e.g. HALF_MARATHON's 12 weeks) back-dates week 1 into the past.
+    effective_start = goal.start_date or date.today()
+    start_monday = effective_start - timedelta(days=effective_start.weekday())
+    available_weeks = (race_week_start - start_monday).days // 7 + 1
+    total_weeks = min(total_weeks, max(available_weeks, 4))
     plan_start = race_week_start - timedelta(weeks=total_weeks - 1)
 
     table_peak = template["peak_weekly_km"].get(level, template["peak_weekly_km"]["intermediate"])
@@ -261,9 +264,19 @@ def _generate_template_plan(
         for wk in p["weeks"]:
             phase_map[wk] = p["name"]
 
+    def _template_week(i: int) -> int:
+        """Map a compressed-plan week index to the native template's week number,
+        so a race closer than the template's own length (clamped total_weeks
+        below native_total_weeks) still reaches the template's Peak/Taper weeks
+        near the end — instead of just truncating the front of the curve and
+        leaving the plan's last week stuck in Base/Build with no taper at all."""
+        if total_weeks <= 1:
+            return native_total_weeks
+        return round(i * (native_total_weeks - 1) / (total_weeks - 1)) + 1
+
     # Position of each week within its phase → a 0..1 progression fraction that
     # drives week-over-week overload of the quality sessions.
-    week_phase = [phase_map.get(i + 1, "Build") for i in range(total_weeks)]
+    week_phase = [phase_map.get(_template_week(i), "Build") for i in range(total_weeks)]
     phase_positions: dict[str, list[int]] = {}
     for i, ph in enumerate(week_phase):
         phase_positions.setdefault(ph, []).append(i)
@@ -280,7 +293,7 @@ def _generate_template_plan(
     # current load and let the cap grow ~12%/week (inside the validate ramp)
     # until the template curve takes over. Deload dips survive via min().
     week_kms = [
-        round(peak_km * (volume_prog[i] if i < len(volume_prog) else volume_prog[-1]), 1)
+        round(peak_km * volume_prog[min(_template_week(i) - 1, len(volume_prog) - 1)], 1)
         for i in range(total_weeks)
     ]
     actual_km = profile.weekly_mileage_km or 0.0
@@ -303,7 +316,7 @@ def _generate_template_plan(
             before = weeks[-2].total_distance_km if len(weeks) >= 2 else None
             if not (before and prev < before):
                 week_km = round(min(week_km, prev * 1.15), 1)
-        phase = phase_map.get(wk_num, "Build")
+        phase = phase_map.get(_template_week(wk_idx), "Build")
 
         is_race_week = wk_num == total_weeks and "race_week" in template
         if is_race_week:
