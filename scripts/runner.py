@@ -674,6 +674,19 @@ def job_calendar_edit(run: Run, inputs: dict) -> None:
     reconcile_garmin(run)
 
 
+def job_add_session(run: Run, inputs: dict) -> None:
+    from paceforge import actions
+    run.step("Schedule session")
+    actions.add_session(
+        session_date=str(inputs["date"]), sport=str(inputs.get("sport") or "Cardio"),
+        minutes=int(inputs.get("minutes") or 45), name=str(inputs.get("name") or ""),
+    )
+    run.step("Commit updated plan")
+    commit_push(run, ["data/plan.json"],
+                f"calendar: schedule {inputs.get('sport') or 'Cardio'} session {inputs['date']}")
+    publish(run)
+
+
 def job_garmin_delete(run: Run, inputs: dict) -> None:
     run.step("Delete pushed workouts from Garmin")
     sh(run, pf("garmin-delete"))
@@ -743,6 +756,7 @@ JOBS = {
     "autosync": job_autosync,
     "recalibrate": job_recalibrate,
     "calendar-edit": job_calendar_edit,
+    "add-session": job_add_session,
     "garmin-delete": job_garmin_delete,
     "garmin-clear-calendar": job_garmin_clear_calendar,
     "hyrox": job_hyrox,

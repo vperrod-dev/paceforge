@@ -2852,25 +2852,17 @@ window.hideExtraForm = function() {
 window.saveExtra = async function() {
   const saveBtn = document.getElementById('extra-save');
   if (!saveBtn) return;
-  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
-  try {
-    const extras = Array.isArray(window.__extraActivities) ? [...window.__extraActivities] : [];
-    extras.push({
-      date: document.getElementById('ex-date')?.value || '',
-      sport: document.getElementById('ex-sport')?.value || 'Cardio',
-      minutes: parseInt(document.getElementById('ex-min')?.value || '0', 10) || 0,
-      name: document.getElementById('ex-name')?.value || '',
-    });
-    window.__extraActivities = extras;
-    const r = await fetch('api/extra_activities', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: extras })
-    });
-    if (!r.ok) throw new Error('save failed: ' + r.status);
-    location.reload();
-    toast('ok', 'Session saved');
-  } catch (e) { toast('err', 'Not saved', e.message); }
-  finally { saveBtn.disabled = false; saveBtn.textContent = 'Save session'; }
+  const date = document.getElementById('ex-date')?.value || '';
+  if (!date) { toast('err', 'Pick a date'); return; }
+  // Schedules a real plan workout (not a side note) so the daily/weekly coach
+  // sees it and the Garmin matcher links the completed class to it.
+  await dispatchWorkflow('add-session.yml', {
+    date,
+    sport: document.getElementById('ex-sport')?.value || 'Cardio',
+    minutes: document.getElementById('ex-min')?.value || '45',
+    name: document.getElementById('ex-name')?.value || '',
+  }, 'Session scheduled', 'On the calendar shortly — reopen this day after it finishes.', saveBtn);
+  hideExtraForm();
 };
 window.openExtra = function(xi, ds) {
   const ex = (window.__extraActivities || [])[xi];

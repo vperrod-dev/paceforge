@@ -221,6 +221,13 @@ deterministically, then Claude enriches notes; `coach`
 `push` and `autosync` **commit plan.json back** (garmin_workout_id persistence —
 required for dedup). Job names still carry a `.yml` suffix on the wire (the
 portal's dispatch URLs) — the runner strips it; the workflows themselves are gone.
+`add-session` (Calendar day view → "+ Add cardio session") schedules a class
+(e.g. HYROX) as a real Workout (`actions.add_session`, `cross_training` unless
+sport is "hyrox" → `hyrox_mixed`) — not the old `extra_activities.json` side
+file, which the coach/matcher never read. Filed under the plan week covering
+that date, matched against existing Garmin activities immediately, and
+committed like any other plan edit — so it feeds the daily/weekly coach and
+auto-links when Garmin syncs the completed class.
 
 ## Auth & secrets (env)
 `PACEFORGE_GARMIN_EMAIL`, `GARMIN_TOKEN` (base64 token from `paceforge login`),
