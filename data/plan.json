@@ -71,7 +71,7 @@
               "pace_key": null
             }
           ],
-          "notes": "",
+          "notes": "Your last 4 weeks show only 16% easy running against an 80% target \u2014 treat the base kilometres here as genuinely conversational, not just 'not the tempo pace'; the strides are the only intensity today.",
           "briefing": {
             "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
             "structure": "2.2 km easy @ 4:35-5:03/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)",
@@ -138,7 +138,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Garmin logged an indoor cardio session on 08-01 rather than this tempo \u2014 if it didn't happen, don't chase it: this week's load is already ~2x your rolling norm (ACWR 2.0) with 20h of sleep debt behind it, so a missed tempo costs less than forcing it now.",
           "briefing": {
             "purpose": "Lactate threshold \u2014 raises the pace you can sustain. The single biggest lever for Base-phase fitness at your distance.",
             "structure": "10 min easy jog at conversational pace @ 4:35-5:03/km \u2192 4 km tempo at threshold pace @ 4:04-4:18/km \u2192 10 min easy jog to finish @ 4:35-5:03/km",
@@ -181,7 +181,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Readiness reads 'moderate' with an overtraining flag of caution and RHR up ~2.6bpm on baseline \u2014 today's only job is time on feet at true easy effort; with load already spiking this week, resist any urge to push the pace.",
           "briefing": {
             "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
             "structure": "4.6 km easy @ 4:35-5:03/km",
@@ -270,7 +270,7 @@
               "pace_key": null
             }
           ],
-          "notes": "",
+          "notes": "Recent treadmill runs show cadence sitting 155-163spm, below the 170-180 range that usually goes with efficient form \u2014 let the strides be the one place turnover gets deliberately quick today.",
           "briefing": {
             "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
             "structure": "2.4 km easy @ 4:35-5:03/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)",
@@ -350,7 +350,7 @@
               "pace_key": null
             }
           ],
-          "notes": "",
+          "notes": "Second easy day this week \u2014 keep it slower than feels necessary; your intensity distribution is currently inverted (16% easy / 51% moderate) and sessions like this are what fixes it.",
           "briefing": {
             "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
             "structure": "3.4 km easy @ 4:35-5:03/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)",
@@ -417,7 +417,7 @@
               "pace_key": "threshold"
             }
           ],
-          "notes": "",
+          "notes": "Your pacing pattern across recent runs is a ~3% positive split (fast start, fade) \u2014 this session is built to retrain exactly that, so genuinely jog the first third rather than 'easy-but-brisk'.",
           "briefing": {
             "purpose": "Pacing discipline \u2014 each third faster teaches negative splitting, the highest-percentage race strategy there is.",
             "structure": "1.1 km easy @ 4:35-5:03/km \u2192 1.1 km at marathon pace @ 4:16-4:32/km \u2192 1.1 km at threshold pace @ 4:04-4:18/km",
@@ -484,7 +484,7 @@
               "pace_key": "threshold"
             }
           ],
-          "notes": "",
+          "notes": "First long run with a race-pace-adjacent finish this block \u2014 with this week's load spike still settling, keep the marathon-pace segment at the slow edge of the window rather than chasing the fast end.",
           "briefing": {
             "purpose": "Endurance plus fatigue-resistance \u2014 running strong in the back half is exactly the race-day skill, trained under control.",
             "structure": "3.8 km easy @ 4:35-5:03/km \u2192 1.9 km at marathon pace @ 4:16-4:32/km \u2192 0.6 km at threshold pace @ 4:04-4:18/km",
@@ -559,7 +559,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "First hard benchmark of the block \u2014 recalibrates every pace above it, so run it fresh. Also the natural place to bank the intensity the 08-01 tempo may have missed, once this week's load has actually settled.",
           "briefing": {
             "purpose": "Benchmark \u2014 an honest maximal effort measures fitness better than any formula, recalibrates your training paces, and doubles as race practice.",
             "structure": "15 min easy jog at conversational pace @ 4:35-5:03/km \u2192 5 km all-out time trial @ 3:41-3:50/km \u2192 10 min easy jog to finish @ 4:35-5:03/km",
@@ -603,7 +603,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Post-time-trial easy day \u2014 legs and CNS need it more than the mileage does; cap effort well inside the window rather than at the top of it.",
           "briefing": {
             "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
             "structure": "3.3 km easy @ 4:35-5:03/km",
@@ -646,7 +646,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Cutback week's long run: shorter is the point, not a compromise \u2014 the volume drop here is what lets week 4's build actually stick.",
           "briefing": {
             "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
             "structure": "4.9 km easy @ 4:35-5:03/km",
@@ -735,7 +735,7 @@
               "pace_key": null
             }
           ],
-          "notes": "",
+          "notes": "Back into Build with fresh legs off the cutback \u2014 strides are your regular cadence dose (still below the 170-180 target on recent data), not a fitness test.",
           "briefing": {
             "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
             "structure": "3.2 km easy @ 4:35-5:03/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)",
@@ -827,7 +827,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "First broken-threshold session of Build \u2014 the float recoveries are diagnostic: if they turn into jogs, the reps started too hot, which matches your habitual fast-start pattern on hard efforts.",
           "briefing": {
             "purpose": "Lactate threshold in pieces \u2014 same stimulus as tempo with the mental load broken up. Floats/recoveries keep the lactate shuttling.",
             "structure": "10 min easy jog at conversational pace @ 4:35-5:03/km \u2192 3\u00d7 (6min at threshold @ 4:04-4:18/km / 60s walking rest @ 4:35-5:03/km) \u2192 10 min easy jog to finish @ 4:35-5:03/km",
@@ -893,7 +893,7 @@
               "pace_key": "threshold"
             }
           ],
-          "notes": "",
+          "notes": "Second progressive long run of the block; the closing threshold kilometre is a good gauge of whether Build-phase fatigue is banking cleanly \u2014 cross-check how it feels against your cross-training load that week.",
           "briefing": {
             "purpose": "Endurance plus fatigue-resistance \u2014 running strong in the back half is exactly the race-day skill, trained under control.",
             "structure": "3.8 km easy @ 4:35-5:03/km \u2192 1.9 km at marathon pace @ 4:16-4:32/km \u2192 0.6 km at threshold pace @ 4:04-4:18/km",
@@ -981,7 +981,7 @@
               "pace_key": null
             }
           ],
-          "notes": "",
+          "notes": "Volume is climbing into the biggest week of Build (21.7km) \u2014 the easy days are what let this week's two quality sessions land, so protect them.",
           "briefing": {
             "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
             "structure": "3.3 km easy @ 4:35-5:03/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)",
@@ -1024,7 +1024,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Plain easy day between two structured sessions \u2014 no strides, no pace targets: use it to actually recover, especially while Garmin still reads training_status as Recovery.",
           "briefing": {
             "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
             "structure": "5.3 km easy @ 4:35-5:03/km",
@@ -1091,7 +1091,7 @@
               "pace_key": "threshold"
             }
           ],
-          "notes": "",
+          "notes": "Another negative-split rehearsal \u2014 by now the pattern should be familiar: first third deliberately slow, and the gap between your fastest and slowest thirds should be shrinking versus week 2's version.",
           "briefing": {
             "purpose": "Pacing discipline \u2014 each third faster teaches negative splitting, the highest-percentage race strategy there is.",
             "structure": "1.4 km easy @ 4:35-5:03/km \u2192 1.4 km at marathon pace @ 4:16-4:32/km \u2192 1.4 km at threshold pace @ 4:04-4:18/km",
@@ -1170,7 +1170,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "First race-pace insertion inside a long run, and your first fueling dress rehearsal \u2014 you've raced long efforts before (HYROX), but treat the pacing discipline here as new, not a station simulation.",
           "briefing": {
             "purpose": "Race specificity \u2014 goal pace on tired legs, plus a dress rehearsal for pacing, fueling and kit.",
             "structure": "15 min easy jog at conversational pace @ 4:35-5:03/km \u2192 1.0 km easy @ 4:35-5:03/km \u2192 3 km at race pace @ 4:16-4:32/km \u2192 10 min easy jog to finish @ 4:35-5:03/km",
@@ -1271,7 +1271,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Cadence target is explicitly 174spm here \u2014 meaningfully above your current 155-163spm average, so this session does double duty as speed work and a cadence reset.",
           "briefing": {
             "purpose": "Speed and running economy \u2014 short, fast reps recruit fast-twitch fibres and sharpen form, making every slower pace cheaper.",
             "structure": "10 min easy jog at conversational pace @ 4:35-5:03/km \u2192 10\u00d7 (200m fast & relaxed \u2014 mile race effort @ 3:30-3:45/km / 60s walking rest @ 4:35-5:03/km) \u2192 10 min easy jog to finish @ 4:35-5:03/km",
@@ -1353,7 +1353,7 @@
               "pace_key": null
             }
           ],
-          "notes": "",
+          "notes": "Short easy week, more racing feel in the plan \u2014 the temptation is to drift these up in effort; the 80/20 easy gap is still open, so keep it genuinely easy.",
           "briefing": {
             "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
             "structure": "1.9 km easy @ 4:35-5:03/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:30-3:45/km / 45s walking rest @ 4:35-5:03/km)",
@@ -1445,7 +1445,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Race-pace reps with fuller recoveries than 08-30's block \u2014 use them to lock in 'controlled, not desperate,' the direct antidote to your positive-split habit.",
           "briefing": {
             "purpose": "Race specificity \u2014 goal pace becomes automatic through repetition. Rhythm, relaxation and confidence at the pace that matters.",
             "structure": "10 min easy jog at conversational pace @ 4:35-5:03/km \u2192 3\u00d7 (1.0 km at race pace @ 4:16-4:32/km / 90s walking rest @ 4:35-5:03/km) \u2192 10 min easy jog to finish @ 4:35-5:03/km",
@@ -1523,7 +1523,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Biggest race-pace block of the plan (2km) inside the week's longest run \u2014 the real test is whether the pace holds without the drift you've shown on past hard efforts (positive-split ratio 1.027 on average).",
           "briefing": {
             "purpose": "Race specificity \u2014 goal pace on tired legs, plus a dress rehearsal for pacing, fueling and kit.",
             "structure": "15 min easy jog at conversational pace @ 4:35-5:03/km \u2192 2.1 km easy @ 4:35-5:03/km \u2192 2 km at race pace @ 4:16-4:32/km \u2192 10 min easy jog to finish @ 4:35-5:03/km",
@@ -1624,7 +1624,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "VO2max work with a 172spm cadence target \u2014 same cadence-lift purpose as the week 6 speed session, now at a more sustained turnover.",
           "briefing": {
             "purpose": "Aerobic ceiling \u2014 short hard reps at ~3K-5K effort push maximal oxygen uptake, which everything below it hangs from.",
             "structure": "10 min easy jog at conversational pace @ 4:35-5:03/km \u2192 5\u00d7 (3.0 min hard \u2014 3K-5K race effort @ 3:42-4:00/km / 3.0 min recovery jog @ 4:35-5:03/km) \u2192 10 min easy jog to finish @ 4:35-5:03/km",
@@ -1717,7 +1717,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Final threshold session before taper \u2014 one more float-recovery discipline check; floats staying floats (not turning into jogs) is the signal the pacing work has stuck.",
           "briefing": {
             "purpose": "Lactate threshold in pieces \u2014 same stimulus as tempo with the mental load broken up. Floats/recoveries keep the lactate shuttling.",
             "structure": "10 min easy jog at conversational pace @ 4:35-5:03/km \u2192 4\u00d7 (6min at threshold @ 4:04-4:18/km / 60s walking rest @ 4:35-5:03/km) \u2192 10 min easy jog to finish @ 4:35-5:03/km",
@@ -1759,7 +1759,7 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Last long run before race week \u2014 straightforward easy effort; there's nothing left to prove here, only durability to bank.",
           "briefing": {
             "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
             "structure": "8.6 km easy @ 4:35-5:03/km",
@@ -1798,7 +1798,7 @@
           "estimated_duration_seconds": 1377.0,
           "estimated_distance_meters": 5000.0,
           "steps": [],
-          "notes": "",
+          "notes": "Taper begins \u2014 trust the fitness that's banked; this is about staying loose, not adding anything.",
           "briefing": {
             "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
             "structure": "Easy shakeout",
@@ -1890,7 +1890,7 @@
               "pace_key": null
             }
           ],
-          "notes": "",
+          "notes": "Last touch of race-pace-adjacent turnover before the start line \u2014 brief and light, just enough to keep the legs primed.",
           "briefing": {
             "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
             "structure": "warmup \u2192 4\u00d7 (interval @ 3:30-3:45/km / recovery @ 4:35-5:03/km) \u2192 cooldown",
@@ -1920,7 +1920,7 @@
           "estimated_duration_seconds": 5810.94,
           "estimated_distance_meters": 21100.0,
           "steps": [],
-          "notes": "",
+          "notes": "Race day: run the even-to-negative split you've been rehearsing all block \u2014 with a ~3% average positive-split tendency behind you, the highest-leverage instruction is 'the first 5K should feel too easy.'",
           "briefing": {
             "purpose": "The day it was all for. Nothing new today \u2014 the kit, fueling and pacing you rehearsed are the plan.",
             "structure": "RACE DAY \u2014 Half Marathon",
@@ -1976,8 +1976,14 @@
   "vdot": 53.4,
   "ftp": null,
   "pace_source": "Garmin VO2 Max (53.4)",
-  "rationale": "",
-  "tips": [],
+  "rationale": "Scaffolded off a VO2 max of 53.4 (LT pace 4:24/km) and a currently light running base (13.5km/week) against a much heavier daily cross-training habit \u2014 you train HYROX most days (near-daily indoor cardio plus race-pace rehearsals) alongside running, which is why the real intensity distribution is inverted (16% easy vs an 80% target) and this week's load is running about 2x the rolling norm (ACWR 2.0, 20h of sleep debt, RHR +2.6bpm on baseline). Training_status reads Recovery and the composite readiness band is 'moderate' with an overtraining flag of caution, so Base phase leans on volume and genuinely easy running rather than stacking more intensity on top of the existing cross-training load. A consistent ~3% positive-split habit (pacing ratio 1.027) shows up across recent efforts, so the progressive runs and race-pace blocks through the plan double as pacing-discipline reps, and cadence (currently 155-163spm vs the 170-180 range that usually goes with efficient form) gets deliberate attention via strides and the explicit 172-174spm targets on the Peak-phase speed and VO2max sessions.",
+  "tips": [
+    "Your actual intensity distribution is 16% easy vs an 80% target \u2014 the single biggest lever in this plan is running the easy days genuinely easy, not the workout content.",
+    "This week's training load is running about 2x your rolling norm with real sleep debt behind it \u2014 if a session feels heavy, trim it rather than force it; the week 3 cutback exists to let this settle, not to create the need for one.",
+    "You habitually go out ~3% too fast and fade (positive-split ratio 1.027) \u2014 every progressive run and race-pace block in this plan is also pacing-discipline practice; run the first third deliberately conservative.",
+    "Cadence sits at 155-163spm on recent runs, below the 170-180 range that usually goes with efficient form \u2014 lean on the stride sessions and the explicit cadence targets on the Peak-phase speed/VO2max work to nudge it up before race day.",
+    "Keep the daily HYROX cross-training volume level, not increasing, through Base \u2014 it's already a meaningful share of this week's load spike, and running volume should be the only thing ramping through the block."
+  ],
   "athlete_summary": "VO2 Max: 53.4 \u00b7 Resting HR: 51 bpm \u00b7 Max HR: 195 bpm \u00b7 Weekly mileage: 13.5 km \u00b7 Training status: Recovery \u00b7 LT pace: 4:24/km \u00b7 LT HR: 163 bpm \u00b7 Endurance score: 6301.0 \u00b7 Recent runs: 32 activities, avg 5.4km @ 4:57/km \u00b7 Pace source: Garmin VO2 Max (53.4)",
   "accepted": true,
   "last_recalibration": null,
