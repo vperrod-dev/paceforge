@@ -155,7 +155,15 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
   ladders, progressive tempo, alternations, steady-M, blocks long run, time
   trial), plan generator (`planner.py`, LLM-free: volume anchored to actual
   mileage, skeleton-density + goal-feasibility rules, rule-driven long-run
-  rotation, deload time trials), session-variant tables (`variants.py`,
+  rotation, deload time trials — always clamps `total_weeks` to what's
+  actually available between today and race day (`_generate_template_plan`
+  defaults `start_date` to today when unset, since nothing ever passes one
+  explicitly); the clamp maps the compressed plan's weeks onto the *native*
+  template's week numbers via `_template_week()` rather than truncating the
+  front of the fixed-length `volume_progression`/`phases` arrays — a close
+  race must still reach the template's own Peak/Taper, not get cut off
+  before it and land on full volume the week of the race), session-variant
+  tables (`variants.py`,
   Canova-lever ordered, volume-gated), coaching briefings (`briefings.py` —
   purpose/structure/feel/if_wrong/cue/venue/fuel/warmup per session + week
   intros), `adaptation.py` (reflow + readiness gate), `validate.py` (pace
@@ -227,7 +235,22 @@ sport is "hyrox" → `hyrox_mixed`) — not the old `extra_activities.json` side
 file, which the coach/matcher never read. Filed under the plan week covering
 that date, matched against existing Garmin activities immediately, and
 committed like any other plan edit — so it feeds the daily/weekly coach and
-auto-links when Garmin syncs the completed class.
+auto-links when Garmin syncs the completed class. Optional `repeat_weeks`
+(1–52) schedules the same class weekly. **Never requires a running plan to
+exist** — if `data/plan.json` is absent, `add_session()` creates a bare
+container plan (`accepted: true`, no periodization) to hold it; class
+scheduling and a periodized training block are unrelated features and must
+stay that way (2026-08-02: deleting the running plan broke class scheduling
+outright — "creating cardio activities doesn't work either" — because it
+hard-required `store.load_plan()` to return something).
+
+The portal's `saveExtra()` (web/index.html) polls the dispatched job to
+actual completion (by run id, not timestamp — the server's `created_at` is
+second-truncated and a ms-precision comparison misses real matches) before
+calling `planStore.reset()` and re-rendering Calendar on the same day.
+Skipping that wait is why a freshly-scheduled class used to not appear
+without a manual reload — the job commits async (~1–3s) and the in-memory
++ localStorage plan cache doesn't know to invalidate itself otherwise.
 
 ## Auth & secrets (env)
 `PACEFORGE_GARMIN_EMAIL`, `GARMIN_TOKEN` (base64 token from `paceforge login`),

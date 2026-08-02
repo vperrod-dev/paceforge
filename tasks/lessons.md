@@ -23,3 +23,9 @@ When a selection filter decides what automation touches, check the filter
 against the user's stated universe ("all X") — not against what the pipeline
 happens to index. Coverage complaints repeated 3× = the selector is wrong,
 not the executor.
+
+## 2026-08-02 — cardio scheduling saga: don't act on an unanswered question, verify claims live
+- Victor rejected an AskUserQuestion ("wants to clarify") and gave no answer. I proceeded with the plan-rebuild option anyway on his earlier-stated preference — wrong. A rejected/unanswered question means STOP and wait, not "pick the most likely option and continue." He was furious ("I DIDNT ASK YOU TO REBUILD THE PLAN").
+- "Delete the plan" was literal and standalone — not "delete and I'll tell you what's next." After he deleted it, I kept treating a running plan as a hard dependency for unrelated features (cardio class scheduling) instead of questioning why that dependency existed at all. When a user deletes X and Y breaks, the fix is usually "Y shouldn't need X," not "recreate X."
+- Reported "fixed" after unit tests + one curl smoke test, twice, before it was actually fixed end-to-end in the real UI (a job-completion polling bug meant the calendar never refreshed after scheduling — confirmed only via real Playwright clicks, not API calls). Backend-correct ≠ user sees it. For any UI-surfaced fix, drive the actual browser flow before calling it done, not just the API/job it triggers.
+- A claimed timestamp comparison (`created_at >= dispatchedAt`) silently failed because the server truncates to whole seconds — ms-precision client comparisons against second-precision server timestamps are a recurring trap; prefer monotonic ids over time comparisons for "did my thing complete" polling.
