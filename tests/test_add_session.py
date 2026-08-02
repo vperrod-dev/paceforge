@@ -1,8 +1,6 @@
 """Schedule a class (e.g. HYROX) onto the plan as a real Workout."""
 from datetime import date, datetime
 
-import pytest
-
 from paceforge import actions, store
 from paceforge.models.plan import TrainingPlan, TrainingWeek, Workout
 from paceforge.models.profile import RecentActivity
@@ -46,9 +44,14 @@ def test_add_session_matches_existing_garmin_activity_same_day():
     assert added.matched_activity_ids == [1] and added.completed
 
 
-def test_add_session_no_plan_raises():
-    with pytest.raises(RuntimeError, match="No plan"):
-        actions.add_session(session_date="2026-08-04", sport="HYROX", minutes=45)
+def test_add_session_with_no_plan_creates_bare_container():
+    """Scheduling a class must never require a periodized running plan to exist."""
+    assert store.load_plan() is None
+    actions.add_session(session_date="2026-08-04", sport="HYROX", minutes=45, name="Hyrox Class")
+    plan = store.load_plan()
+    assert plan is not None and plan.accepted
+    added = [w for w in plan.weeks[0].workouts if w.name == "Hyrox Class"]
+    assert len(added) == 1
 
 
 def test_add_session_repeat_weekly_schedules_each_week():

@@ -1311,7 +1311,15 @@ def add_session(session_date: str, sport: str, minutes: int, name: str = "",
 
     plan = store.load_plan()
     if plan is None:
-        raise RuntimeError("No plan at data/plan.json.")
+        # Cardio/HYROX class scheduling must work with no running plan at all —
+        # a bare container plan holds them (still a real Workout the matcher and
+        # daily/weekly coach read), never require athletes to build a periodized
+        # running block just to put a class on the calendar.
+        plan = TrainingPlan(
+            name="Cardio Schedule", goal_type="CUSTOM",
+            target_date=date.today() + timedelta(days=365), total_weeks=1, accepted=True,
+            weeks=[TrainingWeek(week_number=1, workouts=[])],
+        )
 
     start = date.fromisoformat(session_date)
     workout_type = _EXTRA_SESSION_TYPE.get(sport.strip().lower(), WorkoutType.CROSS_TRAINING)
