@@ -1028,6 +1028,32 @@
           "garmin_workout_id": null,
           "user_rpe": null,
           "user_notes": null
+        },
+        {
+          "session_id": "d9411356",
+          "workout_type": "cross_training",
+          "sport": "run",
+          "name": "Hyrox Class",
+          "description": "",
+          "scheduled_date": "2026-08-01",
+          "estimated_duration_seconds": 2700.0,
+          "estimated_distance_meters": null,
+          "steps": [],
+          "notes": "",
+          "briefing": null,
+          "purpose": null,
+          "cadence_target": null,
+          "completed": true,
+          "matched_activity_ids": [
+            23807983690
+          ],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "user_rpe": null,
+          "user_notes": null
         }
       ],
       "focus": "VO2max development + lactate threshold",
