@@ -12,10 +12,10 @@ from paceforge.models.plan import TrainingPlan
 from paceforge.models.profile import RecentActivity
 
 _RUN_TYPES = {"running", "treadmill_running", "track_running", "trail_running"}
-_HYROX_TYPES = {"running", "hiit", "cardio", "indoor_cardio", "mixed_cardio",
-                "fitness_equipment", "other"}
-_CROSS_TYPES = {"strength_training", "indoor_cardio", "hiit", "cardio",
-                "indoor_cycling", "fitness_equipment", "other"}
+_HYROX_TYPES = {"running", "hiit", "cardio", "cardio_training", "indoor_cardio",
+                "mixed_cardio", "strength_training", "fitness_equipment", "other"}
+_CROSS_TYPES = {"strength_training", "indoor_cardio", "cardio_training", "hiit",
+                "cardio", "indoor_cycling", "fitness_equipment", "other"}
 # Days a workout can slip and still match — you sometimes run a session a day off.
 _DAY_TOLERANCE = 1
 # A run only auto-links when its distance is within 90% of the planned distance —

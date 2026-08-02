@@ -102,6 +102,36 @@ def test_hiit_matches_hyrox_mixed_by_duration():
     assert plan.weeks[0].workouts[0].matched_activity_ids == [2]
 
 
+def test_cardio_training_matches_hyrox_mixed_slot():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="hyrox_mixed", name="Sim", scheduled_date=d,
+                         estimated_duration_seconds=3600))
+    changed = match_plan_to_activities(
+        plan, [_act(1, d, 0, atype="cardio_training")])
+    wo = plan.weeks[0].workouts[0]
+    assert changed == 1 and wo.matched_activity_ids == [1] and wo.completed
+
+
+def test_strength_training_matches_hyrox_mixed_slot():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="hyrox_mixed", name="Sim", scheduled_date=d,
+                         estimated_duration_seconds=3600))
+    changed = match_plan_to_activities(
+        plan, [_act(1, d, 0, atype="strength_training")])
+    wo = plan.weeks[0].workouts[0]
+    assert changed == 1 and wo.matched_activity_ids == [1] and wo.completed
+
+
+def test_cardio_training_matches_cross_training_slot():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="cross_training", name="Stations", scheduled_date=d,
+                         estimated_duration_seconds=3600))
+    changed = match_plan_to_activities(
+        plan, [_act(1, d, 0, atype="cardio_training")])
+    wo = plan.weeks[0].workouts[0]
+    assert changed == 1 and wo.matched_activity_ids == [1] and wo.completed
+
+
 def test_run_slot_claims_run_before_hyrox_slot():
     d = date(2026, 6, 1)
     run_slot = Workout(workout_type="easy_run", name="Easy", scheduled_date=d,
