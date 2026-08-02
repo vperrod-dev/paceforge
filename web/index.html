@@ -663,7 +663,14 @@ const planStore = {
     if (this._mem) return this._mem;
     const raw = localStorage.getItem(PLAN_KEY);
     if (raw) { try { this._mem = JSON.parse(raw); } catch {} }
-    if (this._mem) await this._mergeSynced();   // localStorage is stale for sync-matched completions
+    if (this._mem) {
+      // A new plan_id server-side means Create/Reassess replaced the whole plan —
+      // the cached edits belong to a plan that no longer exists, so reseed instead
+      // of silently pinning the browser to the old one forever (2026-08-02: this is
+      // why a freshly-regenerated plan kept showing as "the same" in the portal).
+      const fresh = await this._checkFresh();
+      if (fresh === 'reseed') this._mem = await this._seed();
+    }
     else this._mem = await this._seed();
     this._persist();
     return this._mem;
@@ -671,9 +678,15 @@ const planStore = {
   // The daily Garmin sync marks workouts completed/matched in ./data/plan.json, but the
   // editable plan lives in localStorage. Pull those completions in (additively, so a manual
   // "Mark done" is never un-done) when the synced plan is still the same plan.
-  async _mergeSynced() {
+  async _checkFresh() {
     let synced;
     try { synced = await loadJSON('plan.json'); } catch { return; }
+    if (!synced) return;
+    if (synced.plan_id !== this._mem.plan_id) return 'reseed';
+    await this._mergeSynced(synced);
+  },
+  async _mergeSynced(synced) {
+    if (!synced) { try { synced = await loadJSON('plan.json'); } catch { return; } }
     if (!synced || synced.plan_id !== this._mem.plan_id) return;
     (synced.weeks || []).forEach((sw, wi) => {
       const lw = this._mem.weeks?.[wi];
