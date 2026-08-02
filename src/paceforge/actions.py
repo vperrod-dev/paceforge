@@ -1280,46 +1280,60 @@ def calendar_edit(
 
 
 _EXTRA_SESSION_TYPE = {"hyrox": WorkoutType.HYROX_MIXED}
+_MAX_REPEAT_WEEKS = 52
 
 
-def add_session(session_date: str, sport: str, minutes: int, name: str = "") -> dict:
+def _week_for_date(plan: TrainingPlan, d: date) -> TrainingWeek:
+    """The week that already covers ``d`` — the last week whose first scheduled
+    workout starts on or before it — falling back to week 1."""
+    weeks_with_dates = [w for w in plan.weeks if w.workouts]
+    return max(
+        (w for w in weeks_with_dates
+         if min(wo.scheduled_date for wo in w.workouts if wo.scheduled_date) <= d),
+        key=lambda w: w.week_number,
+        default=(weeks_with_dates[0] if weeks_with_dates else plan.weeks[0]),
+    )
+
+
+def add_session(session_date: str, sport: str, minutes: int, name: str = "",
+                repeat_weeks: int = 1) -> dict:
     """Schedule a class/session (e.g. a HYROX or cardio class) onto the plan for a
     given date, as a real Workout — not a side-file note — so the daily/weekly coach
     sees it and the Garmin matcher links the completed activity to it automatically.
 
     ``sport`` is the portal's free-text label (Cardio/HYROX/Swim/Bike/...); anything
     but "hyrox" (case-insensitive) becomes a generic cross_training slot.
+    ``repeat_weeks`` schedules the same class weekly for that many weeks (1 = once).
     """
+    from datetime import timedelta
+
     from paceforge.engine.matching import match_plan_to_activities
 
     plan = store.load_plan()
     if plan is None:
         raise RuntimeError("No plan at data/plan.json.")
 
-    d = date.fromisoformat(session_date)
+    start = date.fromisoformat(session_date)
     workout_type = _EXTRA_SESSION_TYPE.get(sport.strip().lower(), WorkoutType.CROSS_TRAINING)
-    workout = Workout(
-        name=name.strip() or f"{sport.strip().title()} Class",
-        workout_type=workout_type,
-        scheduled_date=d,
-        estimated_duration_seconds=float(minutes) * 60,
-    )
+    workout_name = name.strip() or f"{sport.strip().title()} Class"
+    count = min(max(int(repeat_weeks), 1), _MAX_REPEAT_WEEKS)
 
-    # File it under the week that already covers this date — the last week whose
-    # first scheduled workout starts on or before it — falling back to week 1.
-    weeks_with_dates = [w for w in plan.weeks if w.workouts]
-    week = max(
-        (w for w in weeks_with_dates
-         if min(wo.scheduled_date for wo in w.workouts if wo.scheduled_date) <= d),
-        key=lambda w: w.week_number,
-        default=(weeks_with_dates[0] if weeks_with_dates else plan.weeks[0]),
-    )
-    week.workouts.append(workout)
+    session_ids = []
+    for i in range(count):
+        d = start + timedelta(weeks=i)
+        workout = Workout(
+            name=workout_name,
+            workout_type=workout_type,
+            scheduled_date=d,
+            estimated_duration_seconds=float(minutes) * 60,
+        )
+        _week_for_date(plan, d).workouts.append(workout)
+        session_ids.append(workout.session_id)
 
     match_plan_to_activities(plan, store.load_activities(), rpe_map=store.rpe_by_activity())
     store.save_plan(plan)
-    return {"session_id": workout.session_id, "scheduled_date": session_date,
-            "workout_type": str(workout_type), "matched": bool(workout.matched_activity_ids)}
+    return {"session_ids": session_ids, "scheduled_date": session_date,
+            "repeat_weeks": count, "workout_type": str(workout_type)}
 
 
 def adapt(dry_run: bool = False) -> dict:

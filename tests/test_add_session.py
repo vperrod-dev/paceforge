@@ -42,10 +42,27 @@ def test_add_session_matches_existing_garmin_activity_same_day():
     )])
     result = actions.add_session(session_date="2026-08-04", sport="HYROX", minutes=45)
     plan = store.load_plan()
-    added = next(w for w in plan.weeks[0].workouts if w.session_id == result["session_id"])
+    added = next(w for w in plan.weeks[0].workouts if w.session_id == result["session_ids"][0])
     assert added.matched_activity_ids == [1] and added.completed
 
 
 def test_add_session_no_plan_raises():
     with pytest.raises(RuntimeError, match="No plan"):
         actions.add_session(session_date="2026-08-04", sport="HYROX", minutes=45)
+
+
+def test_add_session_repeat_weekly_schedules_each_week():
+    store.save_plan(_plan_with_week(date(2026, 8, 1)))
+    result = actions.add_session(session_date="2026-08-04", sport="HYROX", minutes=45,
+                                 repeat_weeks=3)
+    plan = store.load_plan()
+    dates = sorted(w.scheduled_date for w in plan.weeks[0].workouts if w.name == "Hyrox Class")
+    assert dates == [date(2026, 8, 4), date(2026, 8, 11), date(2026, 8, 18)]
+    assert len(result["session_ids"]) == 3
+
+
+def test_add_session_repeat_weeks_clamped_to_max():
+    store.save_plan(_plan_with_week(date(2026, 8, 1)))
+    result = actions.add_session(session_date="2026-08-04", sport="HYROX", minutes=45,
+                                 repeat_weeks=999)
+    assert result["repeat_weeks"] == 52

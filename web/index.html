@@ -2789,6 +2789,7 @@ async function renderCalendar(page) {
           <div class="field"><label>Date</label><input id="ex-date" type="date" value="${ds}"></div>
           <div class="field"><label>Minutes</label><input id="ex-min" type="number" min="1" value="45"></div>
           <div class="field"><label>Name</label><input id="ex-name" placeholder="Training center session"></div>
+          <div class="field"><label>Repeat weekly</label><input id="ex-repeat" type="number" min="1" max="52" value="1"><div class="hint">Weeks to schedule (1 = just this one).</div></div>
           <button class="btn btn-ghost" onclick="hideExtraForm()" id="extra-cancel">Cancel</button>
           <button class="btn btn-primary" onclick="saveExtra()" id="extra-save">Save session</button>
         </div></div>`;
@@ -2804,6 +2805,7 @@ async function renderCalendar(page) {
           <div class="field"><label>Date</label><input id="ex-date" type="date" value="${ds}"></div>
           <div class="field"><label>Minutes</label><input id="ex-min" type="number" min="1" value="45"></div>
           <div class="field"><label>Name</label><input id="ex-name" placeholder="Training center session"></div>
+          <div class="field"><label>Repeat weekly</label><input id="ex-repeat" type="number" min="1" max="52" value="1"><div class="hint">Weeks to schedule (1 = just this one).</div></div>
           <button class="btn btn-ghost" onclick="hideExtraForm()" id="extra-cancel">Cancel</button>
           <button class="btn btn-primary" onclick="saveExtra()" id="extra-save">Save session</button>
         </div></div>`;
@@ -2854,6 +2856,7 @@ window.saveExtra = async function() {
   if (!saveBtn) return;
   const date = document.getElementById('ex-date')?.value || '';
   if (!date) { toast('err', 'Pick a date'); return; }
+  const weeks = parseInt(document.getElementById('ex-repeat')?.value || '1', 10) || 1;
   // Schedules a real plan workout (not a side note) so the daily/weekly coach
   // sees it and the Garmin matcher links the completed class to it.
   await dispatchWorkflow('add-session.yml', {
@@ -2861,7 +2864,10 @@ window.saveExtra = async function() {
     sport: document.getElementById('ex-sport')?.value || 'Cardio',
     minutes: document.getElementById('ex-min')?.value || '45',
     name: document.getElementById('ex-name')?.value || '',
-  }, 'Session scheduled', 'On the calendar shortly — reopen this day after it finishes.', saveBtn);
+    repeat_weeks: String(weeks),
+  }, 'Session scheduled', weeks > 1
+    ? `Scheduled weekly for ${weeks} weeks — reopen this day after it finishes.`
+    : 'On the calendar shortly — reopen this day after it finishes.', saveBtn);
   hideExtraForm();
 };
 window.openExtra = function(xi, ds) {

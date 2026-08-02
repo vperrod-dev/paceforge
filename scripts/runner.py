@@ -677,13 +677,17 @@ def job_calendar_edit(run: Run, inputs: dict) -> None:
 def job_add_session(run: Run, inputs: dict) -> None:
     from paceforge import actions
     run.step("Schedule session")
+    weeks = int(inputs.get("repeat_weeks") or 1)
     actions.add_session(
         session_date=str(inputs["date"]), sport=str(inputs.get("sport") or "Cardio"),
         minutes=int(inputs.get("minutes") or 45), name=str(inputs.get("name") or ""),
+        repeat_weeks=weeks,
     )
     run.step("Commit updated plan")
-    commit_push(run, ["data/plan.json"],
-                f"calendar: schedule {inputs.get('sport') or 'Cardio'} session {inputs['date']}")
+    msg = f"calendar: schedule {inputs.get('sport') or 'Cardio'} session {inputs['date']}"
+    if weeks > 1:
+        msg += f" (x{weeks} weekly)"
+    commit_push(run, ["data/plan.json"], msg)
     publish(run)
 
 
