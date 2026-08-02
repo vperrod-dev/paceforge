@@ -473,48 +473,66 @@ class TestAdaptMissedSessions:
         from paceforge.models.plan import Workout, WorkoutType
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.store.save_plan'):
-                w1 = Workout(name="Mon", workout_type=WorkoutType.EASY_RUN,
-                            sport="run", scheduled_date=date.today(),
-                            estimated_duration_seconds=3600)
-                w2 = Workout(name="Tue", workout_type=WorkoutType.EASY_RUN,
-                            sport="run", scheduled_date=date.today() + timedelta(days=1),
-                            estimated_duration_seconds=3600)
-                w3 = Workout(name="Wed", workout_type=WorkoutType.EASY_RUN,
-                            sport="run", scheduled_date=date.today() + timedelta(days=2),
-                            estimated_duration_seconds=3600)
-                plan = TrainingPlan(
-                    name="Test Plan",
-                    goal_type="MARATHON",
-                    target_date=date(2026, 10, 4),
-                    total_weeks=12,
-                    weeks=[{"week_number": 1, "workouts": [w1, w2, w3]}],
-                    pace_bands={},
-                )
-                mock_load.return_value = plan
+                with patch('paceforge.actions.store.load_profile',
+                          return_value=UserFitnessProfile(vo2_max=45.0)):
+                    with patch('paceforge.actions.store.load_activities', return_value=[]):
+                        with patch('paceforge.actions.store.load_history', return_value=[]):
+                            with patch('paceforge.actions.store.rpe_by_activity', return_value={}):
+                                with patch('paceforge.actions.store.load_bike_rides', return_value=[]):
+                                    with patch('paceforge.actions.store.load_rpe',
+                                              return_value={"entries": []}):
+                                        w1 = Workout(name="Mon", workout_type=WorkoutType.EASY_RUN,
+                                                    sport="run", scheduled_date=date.today(),
+                                                    estimated_duration_seconds=3600)
+                                        w2 = Workout(name="Tue", workout_type=WorkoutType.EASY_RUN,
+                                                    sport="run",
+                                                    scheduled_date=date.today() + timedelta(days=1),
+                                                    estimated_duration_seconds=3600)
+                                        w3 = Workout(name="Wed", workout_type=WorkoutType.EASY_RUN,
+                                                    sport="run",
+                                                    scheduled_date=date.today() + timedelta(days=2),
+                                                    estimated_duration_seconds=3600)
+                                        plan = TrainingPlan(
+                                            name="Test Plan",
+                                            goal_type="MARATHON",
+                                            target_date=date(2026, 10, 4),
+                                            total_weeks=12,
+                                            weeks=[{"week_number": 1, "workouts": [w1, w2, w3]}],
+                                            pace_bands={},
+                                        )
+                                        mock_load.return_value = plan
 
-                result = actions.adapt(dry_run=True)
-                assert result is not None
+                                        result = actions.adapt(dry_run=True)
+                                        assert result is not None
 
     def test_adapt_readiness_gate_hard_work(self):
         """adapt() considers readiness for gated workouts."""
         from paceforge.models.plan import Workout, WorkoutType
         with patch('paceforge.actions.store.load_plan') as mock_load:
             with patch('paceforge.actions.store.save_plan'):
-                w = Workout(name="VO2", workout_type=WorkoutType.VO2MAX,
-                           sport="run", scheduled_date=date.today(),
-                           estimated_duration_seconds=3600)
-                plan = TrainingPlan(
-                    name="Test Plan",
-                    goal_type="MARATHON",
-                    target_date=date(2026, 10, 4),
-                    total_weeks=12,
-                    weeks=[{"week_number": 1, "workouts": [w]}],
-                    pace_bands={},
-                )
-                mock_load.return_value = plan
+                with patch('paceforge.actions.store.load_profile',
+                          return_value=UserFitnessProfile(vo2_max=45.0)):
+                    with patch('paceforge.actions.store.load_activities', return_value=[]):
+                        with patch('paceforge.actions.store.load_history', return_value=[]):
+                            with patch('paceforge.actions.store.rpe_by_activity', return_value={}):
+                                with patch('paceforge.actions.store.load_bike_rides', return_value=[]):
+                                    with patch('paceforge.actions.store.load_rpe',
+                                              return_value={"entries": []}):
+                                        w = Workout(name="VO2", workout_type=WorkoutType.VO2MAX,
+                                                   sport="run", scheduled_date=date.today(),
+                                                   estimated_duration_seconds=3600)
+                                        plan = TrainingPlan(
+                                            name="Test Plan",
+                                            goal_type="MARATHON",
+                                            target_date=date(2026, 10, 4),
+                                            total_weeks=12,
+                                            weeks=[{"week_number": 1, "workouts": [w]}],
+                                            pace_bands={},
+                                        )
+                                        mock_load.return_value = plan
 
-                result = actions.adapt(dry_run=True)
-                assert result is not None
+                                        result = actions.adapt(dry_run=True)
+                                        assert result is not None
 
 
 class TestErrorHandling:

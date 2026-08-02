@@ -11,11 +11,30 @@ import importlib.util
 import sys
 import types
 
+import pytest
+
+from paceforge import store
+
 # Real values mirrored from garminconnect.workout so the stub path exercises
 # the same constants the client code uses.
 _STEP_TYPE = {"WARMUP": 1, "COOLDOWN": 2, "INTERVAL": 3, "RECOVERY": 4, "REST": 5, "REPEAT": 6}
 _CONDITION_TYPE = {"DISTANCE": 1, "TIME": 2, "HEART_RATE": 3, "CALORIES": 4, "CADENCE": 5, "POWER": 6}
 _TARGET_TYPE = {"NO_TARGET": 1, "POWER": 2, "CADENCE": 3, "HEART_RATE": 4, "SPEED": 5, "OPEN": 6}
+
+
+@pytest.fixture(autouse=True)
+def _isolate_data_dir(tmp_path, monkeypatch):
+    """Hard-block every test from touching the live checkout's data/ dir.
+
+    store.DATA_DIR is bound at import time from PACEFORGE_DATA_DIR, so setting
+    the env var alone does nothing for already-imported code — a test (or a
+    test written later) that forgets to mock store.load_plan/save_plan would
+    otherwise read/write Victor's real plan.json. This happened repeatedly
+    (2026-07-29, -30, -31): the live plan got silently replaced by a test's
+    dummy "Test Plan" scaffold. Redirecting the module-level constant itself
+    makes that class of bug impossible regardless of per-test mocking discipline.
+    """
+    monkeypatch.setattr(store, "DATA_DIR", tmp_path)
 
 
 def pytest_configure(config):  # noqa: ARG001
