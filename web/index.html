@@ -656,8 +656,9 @@ const PLAN_KEY = 'pf_plan' + NS;
 const planStore = {
   _mem: null,
   async _seed() {
-    const plan = await loadJSON('plan.json');
-    return JSON.parse(JSON.stringify(plan));
+    let plan;
+    try { plan = await loadJSON('plan.json'); } catch { return null; }  // deleted server-side
+    return plan ? JSON.parse(JSON.stringify(plan)) : null;
   },
   async get() {
     if (this._mem) return this._mem;
@@ -680,9 +681,8 @@ const planStore = {
   // "Mark done" is never un-done) when the synced plan is still the same plan.
   async _checkFresh() {
     let synced;
-    try { synced = await loadJSON('plan.json'); } catch { return; }
-    if (!synced) return;
-    if (synced.plan_id !== this._mem.plan_id) return 'reseed';
+    try { synced = await loadJSON('plan.json'); } catch { return 'reseed'; }  // gone server-side too
+    if (!synced || synced.plan_id !== this._mem.plan_id) return 'reseed';
     await this._mergeSynced(synced);
   },
   async _mergeSynced(synced) {
