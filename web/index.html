@@ -2685,7 +2685,10 @@ const colorForWorkout = t => WO_COLORS[t] || 'var(--sky)';
 
 async function renderCalendar(page) {
   const now = new Date();
-  let viewYear = now.getFullYear(), viewMonth = now.getMonth();
+  const reopenDate = window.__reopenCalDate || null;
+  const reopenD = reopenDate ? new Date(reopenDate + 'T00:00:00') : null;
+  let viewYear = reopenD ? reopenD.getFullYear() : now.getFullYear();
+  let viewMonth = reopenD ? reopenD.getMonth() : now.getMonth();
   const calEntries = {};
 
   const [plan, activities, events, extrasJson] = await Promise.all([
@@ -2839,9 +2842,12 @@ async function renderCalendar(page) {
     }));
     on('cal-prev', 'click', () => { viewMonth--; if (viewMonth<0){viewMonth=11;viewYear--;} reDraw(); });
     on('cal-next', 'click', () => { viewMonth++; if (viewMonth>11){viewMonth=0;viewYear++;} reDraw(); });
-    // Auto-open today (or the 1st when browsing another month) so the panel is never empty.
+    // Auto-open today (or the 1st when browsing another month) so the panel is never empty —
+    // unless we just scheduled a session, in which case reopen that day instead.
     const todayStr = new Date().toISOString().slice(0, 10);
-    const preselect = page.querySelector(`.cal-day[data-date="${todayStr}"]`)
+    window.__reopenCalDate = null;
+    const preselect = (reopenDate && page.querySelector(`.cal-day[data-date="${reopenDate}"]`))
+      || page.querySelector(`.cal-day[data-date="${todayStr}"]`)
       || page.querySelector('.cal-day[data-date]');
     if (preselect) { preselect.classList.add('selected'); showDay(preselect.dataset.date); }
   }
@@ -2864,12 +2870,40 @@ window.hideExtraForm = function() {
   const show = document.getElementById('extra-show');
   if (form && show) { form.style.display = 'none'; show.style.display = 'block'; }
 };
+// The runs list's ids are monotonically increasing — use that instead of
+// created_at (server-side timestamps truncate to whole seconds, so a
+// millisecond-precision "dispatched at" comparison misses ~any dispatch that
+// lands in the back half of a second: run.created_at ends up a few hundred ms
+// *before* the client's own Date.now(), even though it's the right run).
+async function latestJobRunId(workflowFile) {
+  try {
+    const res = await fetch(`${API}/repos/${REPO}/actions/workflows/${workflowFile}/runs?per_page=1`, { headers: JSON_HDR });
+    return res.ok ? (await res.json()).workflow_runs?.[0]?.id ?? 0 : 0;
+  } catch { return 0; }
+}
+
+// Poll until a NEW run (id > baselineId) for this job reaches "completed" —
+// dispatch only acks receipt, not completion.
+async function waitForJobRun(workflowFile, baselineId, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${API}/repos/${REPO}/actions/workflows/${workflowFile}/runs?per_page=1`, { headers: JSON_HDR });
+      const run = res.ok ? (await res.json()).workflow_runs?.[0] : null;
+      if (run && run.id > baselineId && run.status === 'completed') return run;
+    } catch {}
+    await new Promise(r => setTimeout(r, 700));
+  }
+  return null;
+}
+
 window.saveExtra = async function() {
   const saveBtn = document.getElementById('extra-save');
   if (!saveBtn) return;
   const date = document.getElementById('ex-date')?.value || '';
   if (!date) { toast('err', 'Pick a date'); return; }
   const weeks = parseInt(document.getElementById('ex-repeat')?.value || '1', 10) || 1;
+  const baselineId = await latestJobRunId('add-session.yml');
   // Schedules a real plan workout (not a side note) so the daily/weekly coach
   // sees it and the Garmin matcher links the completed class to it.
   await dispatchWorkflow('add-session.yml', {
@@ -2878,10 +2912,21 @@ window.saveExtra = async function() {
     minutes: document.getElementById('ex-min')?.value || '45',
     name: document.getElementById('ex-name')?.value || '',
     repeat_weeks: String(weeks),
-  }, 'Session scheduled', weeks > 1
-    ? `Scheduled weekly for ${weeks} weeks — reopen this day after it finishes.`
-    : 'On the calendar shortly — reopen this day after it finishes.', saveBtn);
+  }, 'Scheduling…', 'Waiting for it to land on the calendar.', saveBtn);
   hideExtraForm();
+
+  const run = await waitForJobRun('add-session.yml', baselineId);
+  if (!run || run.conclusion !== 'success') {
+    toast('err', 'Scheduling failed', run ? 'Check Settings → Job history for the log.' : 'Timed out waiting for the job.');
+    return;
+  }
+  // The job committed a real plan change — the cached plan (localStorage +
+  // in-memory for this page load) is now stale even though its plan_id didn't
+  // change, so a plain reload/reopen never picked it up. Force a true refetch.
+  await planStore.reset();
+  window.__reopenCalDate = date;
+  toast('ok', 'Session scheduled', 'On the calendar now.');
+  goTab('calendar');
 };
 window.openExtra = function(xi, ds) {
   const ex = (window.__extraActivities || [])[xi];
