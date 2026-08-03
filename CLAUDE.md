@@ -28,8 +28,9 @@ daily 06:20 UTC (Garmin reconcile), `paceforge-coach` Mon 07:19 UTC (units in `o
 the runner's loopback-only internal port — 8223 for Victor, `PACEFORGE_RUNNER_INTERNAL_PORT`
 (= public port + 100) for instances — which is trusted and bypasses the session check by
 design; the public port Caddy fronts always needs a session). Secrets: `~/.config/paceforge/env`
-(0600). Victor's own checkout still pushes data commits to `origin` (private
-repo) with Forgejo as fallback; per-athlete instances have no remote at all.
+(0600). Victor's own checkout pushes data commits to `origin` (Forgejo, primary
+since 2026-08-03) with the `github` mirror as fallback; per-athlete instances
+have no remote at all.
 Claude steps (plan enrichment, analyses, coach) run the local `claude` CLI.
 Garmin (re)login happens in the portal — Settings → "Connect Garmin"
 (password → optional MFA; runner endpoints `/garmin/login|mfa|status`) — no

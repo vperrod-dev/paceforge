@@ -146,10 +146,10 @@ def commit_push(run: Run, paths: list[str], msg: str) -> None:
     if "origin" not in remotes:
         run.log("no origin remote — committed locally only")
         return
-    # Victor's own checkout still mirrors to GitHub (private repo) + Forgejo.
+    # Victor's own checkout pushes Forgejo (origin) and mirrors to GitHub.
     if sh(run, ["git", "push", "origin"], check=False) != 0:
-        run.log("origin push failed — pushing forgejo (relay will reconcile)")
-        sh(run, ["git", "push", "forgejo"])
+        run.log("origin push failed — pushing github (relay will reconcile)")
+        sh(run, ["git", "push", "github"])
 
 
 def publish(run: Run | None = None) -> None:
