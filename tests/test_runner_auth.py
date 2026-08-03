@@ -151,6 +151,12 @@ def test_extra_activities_get_with_session_still_works(app):
     assert code == 200
 
 
+def test_sessions_file_is_not_world_or_group_readable(app):
+    _login(app)
+    mode = runner.SESSIONS_FILE.stat().st_mode & 0o777
+    assert mode == 0o600
+
+
 def test_check_login_rejects_when_config_missing(monkeypatch):
     monkeypatch.delenv("PF_WEB_PASS_SCRYPT", raising=False)
     monkeypatch.setenv("PF_WEB_USER", "victor")

@@ -818,6 +818,7 @@ def _new_session() -> str:
         if time.time() - ts > SESSION_TTL:
             del _SESSIONS[t]
     SESSIONS_FILE.write_text(json.dumps(_SESSIONS))
+    SESSIONS_FILE.chmod(0o600)
     return tok
 
 
