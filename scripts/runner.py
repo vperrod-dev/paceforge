@@ -935,6 +935,16 @@ class Handler(BaseHTTPRequestHandler):
         q = urllib.parse.parse_qs(query)
         if path == "/healthz":
             return self._send(200, {"ok": True})
+        # PWA identity must be readable signed-out, or iOS falls back to the
+        # root workspace app and the home-screen icon opens the wrong portal
+        if path in ("/manifest.webmanifest", "/pf-180.png", "/pf-512.png"):
+            return self._static(REPO_DIR / "web" / path.lstrip("/"))
+        if not self._authed():
+            if path.startswith(("/gh/", "/garmin/", "/runs", "/run/", "/extra_activities")):
+                return self._send(401, {"message": "sign in first"})
+            return self._send(200, LOGIN_HTML.encode(), "text/html; charset=utf-8")
+        if path == "/" or path == "/index.html":
+            return self._static(REPO_DIR / "web" / "index.html")
         if path == "/extra_activities":
             f = REPO_DIR / "data" / "extra_activities.json"
             try:
@@ -942,16 +952,6 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 data = []
             return self._send(200, data)
-        # PWA identity must be readable signed-out, or iOS falls back to the
-        # root workspace app and the home-screen icon opens the wrong portal
-        if path in ("/manifest.webmanifest", "/pf-180.png", "/pf-512.png"):
-            return self._static(REPO_DIR / "web" / path.lstrip("/"))
-        if not self._authed():
-            if path.startswith(("/gh/", "/garmin/", "/runs", "/run/")):
-                return self._send(401, {"message": "sign in first"})
-            return self._send(200, LOGIN_HTML.encode(), "text/html; charset=utf-8")
-        if path == "/" or path == "/index.html":
-            return self._static(REPO_DIR / "web" / "index.html")
         if path.startswith("/data/"):
             return self._static(REPO_DIR / path.lstrip("/"), root="data")
         if path == "/garmin/status":
@@ -999,16 +999,6 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self._route()
-        if path == "/extra_activities":
-            b = self._body() or {}
-            items = b.get("items") if isinstance(b, dict) else None
-            if not isinstance(items, list):
-                return self._send(400, {"message": "items list required"})
-            from paceforge import store as _store
-            f = REPO_DIR / "data" / "extra_activities.json"
-            with _store._WRITE_LOCK:
-                f.write_text(json.dumps(items, ensure_ascii=True))
-            return self._send(200, {"ok": True, "count": len(items)})
         if path == "/auth/login":
             b = self._body()
             if not check_login(str(b.get("user") or ""), str(b.get("password") or "")):
@@ -1025,6 +1015,16 @@ class Handler(BaseHTTPRequestHandler):
             return None
         if not self._authed():
             return self._send(401, {"message": "sign in first"})
+        if path == "/extra_activities":
+            b = self._body() or {}
+            items = b.get("items") if isinstance(b, dict) else None
+            if not isinstance(items, list):
+                return self._send(400, {"message": "items list required"})
+            from paceforge import store as _store
+            f = REPO_DIR / "data" / "extra_activities.json"
+            with _store._WRITE_LOCK:
+                f.write_text(json.dumps(items, ensure_ascii=True))
+            return self._send(200, {"ok": True, "count": len(items)})
         if path == "/garmin/login":
             b = self._body()
             email = str(b.get("email") or os.environ.get("PACEFORGE_GARMIN_EMAIL") or "")

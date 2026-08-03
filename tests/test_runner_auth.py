@@ -135,6 +135,22 @@ def test_oversized_login_body_is_rejected_not_buffered(app):
     assert code == 401
 
 
+def test_extra_activities_get_without_session_is_401(app):
+    code, _, _ = _req(app.public + "/api/extra_activities")
+    assert code == 401
+
+
+def test_extra_activities_post_without_session_is_401(app):
+    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": [{"name": "x"}]})
+    assert code == 401
+
+
+def test_extra_activities_get_with_session_still_works(app):
+    cookie = _session_cookie(app)
+    code, _, _ = _req(app.public + "/api/extra_activities", headers={"Cookie": cookie})
+    assert code == 200
+
+
 def test_check_login_rejects_when_config_missing(monkeypatch):
     monkeypatch.delenv("PF_WEB_PASS_SCRYPT", raising=False)
     monkeypatch.setenv("PF_WEB_USER", "victor")
