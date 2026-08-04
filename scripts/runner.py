@@ -674,6 +674,25 @@ def job_calendar_edit(run: Run, inputs: dict) -> None:
     reconcile_garmin(run)
 
 
+def job_match_edit(run: Run, inputs: dict) -> None:
+    """Pin an activity to a planned session, or detach it. Both are sync-proof:
+    link writes manual_activity_ids, unlink writes excluded_activity_ids."""
+    from paceforge import actions
+    aid = int(inputs["activity_id"])
+    if str(inputs.get("action")) == "unlink":
+        run.step("Unlink activity")
+        actions.unlink_activity(aid)
+        msg = f"calendar: unlink activity {aid}"
+    else:
+        sid = str(inputs["session_id"])
+        run.step("Link activity")
+        actions.link_activity(aid, session_id=sid)
+        msg = f"calendar: link activity {aid} to session {sid}"
+    run.step("Commit updated plan")
+    commit_push(run, ["data/plan.json"], msg)
+    publish(run)
+
+
 def job_add_session(run: Run, inputs: dict) -> None:
     from paceforge import actions
     run.step("Schedule session")
@@ -761,6 +780,7 @@ JOBS = {
     "recalibrate": job_recalibrate,
     "calendar-edit": job_calendar_edit,
     "add-session": job_add_session,
+    "match-edit": job_match_edit,
     "garmin-delete": job_garmin_delete,
     "garmin-clear-calendar": job_garmin_clear_calendar,
     "hyrox": job_hyrox,

@@ -692,7 +692,19 @@ const planStore = {
       const lw = this._mem.weeks?.[wi];
       (sw.workouts || []).forEach((swo, woi) => {
         const lwo = lw?.workouts?.[woi];
-        if (!lwo || !swo.completed) return;
+        if (!lwo) return;
+        if (!swo.completed) {
+          // The server dropped the match (re-match, or an explicit unlink). Only a
+          // match-derived completion is cleared — a manual "Mark done" carries no
+          // matched ids and stays, which is what keeps the merge additive.
+          if ((lwo.matched_activity_ids || []).length) {
+            lwo.completed = false;
+            lwo.matched_activity_ids = [];
+            lwo.completion_analysis = swo.completion_analysis ?? null;
+            lwo.completion_metrics = swo.completion_metrics ?? null;
+          }
+          return;
+        }
         lwo.completed = true;
         lwo.matched_activity_ids = swo.matched_activity_ids || lwo.matched_activity_ids;
         lwo.completion_analysis = swo.completion_analysis ?? lwo.completion_analysis;
@@ -3046,6 +3058,57 @@ function matchedWorkout(plan, activityId) {
   return null;
 }
 
+// Planned sessions this activity could be pinned to: unmatched, non-rest, within a
+// week either way (you sometimes do a session days off its slot).
+function linkCandidates(plan, act) {
+  const day = String(act.start_time || '').slice(0, 10);
+  if (!plan || !plan.weeks || !day) return [];
+  const out = [];
+  for (const wk of plan.weeks) for (const wo of (wk.workouts || [])) {
+    if (!wo.scheduled_date || wo.workout_type === 'rest' || !wo.session_id) continue;
+    if ((wo.matched_activity_ids || []).length) continue;
+    const off = (new Date(wo.scheduled_date + 'T00:00:00') - new Date(day + 'T00:00:00')) / 86400000;
+    if (Math.abs(off) <= 7) out.push(wo);
+  }
+  return out.sort((a, b) => String(a.scheduled_date).localeCompare(String(b.scheduled_date)));
+}
+
+// Manual match control. Link pins the activity (manual_activity_ids) so no future
+// sync can re-assign it; unmatch detaches AND excludes it, so the matcher can't
+// silently put it back. Bike rides are app-side, not Garmin activities — the
+// link/unlink actions only know Garmin ids, so they get no control.
+function matchEditHtml(act, match, candidates) {
+  if (!Number.isFinite(Number(act.activity_id))) return '';
+  const head = '<div class="eyebrow" style="margin-bottom:8px">Plan match</div>';
+  if (match) {
+    return `<div class="act-sec">${head}
+      <div style="font-size:.85rem;color:var(--text-2);margin-bottom:8px">Counted as <b>${escHtml(match.wo.name || 'session')}</b>${match.wo.scheduled_date ? ' · ' + escHtml(match.wo.scheduled_date) : ''}.</div>
+      <button class="btn btn-ghost btn-sm" id="match-unlink" style="color:var(--rose)">Unmatch</button>
+      <div class="hint" style="margin-top:6px">Detaches it and stops the matcher re-linking it there.</div></div>`;
+  }
+  if (!candidates.length) {
+    return `<div class="act-sec">${head}<div class="hint">Not counted against the plan — no free session within a week of this date.</div></div>`;
+  }
+  return `<div class="act-sec">${head}
+    <div class="field"><label for="match-session">Count this as</label>
+      <select id="match-session">${candidates.map(wo =>
+        `<option value="${escHtml(wo.session_id)}">${escHtml(wo.scheduled_date)} — ${escHtml(wo.name || (wo.workout_type || '').replace(/_/g, ' '))}</option>`).join('')}</select></div>
+    <button class="btn btn-primary btn-sm" id="match-link">Link to this session</button></div>`;
+}
+
+async function matchEdit(inputs, btn, container, act, onBack) {
+  const baselineId = await latestJobRunId('match-edit.yml');
+  await dispatchWorkflow('match-edit.yml', inputs, 'Updating…', 'Waiting for the plan to update.', btn);
+  const run = await waitForJobRun('match-edit.yml', baselineId);
+  if (!run || run.conclusion !== 'success') {
+    toast('err', 'Match update failed', run ? 'Check Settings → Job history for the log.' : 'Timed out waiting for the job.');
+    return;
+  }
+  await planStore.reset();
+  toast('ok', inputs.action === 'unlink' ? 'Unmatched' : 'Linked', 'Plan updated.');
+  await renderActivityDetail(container, act, { onBack });
+}
+
 function deterministicInsights(detail, act, match) {
   const out = [];
   const avg = a => a.reduce((x, y) => x + y, 0) / a.length;
@@ -3141,7 +3204,7 @@ async function pollForAnalysis(id, issueUrl) {
 
 // Inner body (metrics → charts → planned-vs-actual → coach analysis) shared by the
 // full-page activity view and the inline calendar panel. No modal chrome.
-function activityDetailBody(act, detail, analysisMd, match) {
+function activityDetailBody(act, detail, analysisMd, match, candidates = []) {
   const distKm = act.distance_meters ? (act.distance_meters / 1000).toFixed(2) : '—';
   const duration = act.duration_seconds ? formatSeconds(act.duration_seconds) : '—';
   const pace = act.avg_pace_sec_per_km ? formatPace(act.avg_pace_sec_per_km) + '/km' : '—';
@@ -3204,6 +3267,7 @@ function activityDetailBody(act, detail, analysisMd, match) {
     </div>
     ${match.wo.purpose ? `<div style="font-size:.84rem;color:var(--text-3);margin-top:8px">${escHtml(match.wo.purpose.replace(/_/g, ' '))}</div>` : ''}
   </div>` : '';
+  const matchHtml = matchEditHtml(act, match, candidates);
 
   const insights = deterministicInsights(detail, act, match);
   const analysisInner = analysisMd
@@ -3223,6 +3287,7 @@ function activityDetailBody(act, detail, analysisMd, match) {
       ${detailItem(b.ftp != null ? Math.round(b.ftp) + 'W' : '—', 'FTP')}
     </div>
     ${planHtml}
+    ${matchHtml}
     <div class="act-sec"><div class="eyebrow" style="margin-bottom:8px">Coach analysis</div><div id="coach-analysis-slot">${analysisInner}</div></div>`;
   }
   return `
@@ -3238,6 +3303,7 @@ function activityDetailBody(act, detail, analysisMd, match) {
     </div>
     ${charts}
     ${planHtml}
+    ${matchHtml}
     <div class="act-sec"><div class="eyebrow" style="margin-bottom:8px">Coach analysis</div><div id="coach-analysis-slot">${analysisInner}</div></div>`;
 }
 
@@ -3272,13 +3338,22 @@ async function renderActivityDetail(container, act, { onBack } = {}) {
       ${onBack ? `<button class="btn btn-ghost btn-sm" data-back>${icons.back} Back</button>` : ''}
       <div><div class="detail-h-title">${escHtml(act.name || 'Activity')}</div><div class="detail-h-sub">${sub}</div></div>
     </div>
-    ${activityDetailBody(act, detail, analysisMd, match)}
+    ${activityDetailBody(act, detail, analysisMd, match, linkCandidates(plan, act))}
     ${rpeSelectorHtml(id, null)}
   </div>`;
   const ab = container.querySelector('#act-analyze');
   if (ab) ab.addEventListener('click', () => analyzeActivityWithCoach(act, ab));
   const bb = container.querySelector('[data-back]');
   if (bb && onBack) bb.addEventListener('click', onBack);
+  const unlinkBtn = container.querySelector('#match-unlink');
+  if (unlinkBtn) unlinkBtn.addEventListener('click', () =>
+    matchEdit({ action: 'unlink', activity_id: String(id) }, unlinkBtn, container, act, onBack));
+  const linkBtn = container.querySelector('#match-link');
+  if (linkBtn) linkBtn.addEventListener('click', () => {
+    const sid = container.querySelector('#match-session')?.value;
+    if (!sid) return;
+    matchEdit({ action: 'link', activity_id: String(id), session_id: sid }, linkBtn, container, act, onBack);
+  });
   bindRpeSelector(container, {
     date: act.start_time ? String(act.start_time).slice(0, 10) : null,
     durationMin: act.duration_seconds ? Math.round(act.duration_seconds / 60 * 10) / 10 : null,

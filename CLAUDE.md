@@ -245,6 +245,13 @@ stay that way (2026-08-02: deleting the running plan broke class scheduling
 outright — "creating cardio activities doesn't work either" — because it
 hard-required `store.load_plan()` to return something).
 
+`match-edit` (activity detail → "Plan match") is the manual override for the
+matcher: link pins the activity via `manual_activity_ids` (applied verbatim, so
+no later sync can re-assign it), unlink detaches it AND adds it to
+`excluded_activity_ids` so the matcher cannot silently put it back. Only Garmin
+activities have it — app bike rides (`bike:<date>`) aren't ids `link_activity`
+can resolve. The candidate list is unmatched non-rest sessions within ±7 days.
+
 The portal's `saveExtra()` (web/index.html) polls the dispatched job to
 actual completion (by run id, not timestamp — the server's `created_at` is
 second-truncated and a ms-precision comparison misses real matches) before
