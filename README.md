@@ -137,7 +137,12 @@ after each sync:
   age with an expiry warning), strength benchmarks, and events.
 - Edit the plan, trigger a Sync / Push-to-Garmin, rate a session's effort (RPE 1–10),
   or request a coach analysis straight from the browser — each one dispatches a job
-  and shows its live progress.
+  and shows its live progress. Rating a session **re-coaches it**: the rating lands on
+  the matched workout and the coach rewrites that session's analysis with it in hand.
+- **Plan match** (activity detail) — the matcher's manual override. Link an activity to
+  any free session within a week of it, or unmatch one that shouldn't count. Both stick:
+  a link is applied verbatim on every later sync, an unmatch is remembered so nothing
+  re-links it.
 
 ## What it measures — Fitness 2.0
 
@@ -165,6 +170,11 @@ finding, stamped with data freshness (anything older than 36 h greys out). Below
   by RHR/HRV), and a daily readiness score — alongside Garmin's native status and running tolerance. Sessions
   without heart-rate data (gym strength, station work) count too, via your **session RPE** rating
   (Foster sRPE, pooled into the same load series).
+- **Matching** (`engine/matching.py`): links completed activities to scheduled sessions —
+  runs by date + distance (≥90% of planned), cross-training and HYROX slots by date +
+  duration (cycling, gym and cardio types all count as cross-training). Exact-date
+  matches are claimed before any ±1-day one, so a session never gets stolen by a
+  neighbouring day's slot. Manual pins and exclusions always win.
 - **Plan-vs-actual** (`engine/compliance.py`): every session graded against the plan
   (green 80–120% of planned volume / yellow / orange / red missed) with a weekly compliance rollup —
   the badges, chips and calendar rings across the dashboard.

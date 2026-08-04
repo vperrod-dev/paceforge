@@ -90,3 +90,33 @@ only. The duplicate "pending" copy of it disappears on first page load with the 
 - [x] job_analyze prompt + coach SKILL.md §Per-activity updated (unplanned + bike: ids)
 - [x] Tests: 3 new pending_analyses tests (coverage, cap/order, missing files); 18 passed
 - [x] Runner restarted, nunoduarte updated, analyze dispatched for the 8-session backlog
+
+## Matching fixes + manual match control + RPE re-trigger (2026-08-04)
+
+- [x] Bike rides never matched: `_CROSS_TYPES` had only `indoor_cycling`, so Garmin's
+      `road_biking`/`cycling`/`virtual_ride`/… fell outside every pool. Whole cycling
+      family added (+ `mixed_cardio`, which HYROX already had)
+- [x] Today's session claimed by tomorrow's slot: the `for tol in (0, 1)` loop sat
+      *inside* each pass, so the hyrox pass ran both tolerances before cross-training
+      got a turn — a ±1-day hyrox slot beat an exact-date cross-training slot.
+      Tolerance hoisted above pass order; 2 tests
+- [x] Portal cache never cleared a completion: `planStore._mergeSynced()` was
+      additive-only, so a session unmatched server-side still rendered ✓ done until
+      localStorage was wiped. Match-derived completions now clear; manual "Mark done"
+      (no matched ids) survives
+- [x] Manual match control (activity detail → "Plan match"): link to any free session
+      within ±7 days (`manual_activity_ids`, applied verbatim) or unmatch (detach +
+      `excluded_activity_ids`). New `match-edit` runner job; 5 tests. Garmin ids only —
+      `bike:<date>` rides aren't ids `link_activity` can resolve
+- [x] `save-rpe` was a plain file write: the rating never reached the plan and the
+      coach analysis stayed frozen (`pending_analyses` skips any id that already has a
+      file, so "no RPE logged" was permanent). Job now re-matches, deletes that
+      activity's analysis and dispatches `analyze`; 6 tests
+- [x] Garmin-side RPE import ruled out: neither `activity-service/activity/{id}` nor
+      the activity-list endpoint returns any feel/RPE/exertion field, and the pinned
+      `garminconnect` fork has no support. Portal buttons are the only source
+- [x] Verified: ruff clean on touched files, 658 pytest passed, Playwright against the
+      live runner (Unmatch button + link picker render, no page errors), match-edit
+      link/unlink round-tripped on the real ride, RPE 8 on session 23844831869 →
+      `user_rpe=8` on the plan + analysis rewritten reading the rating.
+      Runner restarted, nunoduarte instance updated
