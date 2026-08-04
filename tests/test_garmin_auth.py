@@ -146,6 +146,53 @@ class TestLoginAndMfa:
         with pytest.raises(RuntimeError, match="restart the login"):
             client.complete_mfa("123456")
 
+    def test_login_legacy_truthy_mfa_result(self, monkeypatch):
+        _patch_garmin(monkeypatch, ("legacy_token", None))
+
+        client = GarminClient("a@b.c", "pw")
+        assert client.login() == "mfa_required"
+        assert client._mfa_state == {}
+
+    def test_login_empty_tuple_result_returns_none(self, monkeypatch):
+        _patch_garmin(monkeypatch, ())
+
+        assert GarminClient("a@b.c", "pw").login() is None
+
+    def test_login_invalid_credentials_propagates(self, monkeypatch):
+        def boom(*args, **kwargs):
+            raise RuntimeError("Login failed")
+
+        monkeypatch.setattr(client_mod, "Garmin", boom)
+
+        with pytest.raises(RuntimeError, match="Login failed"):
+            GarminClient("a@b.c", "pw").login()
+
+    def test_complete_mfa_invalid_code_propagates(self, monkeypatch, tmp_path):
+        made = _patch_garmin(monkeypatch, ({"session": 1}, None))
+        client = GarminClient("a@b.c", "pw", token_dir=str(tmp_path))
+        client.login()
+
+        def reject(state, code):
+            raise RuntimeError("Invalid MFA code")
+
+        made[0].resume_login = reject
+
+        with pytest.raises(RuntimeError, match="Invalid MFA code"):
+            client.complete_mfa("000000")
+
+    def test_complete_mfa_token_dump_failure_does_not_fail_mfa(self, monkeypatch, tmp_path):
+        made = _patch_garmin(monkeypatch, ({"session": 1}, None))
+        client = GarminClient("a@b.c", "pw", token_dir=str(tmp_path))
+        client.login()
+
+        def explode(path):
+            raise RuntimeError("disk full")
+
+        made[0].dump = explode
+
+        client.complete_mfa("123456")
+        assert client._mfa_state is None
+
 
 class TestTryReconnect:
     def test_valid_tokens_yield_a_connected_client(self, monkeypatch, tmp_path):
@@ -165,3 +212,55 @@ class TestTryReconnect:
         monkeypatch.setattr(client_mod, "Garmin", factory)
 
         assert GarminClient.try_reconnect("a@b.c", str(tmp_path)) is None
+
+    def test_any_exception_returns_none(self, monkeypatch, tmp_path):
+        def boom(*args, **kwargs):
+            raise RuntimeError("unexpected")
+
+        monkeypatch.setattr(client_mod, "Garmin", boom)
+
+        assert GarminClient.try_reconnect("a@b.c", str(tmp_path)) is None
+
+
+class TestLoginAndMfaInterfacePaths:
+    """Secondary branches, guards, and property access that existing tests miss."""
+
+    def test_client_property_raises_when_not_logged_in(self):
+        with pytest.raises(RuntimeError, match="Call login\\(\\) first"):
+            _ = GarminClient("a@b.c", "pw").client
+
+    def test_prompt_mfa_default_is_input_lambda(self):
+        client = GarminClient("a@b.c", "pw")
+        assert callable(client._prompt_mfa)
+
+    def test_prompt_mfa_can_be_overridden(self):
+        def fake_prompt():
+            return "111111"
+
+        client = GarminClient("a@b.c", "pw", prompt_mfa=fake_prompt)
+        assert client._prompt_mfa is fake_prompt
+        assert client._prompt_mfa() == "111111"
+
+    def test_endpoint_records_success(self):
+        client = GarminClient("a@b.c", "pw")
+        with client._endpoint("stats"):
+            pass
+        assert client.endpoint_report["stats"] == {"ok": True}
+
+    def test_endpoint_records_failure(self):
+        client = GarminClient("a@b.c", "pw")
+        try:
+            with client._endpoint("stats"):
+                raise RuntimeError("boom")
+        except RuntimeError:
+            pass
+        assert client.endpoint_report["stats"] == {"ok": False, "error": "RuntimeError: boom"}
+    def test_complete_mfa_skips_dump_when_token_dir_empty(self, monkeypatch):
+        """Falsy token_dir skips the dump block entirely."""
+        made = _patch_garmin(monkeypatch, ({"session": 1}, None))
+        client = GarminClient("a@b.c", "pw", token_dir="")
+        client.login()
+
+        # Must not raise; dump block is skipped for empty token_dir
+        client.complete_mfa("123456")
+        assert client._mfa_state is None

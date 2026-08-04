@@ -48,6 +48,20 @@ class TestFileAtomicity:
                 tmp_path = path.with_name(path.name + ".tmp")
                 # Note: cleanup is implicit if write() fails before tmp.write_text()
 
+    def test_crash_during_write_preserves_existing_file(self):
+        """If writing the temp file fails mid-write, the existing target is untouched."""
+        with TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "target.json"
+            path.write_text('{"original": true}')
+
+            with patch('pathlib.Path.write_text', side_effect=OSError("simulated crash")):
+                with pytest.raises(OSError):
+                    store._write(path, '{"new": true}')
+
+            assert path.exists()
+            assert json.loads(path.read_text()) == {"original": True}
+            assert not (path.with_name(path.name + ".tmp")).exists()
+
 
 class TestProfileSaveAndLoad:
     """save_profile() preserves non-empty fields through updates."""

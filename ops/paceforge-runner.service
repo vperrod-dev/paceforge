@@ -2,7 +2,8 @@
 # Install (user unit):
 #   ln -sf ~/projects/paceforge/ops/paceforge-*.{service,timer} ~/.config/systemd/user/
 #   systemctl --user daemon-reload && systemctl --user enable --now paceforge-runner \
-#     paceforge-sync.timer paceforge-autosync.timer paceforge-coach.timer
+#     paceforge-sync.timer paceforge-autosync.timer paceforge-coach.timer \
+#     paceforge-garmin-refresh.service paceforge-garmin-refresh.timer
 [Unit]
 Description=PaceForge local job runner (GitHub Actions replacement)
 After=network-online.target
