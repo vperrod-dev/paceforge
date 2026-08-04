@@ -1,12 +1,12 @@
 {
-  "date": "2026-08-03",
-  "headline": "Readiness verdict is red — 38.7, HRV-driven — after a load spike and a missed long run. Today is truly easy, no exceptions.",
-  "body_state": "The deterministic verdict is red: readiness composite **38.7**, driver **HRV** — it's below your personal band even though Garmin's own daily badge still says Balanced (37 ms last night; the trend overrides the badge here). Body Battery bottomed at **18** this morning — recovery didn't happen overnight. Sleep was 7.5 h (score 75), but 14-day debt is still **20 h**. Resting HR **52** vs your 48.7 baseline. Acute:chronic load ratio is **2.01** — well past the 1.5 threshold where injury risk doubles — driven by three straight days of unplanned indoor cardio, not running. TSB −5.25 sits in the nominally 'productive' band, but the recovery side overrides that today.",
-  "session": "Plan calls for **4 km Easy + 6 Strides**. Run the 3.7 km easy leg at 4:35–5:03/km, HR capped around 136–145. Skip the strides — Body Battery 18 and the red verdict say hold all quality, and strides are exactly what the plan's own fallback line covers: 'feeling forced or heavy-legged? cut them.' If today's Outdoor Cycling block happens too, keep it conversational, not a session — you don't have recovery budget for two loaded efforts today.",
-  "recent": "Yesterday's 5 km Long Run was missed outright — nothing logged. The three days before it were all unplanned indoor cardio: Jul 29 genuinely hard (48% Z4/Z5, HR to 190), then Jul 30 and Aug 1 both grey-zone (44% and 38% in Z3, HR 130–136 avg) — none rated in RPE. That's your #1 flagged limiter in the data — 16% easy vs an 80% target — and it's exactly what's driving today's load spike despite almost no real running this week (13.2 km rolling).",
+  "date": "2026-08-04",
+  "headline": "Load's spiked and sleep's short — today's Un1t class is about staying controlled, not chasing a number.",
+  "body_state": "PaceForge's own readiness composite sits at 64.7 (moderate), driven by sleep — Garmin's own score reads 80/Productive, but that's before folding in load: acute:chronic ratio 1.98 (>1.5 carries 2–4x next-week injury risk) plus 21h of sleep debt over 14 days, only 6.1h logged last night (sleep score 71). Body battery is 42 this morning, HRV BALANCED at 47ms — not a red flag alone, but it isn't buying the debt back either. TSB -5.06 is still inside the productive -5…-30 band, so this isn't a shutdown day — it's a don't-add-to-the-pile day.",
+  "session": "Today is Un1t (cross-training class, ~45 min, no structured targets set). Given the load spike and sleep debt, run it controlled: keep it in Z1/Z2 rather than the 130–148bpm grey zone your last few classes have sat in (Aug 1: 79.9% Z2/Z3, avg HR 130). Pick a lane — genuinely easy, or accept it as today's one harder stimulus and back off tomorrow's stacked easy run + Un1t Hyrox if body battery hasn't recovered by then.",
+  "recent": "Yesterday's outdoor ride (28.8km, 513m climbing, 96min) was the right call — 146W avg, TE 1.6/0.0, genuinely easy despite the hills — but it's invisible to your training load right now (no HR, no power-TSS path for outdoor rides), so log an RPE on it. Monday's planned 4km easy+strides didn't happen, again. The Aug 1 cardio class (43min, avg HR 130, 79.9% Z2/Z3) repeats the grey-zone pattern flagged three reviews running — near-daily moderate cardio with no clear easy or hard lane.",
   "focus": [
-    "Protect today: easy only, no strides, no hard cycling — HRV and Body Battery both say no.",
-    "Rate the last three cardio sessions in the app (Jul 29, 30, Aug 1) — none have an RPE, and HR-based load likely understates them.",
-    "Get to bed ~60 min earlier tonight — 20 h of sleep debt over two weeks is the actual bottleneck, not fitness."
+    "Rate yesterday's ride RPE — it's currently invisible to your training load.",
+    "Keep today's Un1t controlled — genuinely easy, or accept it as the day's one hard stimulus, not both.",
+    "Watch Wednesday: if body battery hasn't recovered, drop either the easy run or the Un1t Hyrox rather than stacking both."
   ]
 }
