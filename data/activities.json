@@ -1,5 +1,28 @@
 [
   {
+    "activity_id": 23844831869,
+    "name": "Cardio",
+    "activity_type": "indoor_cardio",
+    "start_time": "2026-08-04T07:07:09",
+    "distance_meters": 0.0,
+    "duration_seconds": 2679.48095703125,
+    "avg_hr": 141,
+    "max_hr": 175,
+    "avg_pace_sec_per_km": null,
+    "calories": 670,
+    "training_effect_aerobic": 3.0999999046325684,
+    "training_effect_anaerobic": 3.0,
+    "vo2_max_value": null,
+    "avg_running_cadence": null,
+    "avg_stride_length": null,
+    "avg_ground_contact_time": null,
+    "avg_vertical_oscillation": null,
+    "avg_vertical_ratio": null,
+    "avg_power": null,
+    "elevation_gain": null,
+    "avg_respiration_rate": null
+  },
+  {
     "activity_id": 23838686027,
     "name": "County Dublin Road Cycling",
     "activity_type": "road_biking",
