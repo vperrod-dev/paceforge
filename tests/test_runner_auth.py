@@ -175,3 +175,16 @@ def test_static_route_blocks_path_traversal(app):
     url = app.public + "/api/../../../../../../etc/passwd"
     code, _, _ = _req(url, headers={"Cookie": cookie})
     assert code == 404  # escaping web/ is refused, not served
+
+
+def test_unknown_job_is_refused_cleanly_rather_than_dropping_the_connection(app):
+    # /run/refresh-token used to be routed to a job that does not exist in JOBS,
+    # so dispatch() raised KeyError in the request thread and the client got a
+    # broken connection instead of a response.
+    code, _, _ = _req(app.internal + "/run/refresh-token", "POST", {})
+    assert code == 404
+
+
+def test_an_arbitrary_unknown_job_is_also_refused_cleanly(app):
+    code, _, _ = _req(app.internal + "/run/not-a-job", "POST", {})
+    assert code == 404

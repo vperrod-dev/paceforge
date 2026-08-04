@@ -69,3 +69,17 @@ def test_add_session_repeat_weeks_clamped_to_max():
     result = actions.add_session(session_date="2026-08-04", sport="HYROX", minutes=45,
                                  repeat_weeks=999)
     assert result["repeat_weeks"] == 52
+
+
+def test_absurd_duration_is_clamped_to_a_plausible_class_length():
+    store.save_plan(_plan_with_week(date(2026, 8, 1)))
+    actions.add_session(session_date="2026-08-04", sport="Cardio", minutes=99999, name="Long")
+    added = next(w for w in store.load_plan().weeks[0].workouts if w.name == "Long")
+    assert added.estimated_duration_seconds == 480 * 60
+
+
+def test_negative_duration_does_not_reach_the_plan():
+    store.save_plan(_plan_with_week(date(2026, 8, 1)))
+    actions.add_session(session_date="2026-08-04", sport="Cardio", minutes=-30, name="Negative")
+    added = next(w for w in store.load_plan().weeks[0].workouts if w.name == "Negative")
+    assert added.estimated_duration_seconds == 5 * 60

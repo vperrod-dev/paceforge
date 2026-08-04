@@ -1042,9 +1042,6 @@ class Handler(BaseHTTPRequestHandler):
         m = re.fullmatch(r"/run/([a-z0-9-]+)", path)
         if m and m.group(1) in JOBS:
             return self._send(200, {"id": dispatch(m.group(1), self._body())})
-        m = re.fullmatch(r"/run/refresh-token", path)
-        if m:
-            return self._send(200, {"id": dispatch("refresh-token", self._body())})
         m = re.fullmatch(r"/gh/repos/[^/]+/[^/]+/actions/workflows/([^/]+)/dispatches", path)
         if m:
             job = m.group(1).removesuffix(".yml")

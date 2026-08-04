@@ -1281,6 +1281,10 @@ def calendar_edit(
 
 _EXTRA_SESSION_TYPE = {"hyrox": WorkoutType.HYROX_MIXED}
 _MAX_REPEAT_WEEKS = 52
+# A class is a class: anything outside this is a typo or a bad form post, and a
+# negative value silently writes a workout with a negative duration.
+_MIN_SESSION_MINUTES = 5
+_MAX_SESSION_MINUTES = 480
 
 
 def _week_for_date(plan: TrainingPlan, d: date) -> TrainingWeek:
@@ -1325,6 +1329,7 @@ def add_session(session_date: str, sport: str, minutes: int, name: str = "",
     workout_type = _EXTRA_SESSION_TYPE.get(sport.strip().lower(), WorkoutType.CROSS_TRAINING)
     workout_name = name.strip() or f"{sport.strip().title()} Class"
     count = min(max(int(repeat_weeks), 1), _MAX_REPEAT_WEEKS)
+    duration = min(max(int(minutes), _MIN_SESSION_MINUTES), _MAX_SESSION_MINUTES)
 
     session_ids = []
     for i in range(count):
@@ -1333,7 +1338,7 @@ def add_session(session_date: str, sport: str, minutes: int, name: str = "",
             name=workout_name,
             workout_type=workout_type,
             scheduled_date=d,
-            estimated_duration_seconds=float(minutes) * 60,
+            estimated_duration_seconds=float(duration) * 60,
         )
         _week_for_date(plan, d).workouts.append(workout)
         session_ids.append(workout.session_id)
