@@ -221,6 +221,14 @@ session — all Garmin activity types plus app bike rides (`bike:<date>` ids) �
 30-day lookback, newest first, 10 per pass; plan matching deliberately does NOT gate
 it (unplanned work gets coached too — never reintroduce that filter, thrice-repeated
 athlete requirement).
+`save-rpe` is the re-evaluation trigger: logging a rating re-matches the plan (so
+`user_rpe` lands on the workout) **and deletes that activity's
+`data/analyses/<id>.md`** before dispatching `analyze`, because an analysis
+written before the rating existed says "no RPE logged" and `pending_analyses`
+would skip the id forever. Garmin's own Feel/Effort cannot drive this: neither
+`activity-service/activity/{id}` nor the activity-list endpoint returns any
+feel/RPE/exertion field (checked 2026-08-04), and the pinned `garminconnect`
+fork has no RPE support — the portal buttons are the only source.
 `autosync` (daily 06:20 UTC) reconciles the Garmin calendar with the accepted
 plan — pushes current + next 2 weeks, deletes stale completed copies and orphaned
 scheduled entries (the runner also reconciles after every plan-mutating job);

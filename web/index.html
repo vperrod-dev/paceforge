@@ -855,7 +855,7 @@ function bindRpeSelector(root, meta) {
                         duration_min: meta.durationMin || null });
         box.querySelectorAll('[data-rpe]').forEach(x => { x.classList.remove('btn-primary'); x.classList.add('btn-outline'); });
         b.classList.remove('btn-outline'); b.classList.add('btn-primary');
-        toast('ok', 'RPE saved', `Effort ${rpe}/10 recorded — appears in the data after the next site build.`);
+        toast('ok', 'RPE saved', `Effort ${rpe}/10 recorded — the coach re-reads this session with it (a couple of minutes).`);
       } catch (e) { toast('err', 'RPE not saved', e.message); }
     }));
   });

@@ -755,6 +755,41 @@ def job_hyrox(run: Run, inputs: dict) -> None:
     publish(run)
 
 
+def job_save_rpe(run: Run, inputs: dict) -> None:
+    """Log an RPE and re-evaluate that session.
+
+    A rating changes what the session means, so two things must follow it: the
+    plan re-match copies user_rpe onto the matched workout, and the coach
+    analysis is dropped so it gets rewritten — one written before the rating
+    existed says "no RPE logged" and stays wrong forever otherwise.
+    """
+    from paceforge import actions, store
+    run.step("Update data/rpe.json (validated)")
+    data = inputs.get("data")
+    entry = json.loads(data) if isinstance(data, str) else data
+    with store._WRITE_LOCK:
+        upsert_rpe(entry, REPO_DIR / "data")
+
+    run.step("Copy the rating onto the matched workout")
+    actions._match_plan()
+    paths = ["data/rpe.json", "data/plan.json"]
+
+    aid = str(entry.get("activity_id") or "")
+    stale = REPO_DIR / "data" / "analyses" / f"{aid}.md"
+    reanalyse = bool(aid) and stale.exists()
+    if reanalyse:
+        run.step("Drop the pre-RPE analysis")
+        stale.unlink()
+        paths.append(f"data/analyses/{aid}.md")
+
+    run.step("Commit")
+    commit_push(run, paths, "data: log session RPE")
+    publish(run)
+    if reanalyse:
+        run.step("Queue re-analysis with the coach")
+        dispatch("analyze", {})
+
+
 def _save_job(transform, commit_path: str, msg: str):
     def job(run: Run, inputs: dict) -> None:
         from paceforge import store
@@ -784,7 +819,7 @@ JOBS = {
     "garmin-delete": job_garmin_delete,
     "garmin-clear-calendar": job_garmin_clear_calendar,
     "hyrox": job_hyrox,
-    "save-rpe": _save_job(upsert_rpe, "data/rpe.json", "data: log session RPE"),
+    "save-rpe": job_save_rpe,
     "save-ride": _save_job(append_ride, "data/bike/rides.json", "data: log bike ride"),
     "save-bike-profile": _save_job(patch_bike_profile,
                                    "data/bike/profile.json", "data: update bike profile"),
