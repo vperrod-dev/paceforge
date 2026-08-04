@@ -144,6 +144,26 @@ def test_run_slot_claims_run_before_hyrox_slot():
     assert hyrox_slot.matched_activity_ids == []
 
 
+def test_road_biking_matches_cross_training_slot():
+    d = date(2026, 6, 1)
+    plan = _plan(Workout(workout_type="cross_training", name="Bike", scheduled_date=d,
+                         estimated_duration_seconds=5400))
+    match_plan_to_activities(plan, [_act(1, d, 28000, atype="road_biking")])
+    assert plan.weeks[0].workouts[0].matched_activity_ids == [1]
+
+
+def test_same_day_slot_beats_next_day_slot_of_another_type():
+    d = date(2026, 6, 1)
+    cross = Workout(workout_type="cross_training", name="Cardio", scheduled_date=d,
+                    estimated_duration_seconds=2700)
+    hyrox = Workout(workout_type="hyrox_mixed", name="Sim", scheduled_date=date(2026, 6, 2),
+                    estimated_duration_seconds=2700)
+    plan = _plan(hyrox, cross)
+    match_plan_to_activities(plan, [_act(1, d, 0, atype="indoor_cardio")])
+    assert cross.matched_activity_ids == [1]
+    assert hyrox.matched_activity_ids == []
+
+
 def test_run_below_90pct_distance_does_not_match():
     d = date(2026, 6, 1)
     plan = _plan(Workout(workout_type="long_run", name="Long", scheduled_date=d,

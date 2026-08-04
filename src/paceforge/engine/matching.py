@@ -15,7 +15,10 @@ _RUN_TYPES = {"running", "treadmill_running", "track_running", "trail_running"}
 _HYROX_TYPES = {"running", "hiit", "cardio", "cardio_training", "indoor_cardio",
                 "mixed_cardio", "strength_training", "fitness_equipment", "other"}
 _CROSS_TYPES = {"strength_training", "indoor_cardio", "cardio_training", "hiit",
-                "cardio", "indoor_cycling", "fitness_equipment", "other"}
+                "cardio", "mixed_cardio", "fitness_equipment", "other",
+                # Bikes: Garmin splits cycling into one type per surface.
+                "cycling", "indoor_cycling", "virtual_ride", "road_biking",
+                "mountain_biking", "gravel_cycling", "cyclocross", "e_bike_fitness"}
 # Days a workout can slip and still match — you sometimes run a session a day off.
 _DAY_TOLERANCE = 1
 # A run only auto-links when its distance is within 90% of the planned distance —
@@ -72,14 +75,16 @@ def match_plan_to_activities(plan: TrainingPlan, activities: list[RecentActivity
             used.update(wo.manual_activity_ids)
             matched += 1
 
-    for wo_types, act_types, criterion in _PASSES:
-        slots = [wo for wo in workouts
-                 if (str(wo.workout_type) in wo_types if wo_types
-                     else str(wo.workout_type) not in _NON_RUN_WORKOUTS)]
-        pool = [a for a in activities if _act_type(a) in act_types]
-        # Exact date first (tol=0), then ±1 day — so a session lands on its own
-        # day before a neighbouring workout can claim it.
-        for tol in (0, _DAY_TOLERANCE):
+    # Exact date first (tol=0), then ±1 day — so a session lands on its own day
+    # before a neighbouring workout of ANY type can claim it. Tolerance outranks
+    # pass order: a ±1-day hyrox slot must not steal today's cardio from today's
+    # cross-training slot.
+    for tol in (0, _DAY_TOLERANCE):
+        for wo_types, act_types, criterion in _PASSES:
+            slots = [wo for wo in workouts
+                     if (str(wo.workout_type) in wo_types if wo_types
+                         else str(wo.workout_type) not in _NON_RUN_WORKOUTS)]
+            pool = [a for a in activities if _act_type(a) in act_types]
             for wo in slots:
                 if wo.matched_activity_ids:
                     continue
