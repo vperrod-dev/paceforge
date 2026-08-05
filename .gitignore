@@ -72,3 +72,6 @@ _site/
 .claude-flow/
 .claude/.proven-config-version
 .claude/proven-config.json
+
+# coverage annotation artifacts (trace --count writes <file>,cover)
+*,cover
