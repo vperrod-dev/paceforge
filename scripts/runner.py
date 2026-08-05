@@ -310,31 +310,10 @@ def garmin_mfa(code: str) -> None:
 # ── data transforms behind the save-* jobs — pure, tested ──
 
 def upsert_rpe(entry: dict, data_dir: Path) -> None:
-    rpe = int(entry["rpe"])
-    if not (1 <= rpe <= 10):
-        raise ValueError("rpe must be 1-10")
-    aid = entry.get("activity_id")
-    clean = {
-        "activity_id": int(aid) if aid is not None else None,
-        "date": str(entry["date"])[:10],
-        "rpe": rpe,
-        "duration_min": float(entry["duration_min"]) if entry.get("duration_min") else None,
-        "notes": (str(entry.get("notes") or "")[:500] or None),
-        "source": "web",
-    }
-    path = data_dir / "rpe.json"
-    try:
-        entries = json.loads(path.read_text()).get("entries") or []
-    except FileNotFoundError:
-        entries = []
-    if clean["activity_id"] is not None:
-        entries = [e for e in entries if e.get("activity_id") != clean["activity_id"]]
-    else:
-        entries = [e for e in entries
-                   if e.get("activity_id") is not None or e.get("date") != clean["date"]]
-    entries.append(clean)
-    entries.sort(key=lambda e: str(e.get("date") or ""))
-    path.write_text(json.dumps({"entries": entries}, indent=2))
+    """Portal path into the one RPE writer — validation, ordering and the atomic
+    write all live in store, so the CLI/MCP path cannot drift from this one."""
+    from paceforge import store as _store
+    _store.upsert_rpe(entry, data_dir / "rpe.json")
 
 
 def append_ride(entry: dict, data_dir: Path) -> None:
@@ -1078,8 +1057,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(400, {"message": "items list required"})
             from paceforge import store as _store
             f = REPO_DIR / "data" / "extra_activities.json"
-            with _store._WRITE_LOCK:
-                f.write_text(json.dumps(items, ensure_ascii=True))
+            _store._write(f, json.dumps(items, ensure_ascii=True))
             return self._send(200, {"ok": True, "count": len(items)})
         if path == "/garmin/login":
             b = self._body()

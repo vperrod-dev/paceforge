@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import time
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -47,6 +48,18 @@ _SPORT_BY_WORKOUT_TYPE = {
     "hyrox_mixed": _FITNESS_SPORT,
     "cross_training": _FITNESS_SPORT,
 }
+
+
+# A reconcile pushes three plan weeks — ~20-30 back-to-back workout writes.
+# _sync_details already paces its reads for the same reason; unpaced writes are
+# the surer way to trip Garmin's per-IP rate limiting, since every athlete here
+# egresses through the same WARP address. Tests set this to 0.
+WRITE_PACE_SECONDS = 0.5
+
+
+def _pace_writes() -> None:
+    if WRITE_PACE_SECONDS:
+        time.sleep(WRITE_PACE_SECONDS)
 
 
 def _sport_for(workout: Workout) -> dict:
@@ -799,6 +812,7 @@ class GarminClient:
         """
         self.client.delete_workout(int(workout_id))
         logger.info("Deleted Garmin workout %s", workout_id)
+        _pace_writes()
         return True
 
     def push_workout(self, workout: Workout, schedule_date: date | None = None,
@@ -828,6 +842,7 @@ class GarminClient:
             self.client.schedule_workout(workout_id, schedule_date.isoformat())
             logger.info("Scheduled workout %s on %s", workout_id, schedule_date)
 
+        _pace_writes()
         return result
 
     def _upload(self, workout: Workout, sport: dict, plan_paces: dict | None,

@@ -23,6 +23,13 @@ _TARGET_TYPE = {"NO_TARGET": 1, "POWER": 2, "CADENCE": 3, "HEART_RATE": 4, "SPEE
 
 
 @pytest.fixture(autouse=True)
+def _no_garmin_write_pacing(monkeypatch):
+    """Drop the real Garmin write throttle — tests would otherwise sleep through it."""
+    from paceforge.garmin import client as garmin_client
+    monkeypatch.setattr(garmin_client, "WRITE_PACE_SECONDS", 0)
+
+
+@pytest.fixture(autouse=True)
 def _isolate_data_dir(tmp_path, monkeypatch):
     """Hard-block every test from touching the live checkout's data/ dir.
 

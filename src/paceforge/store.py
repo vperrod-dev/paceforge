@@ -24,8 +24,9 @@ _DETAILS_CACHE_TTL = 300  # 5 minutes
 
 # Global serialization boundary for every data/ write.  This is process-wide and
 # is acquired in the runner's direct endpoints plus action/scheduler paths so
-# that concurrent mutations cannot interleave on the same file.
-_WRITE_LOCK_PATH = DATA_DIR / ".write.lock"
+# that concurrent mutations cannot interleave on the same file. In-process only:
+# one runner process per athlete holds JOB_LOCK, so there is no cross-process
+# writer to lock against.
 _WRITE_LOCK = threading.RLock()
 
 
@@ -172,19 +173,45 @@ def load_rpe() -> dict:
         return {"entries": []}
 
 
-def upsert_rpe(entry: dict) -> dict:
-    """Insert or replace one RPE entry (keyed by activity_id, else by date)."""
-    entries = load_rpe()["entries"]
+def clean_rpe(entry: dict) -> dict:
+    """Coerce and bound one RPE entry. Raises ValueError on an out-of-range rating."""
+    rpe = int(entry["rpe"])
+    if not (1 <= rpe <= 10):
+        raise ValueError("rpe must be 1-10")
     aid = entry.get("activity_id")
-    if aid is not None:
-        entries = [e for e in entries if e.get("activity_id") != aid]
+    return {
+        "activity_id": int(aid) if aid is not None else None,
+        "date": str(entry["date"])[:10] if entry.get("date") else None,
+        "rpe": rpe,
+        "duration_min": float(entry["duration_min"]) if entry.get("duration_min") else None,
+        "notes": (str(entry.get("notes") or "")[:500] or None),
+        "source": str(entry.get("source") or "web"),
+    }
+
+
+def upsert_rpe(entry: dict, path: Path | None = None) -> dict:
+    """Insert or replace one RPE entry (keyed by activity_id, else by date).
+
+    The single implementation for every caller — CLI/MCP through actions.py and
+    the portal through the runner, which passes its own ``path``. Validation
+    used to live only on the portal side, so a CLI entry could store an
+    out-of-range rating or an unbounded note.
+    """
+    clean = clean_rpe(entry)
+    path = path or _path("rpe.json")
+    try:
+        entries = (json.loads(path.read_text()) or {}).get("entries") or []
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        entries = []
+    if clean["activity_id"] is not None:
+        entries = [e for e in entries if e.get("activity_id") != clean["activity_id"]]
     else:
         entries = [e for e in entries
-                   if e.get("activity_id") is not None or e.get("date") != entry.get("date")]
-    entries.append(entry)
+                   if e.get("activity_id") is not None or e.get("date") != clean["date"]]
+    entries.append(clean)
     entries.sort(key=lambda e: str(e.get("date") or ""))
     data = {"entries": entries}
-    _write(_path("rpe.json"), json.dumps(data, indent=2))
+    _write(path, json.dumps(data, indent=2))
     return data
 
 
