@@ -1,0 +1,10 @@
+[Unit]
+Description=PaceForge local Garmin token refresh service
+After=paceforge-runner.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/paceforge/env
+ExecStart=%h/projects/paceforge/.venv/bin/python -m paceforge refresh-token
+WorkingDirectory=%h/projects/paceforge
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin

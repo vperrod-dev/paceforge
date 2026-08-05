@@ -1,0 +1,152 @@
+{
+  "audit_date": "2026-07-28",
+  "codebase": "PaceForge (cycling coach app)",
+  "scope": "web/bike/, web/index.html, .env config, Python runner, browser storage",
+  "vulnerabilities": [
+    {
+      "severity": "high",
+      "category": "credential-exposure",
+      "file": "web/bike/upload.js",
+      "line": 11,
+      "description": "API keys and access tokens stored in browser sessionStorage without encryption. Strava and intervals.icu tokens accessible to any script in same origin; XSS attack steals all tokens.",
+      "evidence": "INTERVALS_KEY and STRAVA_KEY in sessionStorage; tokens used directly in Authorization headers (lines 8, 20)",
+      "affected": ["uploadIntervalsIcu()", "uploadStrava()"],
+      "cve_pattern": "CWE-522 (Insufficiently Protected Credentials)"
+    },
+    {
+      "severity": "high",
+      "category": "xml-entity-expansion",
+      "file": "web/bike/workouts.js",
+      "line": 24,
+      "description": "Hand-rolled XML parser with entity expansion. Recursive decodeEntities() and ENTITIES map could be exploited by billion-laughs attack or quadratic blowup if processing untrusted ZWO/MRC files.",
+      "evidence": "decodeEntities(s) at line 24 recursively processes entity references; no entity depth limit or size cap enforced",
+      "scenario": "Malicious ZWO file with nested entity definitions causes CPU/memory exhaustion during parseXml()",
+      "cve_pattern": "CWE-776 (Improper Restriction of Recursive Entity References)"
+    },
+    {
+      "severity": "high",
+      "category": "error-logging-disclosure",
+      "file": ".venv/lib/python3.12/site-packages/urllib3/contrib/emscripten/emscripten_fetch_worker.js",
+      "line": 45,
+      "description": "Unfiltered error objects logged to console. Network error messages may contain sensitive URLs, HTTP headers, or response body fragments if fetch fails.",
+      "evidence": "console.log('Request exception:', error) at lines 45 and 79; error.message exposed directly",
+      "scenario": "Failed fetch to /paceforge/api/sync leaks full URL and any error details in browser console accessible to attacker XSS payload",
+      "cve_pattern": "CWE-532 (Insertion of Sensitive Information into Log File)"
+    },
+    {
+      "severity": "medium",
+      "category": "insecure-storage",
+      "file": "web/bike/recorder.js",
+      "line": 62,
+      "description": "Ride data (power, HR, cadence, timestamp) stored in localStorage as plain JSON without integrity verification. Browser storage is world-readable by any script on same origin.",
+      "evidence": "localStorage.setItem(STORAGE_KEY, JSON.stringify({...})) at line 62; no HMAC/signature",
+      "scenario": "Malicious script modifies ride data in localStorage; corrupted data uploads to Strava, affecting athlete's training log",
+      "cve_pattern": "CWE-922 (Insecure Storage of Sensitive Information)"
+    },
+    {
+      "severity": "medium",
+      "category": "unsafe-deserialization",
+      "file": "web/bike/view.js",
+      "line": 45,
+      "description": "Untrusted JSON loaded from localStorage via ls() helper without schema validation. Arbitrary objects could be injected to corrupt app state.",
+      "evidence": "function ls(key, fallback) { ... JSON.parse(localStorage.getItem(key)) } at line 45; no schema check before use in loadProfile() or S.profile",
+      "scenario": "Attacker injects {ftp: 999999, wprime_j: 0} into pf-bike-profile; app uses invalid FTP for calculations, breaking coaching logic",
+      "cve_pattern": "CWE-502 (Deserialization of Untrusted Data)"
+    },
+    {
+      "severity": "medium",
+      "category": "missing-csrf-protection",
+      "file": "CLAUDE.md",
+      "line": 84,
+      "description": "Session auth uses cookie-based scoping (PF_COOKIE_PATH) with no mention of CSRF token validation. Runner endpoints accept state-changing operations (plan, sync, recalibrate) without CSRF check.",
+      "evidence": "Auth section describes session cookies but no CSRF token strategy documented; runner.py accepts POST /plan, /sync, /recalibrate",
+      "scenario": "Attacker tricks athlete into visiting malicious site; embedded form auto-POSTs /paceforge/api/plan?goal=HALF_MARATHON, modifying training plan without consent",
+      "cve_pattern": "CWE-352 (Cross-Site Request Forgery)"
+    },
+    {
+      "severity": "medium",
+      "category": "namespace-collision",
+      "file": "web/bike/ns.js",
+      "line": 7,
+      "description": "localStorage namespace derived from location.pathname without robust normalization. Path traversal or special characters could cause key collision between athletes if running multiple instances.",
+      "evidence": "const NS = location.pathname.replace(/\\/(index\\.html)?$/, '') || '/' at line 7; uses raw pathname",
+      "scenario": "If URL is /paceforge/../pf/alice/, NS becomes different than /paceforge/, keys overlap and data leaks between instances",
+      "cve_pattern": "CWE-367 (Time-of-check Time-of-use Race Condition)"
+    },
+    {
+      "severity": "medium",
+      "category": "no-security-headers",
+      "file": "scripts/runner.py",
+      "line": null,
+      "description": "No evidence of security headers (STS, CSP, X-Frame-Options, X-Content-Type-Options) configured in runner. Browser cannot enforce same-origin-policy strictness.",
+      "evidence": "CLAUDE.md documents runner.py serves /web and /data but no headers section in runner code",
+      "scenario": "Missing CSP allows XSS payloads to execute inline scripts; missing X-Frame-Options allows clickjacking; missing STS allows downgrade to HTTP",
+      "cve_pattern": "CWE-693 (Protection Mechanism Failure)"
+    },
+    {
+      "severity": "low",
+      "category": "no-input-validation",
+      "file": "web/bike/view.js",
+      "line": null,
+      "description": "API responses from Garmin and Strava not validated against schema before use. Malformed or malicious responses could corrupt app state.",
+      "evidence": "loadJSON('bike/profile.json') returns unvalidated objects assigned directly to S.profile (line ~97)",
+      "scenario": "Garmin API hijack or MITM returns {ftp: 'string'} instead of number; downstream code fails or behaves unexpectedly",
+      "cve_pattern": "CWE-20 (Improper Input Validation)"
+    },
+    {
+      "severity": "low",
+      "category": "credentials-in-env",
+      "file": ".env.example",
+      "line": 6,
+      "description": "Strava credentials (STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN) documented in .env. Risk: env file committed, leaked in shell history, or exposed in logs.",
+      "evidence": ".env.example lines 6-8 show STRAVA_* and PACEFORGE_GARMIN_PASSWORD examples",
+      "scenario": "Developer accidentally commits .env to repo; GitHub actions logs expose STRAVA_CLIENT_SECRET during build",
+      "cve_pattern": "CWE-798 (Use of Hard-Coded Credentials)"
+    },
+    {
+      "severity": "low",
+      "category": "weak-random-generation",
+      "file": "web/bike/mock-trainer.js",
+      "line": 9,
+      "description": "Mock trainer uses Math.random() for noise injection. While non-critical for a test harness, JS Math.random() is not cryptographically secure and should never seed real data.",
+      "evidence": "const noise = amp => (Math.random() + ...) * amp at line 9",
+      "scenario": "If mock trainer code ever runs in production, user-facing random values are predictable",
+      "cve_pattern": "CWE-338 (Use of Cryptographically Weak Pseudo-Random Number Generator)"
+    }
+  ],
+  "riskScore": 62,
+  "riskLevel": "medium-high",
+  "recommendations": [
+    "CRITICAL (Day 1): Remove sessionStorage for sensitive tokens. Implement in-memory token cache; require user re-auth for uploads (or use server-side auth proxy).",
+    "HIGH: Add entity expansion limit to XML parser (max 10 nesting levels, total size cap 1MB). Validate MRC/ZWO files server-side before processing.",
+    "HIGH: Sanitize error logging. Replace console.log(error) with console.error('Request failed') only; never log error.message or full objects.",
+    "HIGH: Add CSRF tokens to all state-changing endpoints (/plan, /sync, /recalibrate). Verify token on runner.py POST handlers.",
+    "HIGH: Add security headers to runner: Content-Security-Policy (self, no inline), Strict-Transport-Security (max-age=31536000), X-Frame-Options (DENY), X-Content-Type-Options (nosniff).",
+    "MEDIUM: Sign localStorage data with HMAC before write. Validate signature on read; discard corrupted entries.",
+    "MEDIUM: Implement JSON schema validation for all external data (Garmin responses, localStorage loads). Reject mismatches.",
+    "MEDIUM: Normalize and validate location.pathname in ns.js; use URL API if available (URL(location).pathname).",
+    "MEDIUM: Add .env.example to .gitignore patterns in CI; scan commits for leaked secrets (git-secrets, TruffleHog).",
+    "LOW: Add optional HTTPS-only flag to runner; enforce on Azure Caddy frontend.",
+    "LOW: Document GARMIN_PASSWORD should never be persisted; one-time login only (already correct, but add comment to .env.example)."
+  ],
+  "auth_findings": {
+    "session_cookie": "Scoped by PF_COOKIE_PATH; httpOnly and Secure flags not mentioned — verify in runner.py",
+    "garmin_oauth": "Refresh token stored in env; TTL ~1 year. No rotation policy documented.",
+    "strava_oauth": "Manual token in sessionStorage; no refresh flow. Requires re-auth when token expires.",
+    "mfa": "Garmin supports optional MFA during login; no bypass mechanisms evident. Good."
+  },
+  "compliant_areas": [
+    "FIT file CRC validation present (fit.js:crc16)",
+    "Web Bluetooth API inherently requires user interaction (trainer.js, hr.js)",
+    "No SQL injection risk (Pydantic-based, no raw SQL visible)",
+    "No hardcoded API keys in source code (only in .env, properly gitignored)"
+  ],
+  "priority_fixes": [
+    "1. SessionStorage token theft: move auth to server-side proxy (2-3h)",
+    "2. XML entity expansion: add parser limits (30min)",
+    "3. Error logging disclosure: sanitize console output (15min)",
+    "4. CSRF protection: add token validation (2h)",
+    "5. Security headers: configure runner (1h)"
+  ],
+  "summary": "PaceForge has 10 findings (3 high, 4 medium, 3 low). Main risks: browser storage of API tokens vulnerable to XSS, missing CSRF tokens on state-changing endpoints, unvalidated XML parsing, and inadequate error logging control. None are critical for a single-athlete local instance, but multi-athlete deployments (planned sharing feature) amplify session/CSRF/storage isolation issues. Recommend implementing fixes in priority order before sharing instances with friends."
+}

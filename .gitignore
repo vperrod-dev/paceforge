@@ -75,3 +75,5 @@ _site/
 
 # coverage annotation artifacts (trace --count writes <file>,cover)
 *,cover
+scratch/
+ops/caddy-static.log

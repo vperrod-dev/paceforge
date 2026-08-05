@@ -1,0 +1,23 @@
+docs-static-vperrod.westeurope.cloudapp.azure.com {
+	root * /home/azureuser/projects/paceforge/_site
+	file_server {
+		index index.html
+	}
+
+	encode gzip
+
+	@writeMethods {
+		method PUT POST DELETE PATCH
+	}
+
+	respond @writeMethods "Method Not Allowed" 405
+
+	header -Server
+	header X-Content-Type-Options "nosniff"
+	header X-Frame-Options "DENY"
+
+	log {
+		output file /home/azureuser/projects/paceforge/ops/caddy-static.log
+		format json
+	}
+}
