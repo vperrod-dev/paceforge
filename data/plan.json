@@ -503,12 +503,22 @@
           "briefing": null,
           "purpose": null,
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            23870932697
+          ],
           "manual_activity_ids": [],
           "excluded_activity_ids": [],
           "completion_analysis": null,
-          "completion_metrics": null,
+          "completion_metrics": {
+            "status": "green",
+            "ratio": 1.0,
+            "planned_km": null,
+            "actual_km": null,
+            "planned_min": 45.0,
+            "actual_min": 44.8,
+            "activity_id": 23870932697
+          },
           "garmin_workout_id": 1655637116,
           "user_rpe": null,
           "user_notes": null
