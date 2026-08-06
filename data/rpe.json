@@ -43,6 +43,14 @@
       "duration_min": 42.9,
       "notes": null,
       "source": "web"
+    },
+    {
+      "activity_id": 23870932697,
+      "date": "2026-08-06",
+      "rpe": 6,
+      "duration_min": 44.8,
+      "notes": null,
+      "source": "web"
     }
   ]
 }
