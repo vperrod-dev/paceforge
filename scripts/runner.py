@@ -52,6 +52,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from paceforge.store import _raw_write
+
 REPO_DIR = Path(__file__).resolve().parent.parent
 VENV_BIN = REPO_DIR / ".venv" / "bin"
 STATE_DIR = Path(os.environ.get("PACEFORGE_RUNNER_STATE", Path.home() / ".local/state/paceforge-runner"))
@@ -367,7 +369,7 @@ def append_ride(entry: dict, data_dir: Path) -> None:
     rides = [r for r in rides if r.get("date") != clean["date"]]  # retry-idempotent
     rides.append(clean)
     rides.sort(key=lambda r: str(r.get("date") or ""))
-    path.write_text(json.dumps({"rides": rides}, indent=2))
+    _raw_write(path, json.dumps({"rides": rides}, indent=2))
 
 
 def patch_bike_profile(patch: dict, data_dir: Path, today: str | None = None) -> None:
@@ -397,20 +399,19 @@ def patch_bike_profile(patch: dict, data_dir: Path, today: str | None = None) ->
         if not (5000 <= wp <= 50000):
             raise ValueError("wprime out of range")
         profile["wprime_j"] = wp
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(profile, indent=2))
+    _raw_write(path, json.dumps(profile, indent=2))
 
 
 def write_events(events: object, data_dir: Path) -> None:
     if not isinstance(events, list):
         raise ValueError("events must be a list")
-    (data_dir / "events.json").write_text(json.dumps(events, indent=2))
+    _raw_write(data_dir / "events.json", json.dumps(events, indent=2))
 
 
 def write_benchmarks(benchmarks: object, data_dir: Path) -> None:
     if not isinstance(benchmarks, dict):
         raise ValueError("benchmarks must be an object")
-    (data_dir / "benchmarks.json").write_text(json.dumps(benchmarks, indent=2))
+    _raw_write(data_dir / "benchmarks.json", json.dumps(benchmarks, indent=2))
 
 
 ANALYSIS_LOOKBACK_DAYS = 30   # don't churn through the whole multi-year backlog
@@ -546,7 +547,7 @@ def job_plan(run: Run, inputs: dict) -> None:
         plan_path = REPO_DIR / "data" / "plan.json"
         p = json.loads(plan_path.read_text())
         p["accepted"] = True
-        plan_path.write_text(json.dumps(p, indent=2, default=str))
+        _raw_write(plan_path, json.dumps(p, indent=2, default=str))
     sh(run, pf("validate"), check=False)
     sh(run, pf("plan-md"))
     run.step("Commit scaffold (safety net — always a plan)")
@@ -851,7 +852,7 @@ def _new_session() -> str:
     for t, ts in list(_SESSIONS.items()):   # prune expired
         if time.time() - ts > SESSION_TTL:
             del _SESSIONS[t]
-    SESSIONS_FILE.write_text(json.dumps(_SESSIONS))
+    _raw_write(SESSIONS_FILE, json.dumps(_SESSIONS))
     SESSIONS_FILE.chmod(0o600)
     return tok
 
