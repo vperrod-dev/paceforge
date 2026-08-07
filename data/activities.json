@@ -1,5 +1,28 @@
 [
   {
+    "activity_id": 23883571994,
+    "name": "County Dublin - 8km Progressive Long Run",
+    "activity_type": "running",
+    "start_time": "2026-08-07T07:53:47",
+    "distance_meters": 6014.39013671875,
+    "duration_seconds": 1592.2530517578125,
+    "avg_hr": 158,
+    "max_hr": 184,
+    "avg_pace_sec_per_km": 264.8,
+    "calories": 498,
+    "training_effect_aerobic": 3.5999999046325684,
+    "training_effect_anaerobic": 2.5,
+    "vo2_max_value": 52.0,
+    "avg_running_cadence": 162.015625,
+    "avg_stride_length": 139.44000244140625,
+    "avg_ground_contact_time": 255.1999969482422,
+    "avg_vertical_oscillation": 10.240000152587891,
+    "avg_vertical_ratio": 7.360000133514404,
+    "avg_power": 512.0,
+    "elevation_gain": 45.37999999523163,
+    "avg_respiration_rate": null
+  },
+  {
     "activity_id": 23870932697,
     "name": "Cardio",
     "activity_type": "indoor_cardio",
