@@ -197,14 +197,23 @@
           },
           "purpose": "endurance",
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
-          "manual_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            23883571994
+          ],
+          "manual_activity_ids": [
+            23883571994
+          ],
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": {
-            "status": "red",
-            "reason": "missed"
+            "status": "green",
+            "ratio": 1.18,
+            "planned_km": 5.1,
+            "actual_km": 6.01,
+            "planned_min": 23.4,
+            "actual_min": 26.5,
+            "activity_id": 23883571994
           },
           "garmin_workout_id": 1651492361,
           "user_rpe": null,
