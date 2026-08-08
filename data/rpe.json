@@ -53,6 +53,14 @@
       "source": "web"
     },
     {
+      "activity_id": null,
+      "date": "2026-08-06",
+      "rpe": 6,
+      "duration_min": 45.9,
+      "notes": null,
+      "source": "web"
+    },
+    {
       "activity_id": 23883571994,
       "date": "2026-08-07",
       "rpe": 8,
