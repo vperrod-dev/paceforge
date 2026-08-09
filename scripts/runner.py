@@ -965,6 +965,19 @@ class Handler(BaseHTTPRequestHandler):
         tok = cookies.get(COOKIE, "")
         return tok in _SESSIONS and time.time() - _SESSIONS[tok] < SESSION_TTL
 
+    def _origin_ok(self) -> bool:
+        """CSRF guard for state-changing POSTs: SameSite=Lax still rides along on a
+        cross-site top-level form/fetch, so also require the browser's own
+        Origin/Referer to name this same host. A real fetch() always sends Origin on
+        POST, same-origin or not, so this costs legitimate callers nothing. Trusted
+        loopback callers (systemd timers, curl) send neither header and are already
+        authenticated by socket alone in ``_authed``."""
+        if self.connection.getsockname()[1] == INTERNAL_PORT:
+            return True
+        origin = self.headers.get("Origin") or self.headers.get("Referer") or ""
+        host = self.headers.get("Host", "")
+        return bool(host) and urllib.parse.urlparse(origin).netloc == host
+
     def do_GET(self):
         path = self._route()
         query = urllib.parse.urlparse(self.path).query
@@ -1051,6 +1064,8 @@ class Handler(BaseHTTPRequestHandler):
             return None
         if not self._authed():
             return self._send(401, {"message": "sign in first"})
+        if not self._origin_ok():
+            return self._send(403, {"message": "bad origin"})
         if path == "/extra_activities":
             b = self._body() or {}
             items = b.get("items") if isinstance(b, dict) else None

@@ -188,3 +188,37 @@ def test_unknown_job_is_refused_cleanly_rather_than_dropping_the_connection(app)
 def test_an_arbitrary_unknown_job_is_also_refused_cleanly(app):
     code, _, _ = _req(app.internal + "/run/not-a-job", "POST", {})
     assert code == 404
+
+
+def test_state_changing_post_with_cross_site_origin_is_rejected(app):
+    # Rejected by the origin check before it ever reaches the write, so no need
+    # to redirect REPO_DIR away from this live checkout's data/ dir.
+    cookie = _session_cookie(app)
+    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": []},
+                      headers={"Cookie": cookie, "Origin": "https://evil.example.com"})
+    assert code == 403
+
+
+def test_state_changing_post_with_no_origin_or_referer_is_rejected(app):
+    cookie = _session_cookie(app)
+    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": []},
+                      headers={"Cookie": cookie})
+    assert code == 403
+
+
+def test_state_changing_post_with_matching_origin_is_accepted(app, monkeypatch, tmp_path):
+    monkeypatch.setattr(runner, "REPO_DIR", tmp_path)
+    (tmp_path / "data").mkdir()
+    cookie = _session_cookie(app)
+    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": []},
+                      headers={"Cookie": cookie, "Origin": app.public})
+    assert code == 200
+
+
+def test_state_changing_post_with_matching_referer_is_accepted(app, monkeypatch, tmp_path):
+    monkeypatch.setattr(runner, "REPO_DIR", tmp_path)
+    (tmp_path / "data").mkdir()
+    cookie = _session_cookie(app)
+    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": []},
+                      headers={"Cookie": cookie, "Referer": app.public + "/"})
+    assert code == 200

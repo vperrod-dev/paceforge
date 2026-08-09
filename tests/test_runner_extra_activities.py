@@ -24,7 +24,7 @@ def data_dir(monkeypatch, tmp_path):
 
 def _post(app, cookie, items):
     return _req(app.public + "/api/extra_activities", "POST", {"items": items},
-                headers={"Cookie": cookie})
+                headers={"Cookie": cookie, "Origin": app.public})
 
 
 def test_post_persists_the_items_as_a_json_list(app, data_dir):
@@ -60,7 +60,7 @@ def test_deleting_one_index_leaves_the_others(app, data_dir):
 def test_post_rejects_a_body_that_is_not_a_list(app, data_dir):
     cookie = _session_cookie(app)
     code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": "everything"},
-                      headers={"Cookie": cookie})
+                      headers={"Cookie": cookie, "Origin": app.public})
     assert code == 400
 
 
