@@ -6,7 +6,7 @@ import uuid
 from datetime import date
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class WorkoutStepType(StrEnum):
@@ -125,6 +125,12 @@ class Workout(BaseModel):
             if old_id is not None and not data.get("matched_activity_ids"):
                 data["matched_activity_ids"] = [old_id]
         return data
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _truncate_name(cls, value: str) -> str:
+        """Cap at 120 chars — Garmin push rejects/silently drops an overlong workoutName."""
+        return value[:120] if isinstance(value, str) else value
 
     @property
     def matched_activity_id(self) -> int | None:
