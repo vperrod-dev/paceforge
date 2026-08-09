@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.hyresult.com"
 DEFAULT_TIMEOUT = 20
+_SLUG_RE = re.compile(r"^[a-z0-9-]+$")
+_RESULT_ID_RE = re.compile(r"^[A-Z0-9_]+$")
 _UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -73,6 +75,8 @@ class HyresultScraper:
 
     def result_ids(self, slug: str) -> list[str]:
         """Return all race result IDs from an athlete profile slug."""
+        if not _SLUG_RE.match(slug):
+            raise ValueError(f"invalid hyresult athlete slug: {slug!r}")
         resp = self._client.get(f"{BASE_URL}/athlete/{slug}")
         resp.raise_for_status()
         blob = _rsc_blob(resp.text)
@@ -84,6 +88,8 @@ class HyresultScraper:
 
     def fetch_result(self, result_id: str) -> HyroxRaceResult:
         """Fetch and parse one /result/<id> page into a HyroxRaceResult."""
+        if not _RESULT_ID_RE.match(result_id):
+            raise ValueError(f"invalid hyresult result id: {result_id!r}")
         resp = self._client.get(f"{BASE_URL}/result/{result_id}")
         resp.raise_for_status()
         return parse_result(resp.text, result_id)

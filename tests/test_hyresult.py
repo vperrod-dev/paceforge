@@ -2,8 +2,10 @@
 
 from pathlib import Path
 
+import pytest
+
 from paceforge.hyrox.analyzer import analyze_race
-from paceforge.hyrox.hyresult import parse_result
+from paceforge.hyrox.hyresult import HyresultScraper, parse_result
 
 FIXTURE = (Path(__file__).parent / "fixtures" / "hyresult_berlin.html").read_text()
 
@@ -56,3 +58,13 @@ def test_analyze_computes_segment_percentile():
 def test_segments_carry_cumulative_time():
     segments = analyze_race(parse_result(FIXTURE))["segments"]
     assert segments[-1]["cumulative"] > segments[0]["cumulative"]
+
+
+def test_result_ids_rejects_slug_with_path_traversal():
+    with pytest.raises(ValueError, match="invalid hyresult athlete slug"):
+        HyresultScraper().result_ids("../../etc/passwd")
+
+
+def test_fetch_result_rejects_result_id_with_slash():
+    with pytest.raises(ValueError, match="invalid hyresult result id"):
+        HyresultScraper().fetch_result("ABC/../../admin")
