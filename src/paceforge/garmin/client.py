@@ -36,7 +36,7 @@ from paceforge.models.profile import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TOKEN_DIR = "~/.garminconnect"
+DEFAULT_TOKEN_DIR = "~/.garminconnect"   # noqa: S105 — a directory path, not a secret
 
 # Structured-workout sport types. Running is the default; HYROX bricks and
 # station days go up as fitness_equipment (Garmin's cardio/strength sport) with

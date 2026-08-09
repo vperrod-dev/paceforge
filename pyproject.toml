@@ -55,8 +55,6 @@ ignore = [
     "B007",   # unused loop variable
     "B017",   # assert-raises-exception (broad)
     "B904",   # raise without from
-    "S105",   # hardcoded password string (test fixtures)
-    "S106",   # hardcoded password func arg (test fixtures)
     "S110",   # try-except-pass
     "S608",   # hardcoded SQL
     "N806",   # non-lowercase variable in function
@@ -65,6 +63,12 @@ ignore = [
     "E402",   # import not at top (conditional imports)
     "B905",   # zip() without strict= (not needed for same-length lists)
     "F541",   # f-string without placeholders
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "S105",   # hardcoded password string (test fixtures)
+    "S106",   # hardcoded password func arg (test fixtures)
 ]
 
 [tool.pytest.ini_options]
