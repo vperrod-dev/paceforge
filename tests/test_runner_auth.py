@@ -215,6 +215,38 @@ def test_an_arbitrary_unknown_job_is_also_refused_cleanly(app):
     assert code == 404
 
 
+def test_logout_clears_the_server_side_session(app):
+    cookie = _session_cookie(app)
+    token = cookie.split("=", 1)[1]
+
+    _req(app.public + "/api/auth/logout", "POST", {}, headers={"Cookie": cookie})
+
+    assert token not in runner._SESSIONS
+
+
+def test_logout_expires_the_cookie(app):
+    cookie = _session_cookie(app)
+
+    _, headers, _ = _req(app.public + "/api/auth/logout", "POST", {}, headers={"Cookie": cookie})
+
+    assert "Max-Age=0" in headers["Set-Cookie"]
+
+
+def test_session_is_rejected_after_logout(app):
+    cookie = _session_cookie(app)
+    _req(app.public + "/api/auth/logout", "POST", {}, headers={"Cookie": cookie})
+
+    code, _, _ = _req(app.public + "/api/runs", headers={"Cookie": cookie})
+
+    assert code == 401
+
+
+def test_logout_without_a_session_is_a_no_op_not_an_error(app):
+    code, _, _ = _req(app.public + "/api/auth/logout", "POST", {},
+                      headers={"Cookie": f"{runner.COOKIE}=bogus"})
+    assert code == 204
+
+
 def test_state_changing_post_with_cross_site_origin_is_rejected(app):
     # Rejected by the origin check before it ever reaches the write, so no need
     # to redirect REPO_DIR away from this live checkout's data/ dir.

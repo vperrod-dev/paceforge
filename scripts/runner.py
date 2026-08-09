@@ -1072,6 +1072,22 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return None
+        if path == "/auth/logout":
+            # Idempotent and reachable even with an already-expired cookie, like
+            # /auth/login — a client should always be able to clear its own session.
+            cookies = dict(p.strip().split("=", 1) for p in
+                           (self.headers.get("Cookie") or "").split(";") if "=" in p)
+            tok = cookies.get(COOKIE, "")
+            if tok in _SESSIONS:
+                del _SESSIONS[tok]
+                _save_sessions()
+            self.send_response(204)
+            self.send_header("Set-Cookie",
+                             f"{COOKIE}=; Path={COOKIE_PATH}; Max-Age=0; HttpOnly; Secure; "
+                             "SameSite=Lax")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
         if not self._authed():
             return self._send(401, {"message": "sign in first"})
         if not self._origin_ok():

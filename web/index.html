@@ -4256,6 +4256,7 @@ async function renderSettings(page) {
         <div class="card-h"><div class="card-title"><span class="ico">${icons.settings}</span>Account</div></div>
         <div class="settings-row"><span class="settings-label">Name</span><span class="settings-value">${escHtml(profile.name)}</span></div>
         <div class="settings-row"><span class="settings-label">Email</span><span class="settings-value">${escHtml(profile.email)}</span></div>
+        <button class="btn btn-outline btn-block mt" id="set-logout">Sign out</button>
       </div>
 
       <div class="card mt">
@@ -4292,6 +4293,10 @@ async function renderSettings(page) {
 
   on('set-sync', 'click', e => syncFromGarmin(e.currentTarget));
   on('set-sync-now', 'click', async e => { await syncFromGarmin(e.currentTarget); setTimeout(() => renderSettings(page), 2500); });
+  on('set-logout', 'click', async () => {
+    await fetch('api/auth/logout', { method: 'POST', headers: JSON_HDR }).catch(() => {});
+    location.reload();
+  });
   on('garmin-connect', 'click', () => openGarminLoginModal());
   on('set-coach', 'click', () => openCoachModal());
   on('set-export', 'click', () => { planStore.export(); toast('ok', 'Exported', 'plan.json downloaded.'); });
