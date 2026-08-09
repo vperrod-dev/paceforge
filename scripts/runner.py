@@ -867,7 +867,20 @@ def _new_session() -> str:
     return tok
 
 
-_LOGIN_BRAKE = threading.Lock()   # serialize failed-login sleeps across threads
+_LOGIN_BRAKES: dict[str, threading.Lock] = {}
+_LOGIN_BRAKES_LOCK = threading.Lock()   # guards creation of the per-IP locks below
+
+
+def _login_brake(ip: str) -> threading.Lock:
+    """One failed-login sleep lock per source IP, not a single global lock — a
+    ThreadingHTTPServer with no thread cap otherwise lets N concurrent bad-password
+    guesses (one attacker) serialize into an N-second queue that holds every other
+    user's login request hostage too.
+    ponytail: the dict grows one entry per distinct IP and nothing ever prunes it;
+    fine at this app's scale (one athlete's portal), add an LRU cap if that changes.
+    """
+    with _LOGIN_BRAKES_LOCK:
+        return _LOGIN_BRAKES.setdefault(ip, threading.Lock())
 
 
 def check_login(user: str, password: str) -> bool:
@@ -975,6 +988,16 @@ class Handler(BaseHTTPRequestHandler):
         tok = cookies.get(COOKIE, "")
         return tok in _SESSIONS and time.time() - _SESSIONS[tok] < SESSION_TTL
 
+    def _client_ip(self) -> str:
+        """Bucket key for the failed-login brake — NOT a trust decision (auth
+        stays socket-derived in ``_authed``). Caddy is the only process that can
+        reach the public port and always appends the true peer as the last
+        X-Forwarded-For entry, so that last hop is trustworthy even though any
+        earlier entries a client prepended are not. Falls back to the raw TCP
+        peer when nothing fronts this listener (internal port, local tests)."""
+        xff = self.headers.get("X-Forwarded-For", "")
+        return xff.rsplit(",", 1)[-1].strip() if xff else self.client_address[0]
+
     def _origin_ok(self) -> bool:
         """CSRF guard for state-changing POSTs: SameSite=Lax still rides along on a
         cross-site top-level form/fetch, so also require the browser's own
@@ -1061,7 +1084,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/auth/login":
             b = self._body()
             if not check_login(str(b.get("user") or ""), str(b.get("password") or "")):
-                with _LOGIN_BRAKE:   # global, not per-thread: N parallel guesses ≈ N seconds
+                with _login_brake(self._client_ip()):   # per-IP: one attacker can't stall everyone
                     time.sleep(1)
                 return self._send(401, {"message": "wrong user or password"})
             tok = _new_session()

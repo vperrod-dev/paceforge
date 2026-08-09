@@ -215,6 +215,46 @@ def test_an_arbitrary_unknown_job_is_also_refused_cleanly(app):
     assert code == 404
 
 
+def test_failed_logins_from_different_ips_do_not_serialize(app):
+    # 5 attackers each eat their own 1s brake in parallel — a single global lock
+    # used to queue all 5 into ~5s, stalling every other user's login too.
+    results = []
+
+    def attempt(ip):
+        code, _, _ = _req(app.public + "/api/auth/login", "POST",
+                          {"user": "victor", "password": "wrong"},
+                          headers={"X-Forwarded-For": ip})
+        results.append(code)
+
+    threads = [threading.Thread(target=attempt, args=(f"203.0.113.{i}",)) for i in range(5)]
+    start = time.monotonic()
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    elapsed = time.monotonic() - start
+
+    assert results == [401] * 5
+    assert elapsed < 2.0
+
+
+def test_failed_logins_from_the_same_ip_still_serialize(app):
+    def attempt():
+        _req(app.public + "/api/auth/login", "POST",
+             {"user": "victor", "password": "wrong"},
+             headers={"X-Forwarded-For": "203.0.113.50"})
+
+    threads = [threading.Thread(target=attempt) for _ in range(3)]
+    start = time.monotonic()
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    elapsed = time.monotonic() - start
+
+    assert elapsed >= 3.0
+
+
 def test_logout_clears_the_server_side_session(app):
     cookie = _session_cookie(app)
     token = cookie.split("=", 1)[1]
