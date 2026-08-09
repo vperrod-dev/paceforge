@@ -52,7 +52,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from paceforge.store import _raw_write
+from paceforge.store import _WRITE_LOCK, _raw_write
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 VENV_BIN = REPO_DIR / ".venv" / "bin"
@@ -846,14 +846,24 @@ def _load_sessions() -> None:
         _SESSIONS.update(json.loads(SESSIONS_FILE.read_text()))
 
 
+def _save_sessions() -> None:
+    """Persist _SESSIONS, serialized against every other data/state writer.
+
+    Two concurrent logins (or a login racing a logout) must not interleave
+    their read-modify-write of sessions.json and lose one session.
+    """
+    with _WRITE_LOCK:
+        _raw_write(SESSIONS_FILE, json.dumps(_SESSIONS))
+    SESSIONS_FILE.chmod(0o600)
+
+
 def _new_session() -> str:
     tok = secrets.token_urlsafe(32)
     _SESSIONS[tok] = time.time()
     for t, ts in list(_SESSIONS.items()):   # prune expired
         if time.time() - ts > SESSION_TTL:
             del _SESSIONS[t]
-    _raw_write(SESSIONS_FILE, json.dumps(_SESSIONS))
-    SESSIONS_FILE.chmod(0o600)
+    _save_sessions()
     return tok
 
 

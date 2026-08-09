@@ -157,6 +157,31 @@ def test_sessions_file_is_not_world_or_group_readable(app):
     assert mode == 0o600
 
 
+def test_new_session_holds_the_shared_write_lock_while_writing(app, monkeypatch):
+    # Two concurrent logins racing this write used to be unlocked, unlike every
+    # other data/ writer — one could clobber the other's shared sessions.json.tmp.
+    from paceforge import store
+    original_write = runner._raw_write
+    entered = threading.Event()
+    release = threading.Event()
+
+    def slow_write(path, payload):
+        entered.set()
+        assert release.wait(timeout=2)
+        original_write(path, payload)
+
+    monkeypatch.setattr(runner, "_raw_write", slow_write)
+    t = threading.Thread(target=runner._new_session)
+    t.start()
+    assert entered.wait(timeout=2)
+    acquired_elsewhere = store._WRITE_LOCK.acquire(blocking=False)
+    release.set()
+    t.join()
+    if acquired_elsewhere:
+        store._WRITE_LOCK.release()
+    assert acquired_elsewhere is False
+
+
 def test_check_login_rejects_when_config_missing(monkeypatch):
     monkeypatch.delenv("PF_WEB_PASS_SCRYPT", raising=False)
     monkeypatch.setenv("PF_WEB_USER", "victor")
