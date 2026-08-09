@@ -40,7 +40,10 @@ UNIT_DIR = HOME / ".config" / "systemd" / "user"
 CADDYFILE = Path("/etc/caddy/Caddyfile")
 HOST = os.environ.get("PF_HOST", "claude-dev-vperrod.westeurope.cloudapp.azure.com")
 FIRST_PORT = 8124                                       # 8123 is Victor's
-NAME_RE = re.compile(r"^[a-z][a-z0-9-]{1,20}$")
+# \Z, not a trailing $ — Python's $ matches before a final newline, so "alice\n"
+# would otherwise pass and carry an embedded newline into a systemd unit name,
+# a URL path or a Caddyfile block.
+NAME_RE = re.compile(r"^[a-z][a-z0-9-]{1,20}\Z")
 UNITS = ("paceforge-runner@{n}", "paceforge-sync@{n}.timer",
          "paceforge-autosync@{n}.timer", "paceforge-coach@{n}.timer")
 # What an instance runs from its own checkout. src/ is absent on purpose: the venv
@@ -112,7 +115,13 @@ def caddy_block(name: str, port: int) -> str:
 def caddy_edit(add: str | None = None, drop: str | None = None) -> None:
     text = sudo_read(CADDYFILE)
     if drop:
-        pattern = re.compile(rf"\t# paceforge-user:{re.escape(drop)}\n(?:.*?\n)*?\t\}}\n")
+        # The body match excludes lines starting a *different* user's marker, so a
+        # block missing its own closing brace (hand-edited, truncated) fails to
+        # match at all instead of eating through into — and deleting — the next
+        # instance's block.
+        pattern = re.compile(
+            rf"\t# paceforge-user:{re.escape(drop)}\n"
+            rf"(?:(?!\t# paceforge-user:).*?\n)*?\t\}}\n")
         new, n = pattern.subn("", text)
         if not n:
             print(f"  caddy: no block for {drop}")
