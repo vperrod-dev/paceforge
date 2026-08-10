@@ -12,6 +12,7 @@ class PaceForgeFieldView extends WatchUi.DataField {
     // live values, refreshed each compute()
     hidden var curSpeed = null;   // m/s or null
     hidden var curHr = null;
+    hidden var curCad = null;     // steps/min or null
     hidden var dist = null;       // meters or null
     hidden var timerSec = 0;      // running timer, seconds
 
@@ -62,6 +63,7 @@ class PaceForgeFieldView extends WatchUi.DataField {
     function compute(info) {
         curSpeed = (info != null) ? info.currentSpeed : null;
         curHr = (info != null) ? info.currentHeartRate : null;
+        curCad = (info != null) ? normCadence(info.currentCadence) : null;
         dist = (info != null) ? info.elapsedDistance : null;
         var tt = (info != null) ? info.timerTime : null;
         if (tt != null) {
@@ -155,6 +157,32 @@ class PaceForgeFieldView extends WatchUi.DataField {
             f = f / 1000.0;
         }
         return (f > 0.0) ? f : null;
+    }
+
+    // Some firmwares report running cadence as strides/min (~85), others as
+    // steps/min (~170). Nobody runs below 120 spm mid-workout — double the
+    // low reading.
+    hidden function normCadence(c) {
+        if (c == null || c == 0) {
+            return null;
+        }
+        var n = c.toNumber();
+        return (n < 120) ? n * 2 : n;
+    }
+
+    // Stride length in meters, derived (the CIQ API does not expose it):
+    // speed [m/s] / steps-per-second. Matches Garmin's own stride number.
+    hidden function strideStr() {
+        if (curSpeed == null || curSpeed < 0.3 || curCad == null || curCad < 60) {
+            return "-.--";
+        }
+        return (curSpeed * 60.0 / curCad).format("%.2f");
+    }
+
+    hidden function metricsLine() {
+        var hr = (curHr != null) ? curHr.format("%d") : "--";
+        var cad = (curCad != null) ? curCad.format("%d") : "---";
+        return hr + " bpm   " + cad + " spm   " + strideStr() + " m";
     }
 
     hidden function remainingLabel(st) {
@@ -316,15 +344,21 @@ class PaceForgeFieldView extends WatchUi.DataField {
 
         // remaining in step
         if (!remainText.equals("")) {
-            dc.drawText(cx, h * 0.675, Graphics.FONT_MEDIUM, remainText,
+            dc.drawText(cx, h * 0.655, Graphics.FONT_MEDIUM, remainText,
                 Graphics.TEXT_JUSTIFY_CENTER);
         }
+
+        // HR / cadence / stride — the numbers the athlete is working on
+        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, h * 0.765, Graphics.FONT_TINY,
+            fitText(dc, metricsLine(), Graphics.FONT_TINY, w * 0.80),
+            Graphics.TEXT_JUSTIFY_CENTER);
 
         // next-step footer
         if (nextText != null) {
             dc.setColor(dim, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, h * 0.83, Graphics.FONT_XTINY,
-                fitText(dc, nextText, Graphics.FONT_XTINY, w * 0.72),
+            dc.drawText(cx, h * 0.875, Graphics.FONT_XTINY,
+                fitText(dc, nextText, Graphics.FONT_XTINY, w * 0.60),
                 Graphics.TEXT_JUSTIFY_CENTER);
         }
     }
@@ -344,6 +378,12 @@ class PaceForgeFieldView extends WatchUi.DataField {
 
         var dTxt = (dist != null) ? fmtDist(dist) : "0 m";
         dc.drawText(cx, h * 0.70, Graphics.FONT_MEDIUM, dTxt,
+            Graphics.TEXT_JUSTIFY_CENTER);
+
+        dc.setColor(dim, Graphics.COLOR_TRANSPARENT);
+        var cad = (curCad != null) ? curCad.format("%d") : "---";
+        dc.drawText(cx, h * 0.82, Graphics.FONT_TINY,
+            cad + " spm   " + strideStr() + " m",
             Graphics.TEXT_JUSTIFY_CENTER);
     }
 
