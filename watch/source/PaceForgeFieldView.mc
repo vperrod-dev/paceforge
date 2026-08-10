@@ -1,6 +1,7 @@
 using Toybox.WatchUi;
 using Toybox.Graphics;
 using Toybox.Math;
+using Toybox.UserProfile;
 using Toybox.Activity;
 using Toybox.Lang;
 
@@ -298,6 +299,29 @@ class PaceForgeFieldView extends WatchUi.DataField {
     hidden var TEAL = 0x00AA88;
     hidden var RED = 0xFF5544;
     hidden var GREY = 0x555555;
+    // Garmin's conventional zone colors: Z1 grey, Z2 blue, Z3 green, Z4 orange, Z5 red
+    hidden var ZONE_COLORS = [0x999999, 0x3B8AD8, 0x00AA55, 0xFF8800, 0xE0402F];
+    hidden var hrZones = null;   // [z1 floor, z1 top, z2 top, z3 top, z4 top, z5 top]
+
+    hidden function zones() {
+        if (hrZones == null) {
+            try {
+                hrZones = UserProfile.getHeartRateZones(UserProfile.HR_ZONE_SPORT_RUNNING);
+            } catch (e) {
+                hrZones = [];
+            }
+        }
+        return hrZones;
+    }
+
+    hidden function zoneIndex(hr, z) {   // 0-based zone for a heart rate
+        for (var i = 5; i >= 2; i--) {
+            if (hr > z[i - 1]) {
+                return i - 1;
+            }
+        }
+        return 0;
+    }
 
     function onUpdate(dc) {
         // Runna forces a light face regardless of system theme — daylight
@@ -437,19 +461,58 @@ class PaceForgeFieldView extends WatchUi.DataField {
                 Graphics.TEXT_JUSTIFY_CENTER);
         }
 
-        // HR / cadence / stride — the form numbers being worked on
-        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.765, Graphics.FONT_TINY,
-            fitText(dc, metricsLine(), Graphics.FONT_TINY, w * 0.78),
-            Graphics.TEXT_JUSTIFY_CENTER);
+        // heart rate, big, colored by zone (cadence/stride live on the
+        // companion "PaceForge Form" field — second data screen)
+        drawHr(dc, w, h, cx, fg);
 
         // next-step footer
         if (nextText != null) {
             dc.setColor(dim, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, h * 0.865, Graphics.FONT_XTINY,
+            dc.drawText(cx, h * 0.845, Graphics.FONT_XTINY,
                 fitText(dc, nextText, Graphics.FONT_XTINY, w * 0.58),
                 Graphics.TEXT_JUSTIFY_CENTER);
         }
+
+        drawHrArc(dc, w, h, cx);
+    }
+
+    hidden function drawHr(dc, w, h, cx, fg) {
+        var z = zones();
+        var zi = (curHr != null && z.size() >= 6) ? zoneIndex(curHr, z) : null;
+        var color = (zi != null) ? ZONE_COLORS[zi] : fg;
+        var txt = (curHr != null) ? curHr.format("%d") : "--";
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, h * 0.735, Graphics.FONT_MEDIUM,
+            txt + ((zi != null) ? " Z" + (zi + 1).format("%d") : " bpm"),
+            Graphics.TEXT_JUSTIFY_CENTER);
+    }
+
+    // Bottom arc: the 5 HR zones as colored segments, needle at current HR.
+    // Mirrors the pace gauge — 210deg (left) counter-clockwise to 330 (right).
+    hidden function drawHrArc(dc, w, h, cx) {
+        var z = zones();
+        if (z == null || z.size() < 6) {
+            return;
+        }
+        var lo = z[0].toFloat();
+        var hi = z[5].toFloat();
+        if (hi <= lo) {
+            return;
+        }
+        var cy = h / 2;
+        var r = (w / 2) - 8;
+        // No needle down here — it collided with the next-step footer near
+        // 6 o'clock. The ACTIVE zone renders thicker instead (and the big HR
+        // number carries the zone color), which reads faster anyway.
+        var zi = (curHr != null) ? zoneIndex(curHr, z) : -1;
+        for (var i = 0; i < 5; i++) {
+            var a1 = 210.0 + (z[i].toFloat() - lo) / (hi - lo) * 120.0;
+            var a2 = 210.0 + (z[i + 1].toFloat() - lo) / (hi - lo) * 120.0;
+            dc.setPenWidth(i == zi ? 21 : 11);
+            dc.setColor(ZONE_COLORS[i], Graphics.COLOR_TRANSPARENT);
+            dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, a1, a2);
+        }
+        dc.setPenWidth(1);
     }
 
     // "2:14 left" -> "2:14" (the column label already says STEP LEFT)

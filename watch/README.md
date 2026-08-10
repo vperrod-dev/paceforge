@@ -1,3 +1,20 @@
+# PaceForge watch fields (2 data screens)
+
+**Two Connect IQ data fields** — Garmin allows max 2 CIQ fields per activity
+profile, and data fields can't paginate internally, so each gets its own
+1-field data screen; swipe (or UP/DOWN) between them mid-run:
+
+1. **PaceForge Coach** (`build/PaceForgeField-*.prg`) — the workout screen:
+   pace-arc gauge + verdict + step stats + BIG heart rate colored by zone,
+   with a bottom arc showing your position across your 5 HR zones.
+2. **PaceForge Form** (`form/build/PaceForgeForm-*.prg`) — the form screen:
+   cadence-arc gauge (teal 170–180 spm target), BIG cadence + BIG stride,
+   pace/HR footer.
+
+Sideload BOTH .prg files to `/GARMIN/APPS/`, then add each as the only field
+on its own 1-field data screen. HR zones come from your Garmin user profile
+(Settings → User Profile → Heart Rate Zones → Running).
+
 # PaceForge Coach Field
 
 Full-screen Garmin Connect IQ **data field** for the fēnix 7X / 7X Pro (280x280 MIP, CIQ API 5.2).
