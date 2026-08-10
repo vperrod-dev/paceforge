@@ -63,8 +63,9 @@ class PaceForgeFieldView extends WatchUi.DataField {
         curSpeed = (info != null) ? info.currentSpeed : null;
         curHr = (info != null) ? info.currentHeartRate : null;
         dist = (info != null) ? info.elapsedDistance : null;
-        if (info != null && info.timerTime != null) {
-            timerSec = info.timerTime / 1000;
+        var tt = (info != null) ? info.timerTime : null;
+        if (tt != null) {
+            timerSec = tt / 1000;
         }
 
         var ws = null;

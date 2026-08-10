@@ -1247,8 +1247,9 @@ class Handler(BaseHTTPRequestHandler):
                         text = f.read_text()
                     except OSError:
                         continue
-                    head = next((ln.lstrip("# ").strip() for ln in text.splitlines()
-                                 if ln.strip()), "")
+                    # First real sentence, not the "# Session summary" heading.
+                    head = next((ln.strip() for ln in text.splitlines()
+                                 if ln.strip() and not ln.lstrip().startswith(("#", "-", "*", "|"))), "")
                     out.append({"id": f.stem, "headline": head[:200],
                                 "mtime": int(f.stat().st_mtime)})
             out.sort(key=lambda x: -x["mtime"])

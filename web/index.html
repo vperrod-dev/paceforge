@@ -149,6 +149,7 @@ a{color:var(--emerald);text-decoration:none}
 .stat-row{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 .cols-auto{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
 .dash-grid{display:grid;gap:18px;grid-template-columns:repeat(12,1fr)}
+.dash-grid>*{min-width:0}   /* grid items default min-width:auto — long content otherwise widens the track past the viewport */
 .span-4{grid-column:span 4}.span-5{grid-column:span 5}.span-6{grid-column:span 6}
 .span-7{grid-column:span 7}.span-8{grid-column:span 8}.span-12{grid-column:span 12}
 .mt{margin-top:18px}.mt-sm{margin-top:10px}
@@ -452,8 +453,12 @@ a{color:var(--emerald);text-decoration:none}
   .act-item{min-height:52px}
   .detail-grid{grid-template-columns:repeat(2,1fr)}
   /* nothing scrolls the page sideways — wide content owns its own scroll */
+  body{overflow-x:hidden}
   .page-inner{overflow-x:hidden}
+  .card{overflow-wrap:break-word}
   .act-analysis,.card pre,.card table{max-width:100%}
+  .topbar{flex-wrap:wrap;gap:8px}
+  .topbar-actions{flex-wrap:wrap;justify-content:flex-start;max-width:100%}
 }
 @media (min-width:1024px){.mobile-only{display:none!important}}
 
@@ -1729,7 +1734,7 @@ function activityRow(act, i, coachLine) {
     <div class="act-info">
       <div class="act-name">${escHtml(act.name || act.activity_type || 'Activity')}</div>
       <div class="act-meta">${when}${pace ? ' · ' + pace : ''}${act.avg_hr ? ' · ' + Math.round(act.avg_hr) + ' bpm' : ''}</div>
-      ${coachLine ? `<div style="font-size:.78rem;color:var(--sky);margin-top:3px;line-height:1.35">${icons.spark} ${escHtml(coachLine.length > 110 ? coachLine.slice(0, 110) + '…' : coachLine)}</div>` : ''}
+      ${coachLine ? `<div style="font-size:.78rem;color:var(--sky);margin-top:3px;line-height:1.35">✦ ${escHtml(coachLine.length > 110 ? coachLine.slice(0, 110) + '…' : coachLine)}</div>` : ''}
     </div>
     <div class="act-stat">
       <div class="v">${distKm != null ? distKm : (act.duration_seconds ? formatSeconds(act.duration_seconds) : '—')}</div>
