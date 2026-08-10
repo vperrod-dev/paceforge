@@ -437,6 +437,23 @@ a{color:var(--emerald);text-decoration:none}
   .tab-bar button svg{width:22px;height:22px}
   .tab-bar button.active{color:var(--emerald)}
   #toasts{left:12px;right:12px;max-width:none}
+  /* Modals become bottom sheets on the phone — thumb-reach, native feel */
+  .modal-overlay{align-items:flex-end;padding:0}
+  .modal{
+    max-width:none;border-radius:var(--r) var(--r) 0 0;max-height:88dvh;
+    padding:18px 16px calc(18px + var(--safe-b));
+    transform:translateY(100%);border-left:none;border-right:none;border-bottom:none;
+  }
+  /* 44px touch targets (Apple HIG floor) */
+  .btn{min-height:44px}
+  .btn-sm{min-height:40px}
+  .btn-icon,.modal-close{width:44px;height:44px}
+  .field input,.field select,.field textarea{min-height:44px;font-size:16px}
+  .act-item{min-height:52px}
+  .detail-grid{grid-template-columns:repeat(2,1fr)}
+  /* nothing scrolls the page sideways — wide content owns its own scroll */
+  .page-inner{overflow-x:hidden}
+  .act-analysis,.card pre,.card table{max-width:100%}
 }
 @media (min-width:1024px){.mobile-only{display:none!important}}
 
@@ -852,6 +869,23 @@ async function saveRpe(entry) {
     pending[entry.activity_id ?? entry.date] = entry;
     localStorage.setItem(RPE_PENDING_KEY, JSON.stringify(pending));
   } catch {}
+  // Close the loop: the rating triggers a coach re-read (save-rpe deletes the
+  // old analysis, analyze rewrites it) — tell the athlete when it actually lands.
+  if (entry.activity_id) watchAnalysisRewrite(entry.activity_id);
+}
+
+async function watchAnalysisRewrite(activityId) {
+  const url = './data/analyses/' + activityId + '.md';
+  const deadline = Date.now() + 6 * 60 * 1000;
+  const before = await fetch(url).then(r => r.ok ? r.text() : '').catch(() => '');
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 15000));
+    const now_ = await fetch(url).then(r => r.ok ? r.text() : '').catch(() => '');
+    if (now_ && now_ !== before) {
+      toast('ok', 'Coach re-read your session', 'The analysis now reflects your effort rating.');
+      return;
+    }
+  }
 }
 
 async function rpeForActivity(activityId) {
@@ -1275,13 +1309,14 @@ function clearCache(prefix) { for (const k of Object.keys(cache)) { if (k.starts
 // ═══════════════════════════════════════════════════════
 const NAV = [
   ['today', 'Today', icons.spark, 'Your day — health, session & training state'],
+  ['coach', 'Coach', icons.heart, "Everything the coach wrote — briefs, reviews, analyses"],
   ['fitness', 'Fitness', icons.fitness, 'Physiology, economy & race readiness'],
-  ['plan', 'Plan', icons.plan, 'HYROX block — edit, sync & push'],
-  ['calendar', 'Calendar', icons.calendar, 'Planned workouts & completed activities'],
-  ['hyrox', 'HYROX', icons.hyrox, 'Race results & station splits'],
+  ['plan', 'Plan', icons.plan, 'Your running block — edit, sync & push'],
+  ['calendar', 'Calendar', icons.calendar, 'Your whole training week'],
   ['bike', 'Bike', icons.bike, 'Indoor trainer — workouts, ERG & rides'],
   ['settings', 'Settings', icons.settings, 'Connections & data'],
 ];
+// HYROX keeps its full page (race results & splits) — reachable from Fitness → HYROX.
 
 function render() {
   const app = document.getElementById('app');
@@ -1366,7 +1401,8 @@ async function loadTab(tab) {
       case 'plan': await renderPlan(page); break;
       case 'calendar': await renderCalendar(page); break;
       case 'settings': await renderSettings(page); break;
-      case 'hyrox': await renderHyroxPage(page); break;
+      case 'coach': await renderCoach(page); break;
+      case 'hyrox': await renderHyroxPage(page); break;   // via Fitness → HYROX
       case 'bike': await renderBikeTab(page); break;
       default: page.innerHTML = emptyState('Coming soon', '');
     }
@@ -1390,26 +1426,8 @@ function renderBikeTab(page) {
 // ═══════════════════════════════════════════════════════
 // VIEW: TODAY (default) — readiness + today's session + trends
 // ═══════════════════════════════════════════════════════
-function _trendArrow(delta, goodWhenUp = true) {
-  if (delta == null) return { icon: '·', color: 'var(--text-3)' };
-  const up = delta > 0;
-  const good = goodWhenUp ? up : !up;
-  return {
-    icon: Math.abs(delta) < 1e-9 ? '→' : up ? '↑' : '↓',
-    color: Math.abs(delta) < 1e-9 ? 'var(--text-2)' : good ? 'var(--emerald)' : 'var(--rose)',
-  };
-}
-
-function _seriesDelta(series, key, days) {
-  if (!series || series.length < 2) return null;
-  const last = series[series.length - 1];
-  const cutoff = new Date(Date.parse(last.date) - days * 86400e3).toISOString().slice(0, 10);
-  const past = [...series].reverse().find(p => p.date <= cutoff) || series[0];
-  return last[key] != null && past[key] != null ? last[key] - past[key] : null;
-}
-
 async function renderToday(page) {
-  const [fitness, plan, events, weekly, syncStatus, activities, rpeData, profile, analytics, dailyBrief] = await Promise.all([
+  const [fitness, plan, events, weekly, syncStatus, activities, rpeData, profile, analytics, dailyBrief, calItems, analysesIdx] = await Promise.all([
     cached('fitness', () => loadJSON('fitness.json').catch(() => null)),
     planStore.get().catch(() => null),
     loadJSON('events.json').catch(() => []),
@@ -1420,6 +1438,8 @@ async function renderToday(page) {
     loadJSON('profile.json').catch(() => ({})),
     cached('analytics', () => apiJson('/profile/analytics').catch(() => null)),
     loadJSON('daily-brief.json').catch(() => null),
+    loadJSON('calendar.json').catch(() => []),
+    fetch('api/analyses', { headers: JSON_HDR }).then(r => r.ok ? r.json() : []).catch(() => []),
   ]);
 
   setTopbar('Today', new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
@@ -1438,40 +1458,58 @@ async function renderToday(page) {
         <b>${iw.level === 'alert' ? 'Illness alert' : 'Illness watch'}</b> — ${escHtml((iw.signals || []).map(s => s.replace(/_/g, ' ')).join(', '))}. ${iw.level === 'alert' ? 'Skip intensity until signals clear.' : 'Overnight signals off baseline — recheck tomorrow.'}
       </div>` : '';
 
-  // ── Today's (or next) planned session ──
+  // ── Today's (or next) session — DATE-sorted across plan + calendar items.
+  // (The old array-order scan showed a workout two days out while the coach
+  // brief talked about today's run — the two cards contradicted each other.)
   const todayISO = new Date().toISOString().slice(0, 10);
   let sessionCard = '';
-  let todaysWo = null, todaysIdx = null;
+  let todaysWo = null, todaysIdx = null, todaysItem = null;
+  const cands = [];
   if (plan && plan.accepted) {
-    outer: for (let wk = 0; wk < (plan.weeks || []).length; wk++) {
-      const wos = plan.weeks[wk].workouts || [];
-      for (let wo = 0; wo < wos.length; wo++) {
-        const w = wos[wo];
-        if (w.workout_type !== 'rest' && w.scheduled_date >= todayISO) {
-          todaysWo = w; todaysIdx = [wk, wo];
-          break outer;
-        }
+    (plan.weeks || []).forEach((week, wk) => (week.workouts || []).forEach((w, wo) => {
+      if (w.workout_type !== 'rest' && w.scheduled_date >= todayISO) {
+        cands.push({ date: w.scheduled_date, kind: 'plan', w, idx: [wk, wo] });
       }
+    }));
+  }
+  for (const it of (calItems || [])) {
+    if (it.date >= todayISO && !it.completed) {
+      cands.push({ date: it.date, kind: 'item', it });
     }
   }
+  cands.sort((a, b) => a.date.localeCompare(b.date) ||
+    (a.kind === 'plan' ? -1 : 1));   // same day: the run leads, the class follows
+  const lead = cands[0] || null;
+  if (lead && lead.kind === 'plan') { todaysWo = lead.w; todaysIdx = lead.idx; }
+  else if (lead) { todaysItem = lead.it; }
   if (todaysWo) {
     const isToday = todaysWo.scheduled_date === todayISO;
     const dist = todaysWo.estimated_distance_meters ? (todaysWo.estimated_distance_meters / 1000).toFixed(1) + ' km' : '';
     const dur = todaysWo.estimated_duration_seconds ? '~' + Math.round(todaysWo.estimated_duration_seconds / 60) + ' min' : '';
-    sessionCard = `<div class="card">
+    const why = (todaysWo.briefing && todaysWo.briefing.purpose) || todaysWo.description || '';
+    sessionCard = `<div class="card" style="border-left:3px solid var(--emerald)">
       <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>${isToday ? "Today's session" : `Next session · ${todaysWo.scheduled_date}`}</div>
         ${todaysWo.completed ? `<span class="chip" style="background:var(--emerald-d);color:var(--emerald)">${icons.check} done</span>` : ''}</div>
-      <div style="font-size:1.05rem;font-weight:700;margin-bottom:4px">${escHtml(todaysWo.name || 'Workout')}</div>
+      <div style="font-size:1.25rem;font-weight:800;margin-bottom:4px">${escHtml(todaysWo.name || 'Workout')}</div>
       <div style="font-size:.84rem;color:var(--text-2)">${escHtml((todaysWo.workout_type || '').replace(/_/g, ' '))}${dist ? ' · ' + dist : ''}${dur ? ' · ' + dur : ''}</div>
-      ${todaysWo.description ? `<div style="font-size:.85rem;color:var(--text-2);line-height:1.5;margin-top:8px">${escHtml(todaysWo.description)}</div>` : ''}
-      ${stepListHtml(todaysWo)}
+      ${why ? `<div style="font-size:.88rem;color:var(--text-2);line-height:1.55;margin-top:10px">${escHtml(why)}</div>` : ''}
+      ${todaysWo.notes ? `<div style="margin-top:10px;padding:9px 11px;border-left:3px solid var(--sky);background:var(--elevated);border-radius:var(--r-sm);font-size:.86rem;line-height:1.5;color:var(--text-2)"><b style="color:var(--text)">Coach:</b> ${escHtml(todaysWo.notes)}</div>` : ''}
+      ${(todaysWo.steps || []).length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:.85rem;color:var(--text-2);padding:6px 0">Step-by-step breakdown</summary>${stepListHtml(todaysWo)}</details>` : ''}
       <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" id="td-open-wo">Open workout</button>
-        <button class="btn btn-outline btn-sm" id="td-goto-plan">Full plan</button>
+        <button class="btn btn-primary" id="td-open-wo" style="min-height:44px">Open workout</button>
+        <button class="btn btn-outline" id="td-goto-plan" style="min-height:44px">Full plan</button>
       </div>
     </div>`;
+  } else if (todaysItem) {
+    const isToday = String(todaysItem.date) === todayISO;
+    sessionCard = `<div class="card" style="border-left:3px solid var(--violet)">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>${isToday ? "Today's session" : `Next up · ${todaysItem.date}`}</div></div>
+      <div style="font-size:1.25rem;font-weight:800;margin-bottom:4px">${escHtml(todaysItem.title || todaysItem.sport)}</div>
+      <div style="font-size:.84rem;color:var(--text-2)">${escHtml(todaysItem.sport)} · ~${todaysItem.duration_min} min</div>
+      <div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn-outline" id="td-goto-cal" style="min-height:44px">Open calendar</button></div>
+    </div>`;
   } else {
-    sessionCard = `<div class="card">${emptyState('Nothing scheduled', plan ? 'Enjoy the rest day — recovery is training.' : 'Ask the Coach to build a plan.', icons.plan)}</div>`;
+    sessionCard = `<div class="card">${emptyState('Nothing scheduled', plan ? 'Enjoy the rest day — recovery is training.' : 'Create a plan from your goal — Plan tab.', icons.plan)}</div>`;
   }
 
   // ── Done today — every activity done today (Garmin + app-recorded rides) ──
@@ -1509,26 +1547,7 @@ async function renderToday(page) {
       <b>Today's call:</b> ${escHtml(f.insights.verdict.action)}
       <button class="btn-link" data-jump-fitness style="margin-left:6px">Why? →</button>
     </div>` : ''}
-  </div>`;
-
-  // ── Trend arrows ──
-  const pmcSeries = ((f.load || {}).ctl_atl_tsb || {}).series || [];
-  const evSeries = ((f.running || {}).effective_vo2max || {}).series || [];
-  const ctlDelta = _seriesDelta(pmcSeries, 'ctl', 7);
-  const evDelta = _seriesDelta(evSeries, 'ewma', 28);
-  const comp = f.compliance || {};
-  const compWeeks = comp.weeks || [];
-  const lastWeek = compWeeks[compWeeks.length - 1] || {};
-  const ctlA = _trendArrow(ctlDelta), evA = _trendArrow(evDelta);
-  const compPct = lastWeek.compliance_pct;
-  const compColor = compPct == null ? 'var(--text-3)' : compPct >= 80 ? 'var(--emerald)' : compPct >= 50 ? 'var(--amber)' : 'var(--rose)';
-  const trendCard = `<div class="card">
-    <div class="card-h"><div class="card-title"><span class="ico">${icons.fitness}</span>Trending</div></div>
-    <div class="fx-grid">
-      ${metricCard('Fitness (CTL)', `${ctlA.icon} ${ctlDelta != null ? (ctlDelta > 0 ? '+' : '') + ctlDelta.toFixed(1) : '—'}`, 'vs 7 days ago', ctlA.color)}
-      ${metricCard('Effective VO₂max', `${evA.icon} ${evDelta != null ? (evDelta > 0 ? '+' : '') + evDelta.toFixed(1) : '—'}`, 'vs 28 days ago', evA.color)}
-      ${metricCard('This week on plan', compPct != null ? compPct + '%' : '—', 'green-band sessions', compColor)}
-    </div>
+    <div id="td-vitals-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px"></div>
   </div>`;
 
   // ── Race countdown ──
@@ -1556,14 +1575,6 @@ async function renderToday(page) {
     <div class="card-h"><div class="card-title"><span class="ico">${icons.edit}</span>How hard was it?</div></div>
     <div style="font-size:.88rem;margin-bottom:2px"><b>${escHtml(unrated.name || unrated.activity_type)}</b> · ${formatTimeAgo(unrated.start_time)}</div>
     ${rpeSelectorHtml(unrated.activity_id, null)}
-  </div>` : '';
-
-  // ── Weekly review headline ──
-  const weeklyHeadline = weekly && (weekly.headline || (typeof weekly.content === 'string' && weekly.content.split('\n').find(l => l.trim() && !l.startsWith('#'))));
-  const weeklyCard = weeklyHeadline ? `<div class="card">
-    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Coach's week review</div></div>
-    <div style="font-size:.9rem;line-height:1.55">${escHtml(weeklyHeadline)}</div>
-    ${weekly.this_week && weekly.this_week.length ? `<ul style="margin:10px 0 0 18px;font-size:.85rem;color:var(--text-2)">${weekly.this_week.map(t => `<li style="margin-bottom:4px">${escHtml(typeof t === 'string' ? t : t.action || '')}</li>`).join('')}</ul>` : ''}
   </div>` : '';
 
   // ── Daily vitals strip (health snapshot for the day) ──
@@ -1607,21 +1618,60 @@ async function renderToday(page) {
     </div>`;
   }
 
-  const rp = (analytics || {}).race_predictions || {};
+  // ── This week: one 7-day strip built from plan + calendar + done work ──
+  const monday = (() => { const d = new Date(); const off = (d.getDay() + 6) % 7; d.setDate(d.getDate() - off); return d; })();
+  const strip = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    const ds = d.toISOString().slice(0, 10);
+    const dayActs = (activities || []).filter(a => String(a.start_time || '').slice(0, 10) === ds);
+    let planned = null;
+    if (plan && plan.accepted) {
+      for (const week of plan.weeks || []) for (const w of week.workouts || []) {
+        if (w.scheduled_date === ds && w.workout_type !== 'rest') { planned = w; break; }
+      }
+    }
+    const item = (calItems || []).find(it => String(it.date) === ds);
+    const done = dayActs.length || (planned && planned.completed) || (item && item.completed);
+    const label = planned ? (planned.name || '').split(' ').slice(0, 2).join(' ')
+      : item ? (item.title || item.sport) : (dayActs[0] ? (dayActs[0].name || '') : '');
+    const color = planned ? colorForWorkout(planned.workout_type) : item ? 'var(--violet)' : dayActs.length ? 'var(--emerald)' : 'var(--border)';
+    strip.push(`<div data-week-day="${ds}" style="flex:1;min-width:0;text-align:center;padding:8px 2px;border-radius:10px;cursor:pointer;${ds === todayISO ? 'background:var(--elevated);box-shadow:inset 0 0 0 1px var(--border)' : ''}">
+      <div style="font-size:.68rem;color:var(--text-3);text-transform:uppercase">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i]}</div>
+      <div style="font-size:1rem;font-weight:700;margin:2px 0;color:${done ? 'var(--emerald)' : 'var(--text)'}">${done ? '✓' : d.getDate()}</div>
+      <div style="height:4px;border-radius:2px;background:${color};margin:0 6px"></div>
+      <div style="font-size:.62rem;color:var(--text-3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(label)}</div>
+    </div>`);
+  }
+  const weekNo = (plan && plan.accepted && (plan.weeks || []).find(w => (w.workouts || []).some(x => x.scheduled_date >= todayISO))) || null;
+  const weekStrip = `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.calendar}</span>This week${weekNo ? ` · W${weekNo.week_number} ${escHtml(weekNo.phase || '')}` : ''}</div>
+      ${weekNo && weekNo.focus ? `<span style="font-size:.74rem;color:var(--text-3)">${escHtml(weekNo.focus)}</span>` : ''}</div>
+    <div style="display:flex;gap:2px">${strip.join('')}</div>
+  </div>`;
+
   page.innerHTML = `<div class="fade-in">
-    <div class="grid stat-row">${vitals.map(statCard).join('')}</div>
-    <div class="dash-grid mt">
+    <div class="dash-grid">
+    <div class="span-12">${sessionCard}</div>
     ${briefCard ? `<div class="span-12">${briefCard}</div>` : ''}
-    <div class="span-7">${sessionCard}</div>
-    <div class="span-5">${readinessCard}</div>
-    <div class="span-7">${trendCard}</div>
-    <div class="span-5">${eventCard || weeklyCard || ''}</div>
+    <div class="span-7">${readinessCard}</div>
+    <div class="span-5">${weekStrip}${eventCard || ''}</div>
     ${rpeCard ? `<div class="span-7">${rpeCard}</div>` : ''}
-    ${eventCard && weeklyCard ? `<div class="span-5">${weeklyCard}</div>` : ''}
-    <div class="span-7">${recentActivitiesCard(activities)}</div>
-    <div class="span-5">${thisWeekCard(plan)}</div>
-    <div class="span-5">${racePredictionsCard(rp)}</div>
+    <div class="span-12">${recentActivitiesCard((activities || []).slice(0, 3), analysesIdx)}</div>
   </div></div>`;
+  // Vitals as compact chips inside Readiness (tap → Fitness) — the five giant
+  // stat cards were the "too much info" complaint's biggest offender.
+  const chipRow = document.getElementById('td-vitals-row');
+  if (chipRow) {
+    chipRow.innerHTML = vitals.map(v => `<span style="display:inline-flex;align-items:baseline;gap:4px;padding:6px 10px;border-radius:999px;background:var(--elevated);border:1px solid var(--border-s);font-size:.74rem;color:var(--text-3)">${v.label}
+      <b style="color:${v.accent};font-size:.85rem">${v.value}${v.unit || ''}</b></span>`).join('');
+    chipRow.style.cursor = 'pointer';
+    chipRow.title = 'Open Fitness for the full picture';
+    chipRow.addEventListener('click', () => goTab('fitness'));
+  }
+  page.querySelectorAll('[data-week-day]').forEach(el =>
+    el.addEventListener('click', () => goTab('calendar')));
+  on('td-goto-cal', 'click', () => goTab('calendar'));
 
   on('td-coach', 'click', () => openCoachModal());
   on('td-sync', 'click', e => syncFromGarmin(e.currentTarget));
@@ -1648,11 +1698,13 @@ function statCard(s) {
   </div>`;
 }
 
-function recentActivitiesCard(activities) {
+function recentActivitiesCard(activities, analysesIdx) {
+  const heads = {};
+  for (const a of analysesIdx || []) heads[a.id] = a.headline;
   const recent = (activities || []).slice(0, 6);
   let rows = '';
   if (recent.length) {
-    rows = `<div class="divlist">${recent.map((act, i) => activityRow(act, i)).join('')}</div>`;
+    rows = `<div class="divlist">${recent.map((act, i) => activityRow(act, i, heads[String(act.activity_id)])).join('')}</div>`;
   } else {
     rows = emptyState('No activities yet', 'Sync from Garmin to populate your feed.', icons.run);
   }
@@ -1665,7 +1717,7 @@ function recentActivitiesCard(activities) {
   </div>`;
 }
 
-function activityRow(act, i) {
+function activityRow(act, i, coachLine) {
   const isRun = (act.activity_type || '').toLowerCase().includes('run');
   const color = isRun ? 'var(--emerald)' : 'var(--violet)';
   const distKm = act.distance_meters ? (act.distance_meters / 1000).toFixed(1) : null;
@@ -1677,6 +1729,7 @@ function activityRow(act, i) {
     <div class="act-info">
       <div class="act-name">${escHtml(act.name || act.activity_type || 'Activity')}</div>
       <div class="act-meta">${when}${pace ? ' · ' + pace : ''}${act.avg_hr ? ' · ' + Math.round(act.avg_hr) + ' bpm' : ''}</div>
+      ${coachLine ? `<div style="font-size:.78rem;color:var(--sky);margin-top:3px;line-height:1.35">${icons.spark} ${escHtml(coachLine.length > 110 ? coachLine.slice(0, 110) + '…' : coachLine)}</div>` : ''}
     </div>
     <div class="act-stat">
       <div class="v">${distKm != null ? distKm : (act.duration_seconds ? formatSeconds(act.duration_seconds) : '—')}</div>
@@ -1699,70 +1752,6 @@ function bindWeekJump(page) {
   page.querySelectorAll('[data-jump-fitness]').forEach(el => el.addEventListener('click', () => goTab('fitness')));
 }
 
-function thisWeekCard(plan) {
-  if (!plan || !plan.weeks || !plan.weeks.length) {
-    return `<div class="card" style="height:100%"><div class="card-h"><div class="card-title"><span class="ico">${icons.plan}</span>This Week</div></div>${emptyState('No plan loaded', 'Generate one from the Plan tab.', icons.plan)}</div>`;
-  }
-  const idx = currentWeekIndex(plan);
-  const w = plan.weeks[idx];
-  const workouts = (w.workouts || []).filter(x => x.workout_type !== 'rest');  // rest = cross-train day, not shown
-  const done = workouts.filter(x => x.completed).length;
-  const pct = workouts.length ? Math.round(done / workouts.length * 100) : 0;
-  const upcoming = workouts.slice(0, 4);
-  return `<div class="card" style="height:100%">
-    <div class="card-h">
-      <div class="card-title"><span class="ico">${icons.plan}</span>Week ${idx + 1}</div>
-      <button class="btn-link" data-jump-plan>Open plan →</button>
-    </div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-      <div style="flex:1">
-        <div class="eyebrow">${escHtml(w.phase || 'Block')}${w.focus ? ' · ' + escHtml(w.focus) : ''}</div>
-        <div style="font-size:.82rem;color:var(--text-2);margin-top:4px">${w.total_distance_km ? w.total_distance_km.toFixed(0) + ' km planned' : ''} · ${done}/${workouts.length} done</div>
-      </div>
-      <div style="font-family:var(--font-m);font-weight:700;font-size:1.4rem;color:var(--emerald)">${pct}<span style="font-size:.8rem;color:var(--text-3)">%</span></div>
-    </div>
-    <div class="gauge-bar" style="margin-bottom:14px"><div class="gauge-fill" style="width:${pct}%;background:var(--emerald)"></div></div>
-    <div class="divlist">
-      ${upcoming.map(wo => {
-        const c = woColor(wo.workout_type);
-        const dist = wo.estimated_distance_meters ? (wo.estimated_distance_meters/1000).toFixed(1) + ' km' : '';
-        return `<div class="act-item" style="padding:10px 0;cursor:default">
-          <div class="act-bar" style="background:${c}"></div>
-          <div class="act-info">
-            <div class="act-name">${wo.completed ? '✓ ' : ''}${escHtml(wo.name || 'Workout')}</div>
-            <div class="act-meta">${wo.scheduled_date || ''}${dist ? ' · ' + dist : ''}</div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-  </div>`;
-}
-
-function racePredictionsCard(rp) {
-  const preds = (rp.predictions || []).filter(p => ['5K','10K','Half Marathon','Marathon'].includes(p.distance));
-  if (!preds.length) {
-    return `<div class="card" style="height:100%"><div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Race Predictions</div></div>${emptyState('No predictions', '', icons.hyrox)}</div>`;
-  }
-  return `<div class="card" style="height:100%">
-    <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Race Predictions</div>${rp.optimal_distance ? `<span class="chip" style="--accent:var(--sky);--accent-d:var(--sky-d)">Best · ${escHtml(rp.optimal_distance)}</span>` : ''}</div>
-    <div class="divlist">
-      ${preds.map(p => {
-        const conf = p.confidence === 'High' ? 'var(--emerald)' : p.confidence === 'Moderate' ? 'var(--amber)' : 'var(--text-3)';
-        return `<div class="act-item" style="padding:11px 0;cursor:default">
-          <div class="act-info">
-            <div class="act-name">${escHtml(p.distance)}</div>
-            <div class="act-meta">${formatPace(p.pace_sec_per_km)}/km</div>
-          </div>
-          <div class="act-stat">
-            <div class="v" style="color:var(--emerald)">${formatSeconds(p.predicted_seconds)}</div>
-            <div class="l" style="color:${conf}">${p.confidence || ''}</div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-  </div>`;
-}
-
 function woColor(type) {
   const c = { easy_run:'var(--emerald)', recovery_run:'var(--text-3)', tempo:'var(--amber)', threshold:'var(--amber)', long_run:'var(--sky)', intervals:'var(--rose)', speed:'var(--rose)', race_pace:'var(--violet)', fartlek:'var(--sky)', hyrox_mixed:'var(--violet)', cross_training:'var(--text-2)', rest:'var(--text-3)' };
   return c[type] || 'var(--text-2)';
@@ -1780,6 +1769,92 @@ function currentWeekIndex(plan) {
 // ═══════════════════════════════════════════════════════
 // VIEW: FITNESS (sub-sections — renderers preserved)
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// VIEW: COACH — everything the coach writes, one tap from anywhere
+// ═══════════════════════════════════════════════════════
+async function renderCoach(page) {
+  const [dailyBrief, weekly, fitness, analysesIdx, activities] = await Promise.all([
+    loadJSON('daily-brief.json').catch(() => null),
+    loadJSON('weekly.json').catch(() => null),
+    cached('fitness', () => loadJSON('fitness.json').catch(() => null)),
+    fetch('api/analyses', { headers: JSON_HDR }).then(r => r.ok ? r.json() : []).catch(() => []),
+    cached('activities', () => apiJson('/activities').catch(() => [])),
+  ]);
+  setTopbar('Coach', 'Briefs, reviews and every session analysis',
+    `<button class="btn btn-ghost btn-sm" id="co-ask">${icons.spark} Ask Coach</button>`);
+
+  const actById = {};
+  for (const a of activities || []) actById[String(a.activity_id)] = a;
+
+  let briefHtml = '';
+  if (dailyBrief && dailyBrief.headline) {
+    const section = (title, md) => md ? `
+      <div class="eyebrow" style="margin:12px 0 4px">${title}</div>
+      <div style="font-size:.87rem;line-height:1.55;color:var(--text-2)">${formatMarkdown(md)}</div>` : '';
+    briefHtml = `<div class="card">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Daily brief · ${escHtml(dailyBrief.date || '')}</div></div>
+      <div style="font-size:.95rem;font-weight:700;line-height:1.45">${escHtml(dailyBrief.headline)}</div>
+      ${section('Your body today', dailyBrief.body_state)}
+      ${section("Today's session", dailyBrief.session)}
+      ${section('The last few days', dailyBrief.recent)}
+      ${(dailyBrief.pulses || []).map(p => `
+        <div style="margin-top:10px;padding:10px 12px;border-left:3px solid var(--sky);background:var(--elevated);border-radius:var(--r-sm)">
+          <div class="eyebrow" style="margin-bottom:4px">Day pulse · ${escHtml(formatTimeAgo(p.at))}</div>
+          <div style="font-size:.86rem;line-height:1.5;color:var(--text-2)">${escHtml(p.text)}</div>
+        </div>`).join('')}
+    </div>`;
+  }
+
+  let weeklyHtml = '';
+  if (weekly && (weekly.headline || weekly.content_md)) {
+    weeklyHtml = `<div class="card">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.fitness}</span>Week review</div>
+        ${weekly.compliance_pct != null ? `<span class="chip">${weekly.compliance_pct}% on plan</span>` : ''}</div>
+      ${weekly.headline ? `<div style="font-size:.95rem;font-weight:700;line-height:1.45;margin-bottom:6px">${escHtml(weekly.headline)}</div>` : ''}
+      ${(weekly.limiters || []).length ? `<div class="eyebrow" style="margin:10px 0 4px">Limiters</div>
+        <ul style="margin:0 0 0 18px;font-size:.85rem;color:var(--text-2)">${weekly.limiters.map(l => `<li style="margin-bottom:3px">${escHtml(typeof l === 'string' ? l : l.text || JSON.stringify(l))}</li>`).join('')}</ul>` : ''}
+      ${weekly.content_md ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:.85rem;color:var(--text-2);padding:6px 0">Full review</summary>
+        <div style="font-size:.87rem;line-height:1.6;color:var(--text-2)">${formatMarkdown(weekly.content_md)}</div></details>` : ''}
+    </div>`;
+  }
+
+  const rows = (analysesIdx || []).slice(0, 30).map(a => {
+    const act = actById[a.id] || null;
+    const when = act ? String(act.start_time).slice(0, 10) : (a.id.startsWith('bike:') ? a.id.slice(5, 15) : '');
+    const name = act ? (act.name || act.activity_type) : (a.id.startsWith('bike:') ? 'Bike ride' : a.id.startsWith('hyrox-') ? 'HYROX race review' : 'Activity ' + a.id);
+    return `<div class="feed-row" data-an-id="${escHtml(a.id)}" style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--border-s);cursor:pointer;min-height:44px">
+      <div style="display:flex;justify-content:space-between;gap:10px"><b style="font-size:.88rem">${escHtml(name)}</b><span style="font-size:.76rem;color:var(--text-3);white-space:nowrap">${when}</span></div>
+      <div style="font-size:.8rem;color:var(--text-2);line-height:1.4">${escHtml(a.headline)}</div>
+    </div>`;
+  }).join('');
+  const analysesHtml = `<div class="card">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>Session analyses</div>
+      <span style="font-size:.74rem;color:var(--text-3)">${(analysesIdx || []).length} written</span></div>
+    ${rows || `<div class="empty" style="border:none;padding:20px 0">Analyses appear here after each synced session.</div>`}
+  </div>`;
+
+  page.innerHTML = `<div class="fade-in"><div class="dash-grid">
+    ${briefHtml ? `<div class="span-7">${briefHtml}</div>` : ''}
+    <div class="span-5">${weeklyHtml}${fitness ? renderCoachTake(fitness) : ''}</div>
+    ${fitness ? `<div class="span-12">${renderInsightsPanel(fitness)}</div>` : ''}
+    <div class="span-12">${analysesHtml}</div>
+  </div></div>`;
+
+  on('co-ask', 'click', () => openCoachModal());
+  page.querySelectorAll('[data-an-id]').forEach(el => el.addEventListener('click', async () => {
+    const id = el.dataset.anId;
+    const act = actById[id];
+    if (act) { openActivity(act); return; }
+    // No activity object (hyrox reviews, pruned history): show the markdown inline.
+    try {
+      const md = await loadText('analyses/' + id + '.md');
+      openModal(`<div class="modal-h"><div class="modal-title">Coach analysis</div>
+        <button class="modal-close" data-close>${icons.x}</button></div>
+        <div style="font-size:.88rem;line-height:1.6">${formatMarkdown(md)}</div>`, true);
+    } catch { toast('err', 'Analysis not found', ''); }
+  }));
+}
+
 async function renderFitness(page) {
   const [analytics, fitness] = await Promise.all([
     cached('analytics', () => apiJson('/profile/analytics').catch(() => null)),
@@ -1820,7 +1895,9 @@ async function renderFitness(page) {
       case 'strength': el.innerHTML = fitness ? renderStrength(fitness) : emptyState('No data', ''); bindBenchmarkForm(el, draw); break;
       case 'economy': el.className = 'grid cols-auto'; el.innerHTML = renderEconomy(analytics); break;
       case 'races': el.className = 'grid cols-auto'; el.innerHTML = renderRaces(analytics); break;
-      case 'hyrox_p': el.className = 'grid cols-auto'; el.innerHTML = renderHyroxProfile(analytics); break;
+      case 'hyrox_p': el.className = 'grid cols-auto'; el.innerHTML =
+        `<div class="span-12" style="margin-bottom:10px"><button class="btn btn-outline btn-sm" data-tab="hyrox">Full HYROX page — races &amp; splits →</button></div>`
+        + renderHyroxProfile(analytics); el.querySelector('[data-tab]')?.addEventListener('click', () => goTab('hyrox')); break;
     }
   }
   draw();
@@ -2099,43 +2176,6 @@ function bindBenchmarkForm(container, redraw) {
     if (!res.ok && res.status !== 204) throw new Error(await jobError(res));
     status.innerHTML = 'Saved — building your strength assessment (~1–2 min). Reload the page after that to see it.';
   }));
-}
-
-function renderWeeklyOverview(el) {
-  el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-  apiJson('/weekly-overview').then(data => {
-    if (!data || !data.content) { el.innerHTML = emptyState('No weekly overview yet', 'Generated by the coach workflow.', icons.calendar); return; }
-    drawWeeklyContent(el, data);
-  }).catch(() => { el.innerHTML = emptyState('Weekly overview unavailable', '', icons.calendar); });
-}
-
-function drawWeeklyContent(el, data) {
-  const { content, week_start, generated_at } = data;
-  const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  let head = '';
-  if (week_start) {
-    const monday = new Date(week_start + 'T00:00:00'); const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
-    const updatedAt = generated_at ? new Date(generated_at).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
-    head = `<div style="margin-bottom:16px"><div style="font-family:var(--font-d);font-size:1.05rem;font-weight:700">${fmt(monday)} – ${fmt(sunday)}</div>${updatedAt ? `<div style="font-size:.74rem;color:var(--text-3);margin-top:2px">Updated ${updatedAt}</div>` : ''}</div>`;
-  }
-  const sections = [
-    { key:'summary', title:'Summary', color:'var(--emerald)' },
-    { key:'plan_adherence', title:'Plan Adherence', color:'var(--sky)' },
-    { key:'performance', title:'Performance', color:'var(--amber)' },
-    { key:'recovery', title:'Recovery & Wellness', color:'var(--violet)' },
-    { key:'concerns', title:'Concerns', color:'var(--rose)' },
-    { key:'tips', title:'Tips', color:'var(--emerald)' },
-  ];
-  let cards = '';
-  for (const { key, title, color } of sections) {
-    const text = content[key];
-    if (!text || text.toLowerCase().trim() === 'none') continue;
-    cards += `<div class="card card-pad-sm">
-      <div class="eyebrow" style="color:${color};margin-bottom:8px">${title}</div>
-      <div style="font-size:.88rem;color:var(--text-2);line-height:1.6;white-space:pre-line">${escHtml(text)}</div>
-    </div>`;
-  }
-  el.innerHTML = `<div class="fade-in">${head}<div class="grid cols-auto">${cards}</div></div>`;
 }
 
 function renderSnapshot(a) {
@@ -2477,6 +2517,9 @@ function planHeaderHtml(p) {
       p.intake.experience_level || '',
     ].filter(Boolean).join(' · '))}</div>` : ''}
     ${p.rationale ? `<div style="font-size:.84rem;color:var(--text-2);line-height:1.55;margin-top:12px;border-top:1px solid var(--border-s);padding-top:12px">${escHtml(p.rationale)}</div>` : ''}
+    ${p.athlete_summary ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:.8rem;color:var(--text-3)">Athlete summary the coach worked from</summary><div style="font-size:.82rem;color:var(--text-2);line-height:1.5;margin-top:6px">${escHtml(p.athlete_summary)}</div></details>` : ''}
+    ${(p.tips || []).length ? `<div class="eyebrow" style="margin:12px 0 4px">Coach's tips for this block</div>
+      <ul style="margin:0 0 0 18px;font-size:.84rem;color:var(--text-2)">${p.tips.map(t => `<li style="margin-bottom:4px">${escHtml(t)}</li>`).join('')}</ul>` : ''}
   </div>`;
 }
 
@@ -2691,6 +2734,7 @@ function showWorkoutSheet(wo, wkIdx, woIdx) {
     </div>
     ${wo.description ? `<div style="font-size:.88rem;color:var(--text-2);line-height:1.55;margin-bottom:8px">${escHtml(wo.description)}</div>` : ''}
     ${briefingHtml(wo.briefing)}
+    ${wo.completion_analysis ? `<div style="margin:10px 0;padding:10px 12px;border-left:3px solid var(--emerald);background:var(--elevated);border-radius:var(--r-sm);font-size:.86rem;line-height:1.5;color:var(--text-2)"><b style="color:var(--text)">How it went:</b> ${escHtml(wo.completion_analysis)}</div>` : ''}
     ${stepsHtml}
     ${metricsHtml}
     ${rpeHtml}
@@ -3104,12 +3148,24 @@ window.backToDay = function(ds) {
   document.querySelector(`.cal-day[data-date="${ds}"]`)?.click();
 };
 function formatMarkdown(md) {
-  return escHtml(md)
+  let s = escHtml(md)
     .replace(/^#{1,3} (.*)$/gm, '<div style="font-weight:700;color:var(--text);margin:12px 0 4px">$1</div>')
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
-    .replace(/^\s*[-*] (.*)$/gm, '<li>$1</li>')
-    .replace(/(?:<li>[\s\S]*?<\/li>\n?)+/g, m => '<ul style="margin:4px 0 10px 18px">' + m + '</ul>')
-    .replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="btn-link">$1</a>');
+  // Tables: consecutive |...| lines (separator row dropped)
+  s = s.replace(/(?:^\|.+\|\s*$\n?){2,}/gm, block => {
+    const rows = block.trim().split('\n').filter(r => !/^\|[\s\-:|]+\|$/.test(r));
+    const tr = rows.map((r, i) => '<tr>' + r.replace(/^\||\|$/g, '').split('|')
+      .map(c => `<${i ? 'td' : 'th'} style="padding:4px 8px;border-bottom:1px solid var(--border-s);text-align:left">${c.trim()}</${i ? 'td' : 'th'}>`).join('') + '</tr>').join('');
+    return `<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:.84rem;margin:8px 0">${tr}</table></div>`;
+  });
+  // Lists incl. one nesting level (2+ leading spaces)
+  s = s.replace(/^ {2,}[-*] (.*)$/gm, '<li class="md-sub">$1</li>')
+       .replace(/^\s*[-*] (.*)$/gm, '<li>$1</li>')
+       .replace(/(?:<li[^>]*>[\s\S]*?<\/li>\n?)+/g, m =>
+         '<ul style="margin:4px 0 10px 18px">' + m.replace(/<li class="md-sub">([\s\S]*?)<\/li>/g,
+           '<ul style="margin:2px 0 2px 16px"><li>$1</li></ul>') + '</ul>');
+  return s.replace(/\n{2,}/g, '<br><br>').replace(/\n/g, '<br>');
 }
 
 // Per-km area chart (inline SVG). invert=true puts the smallest value on top —
@@ -3419,10 +3475,11 @@ function activityDetailBody(act, detail, analysisMd, match, candidates = []) {
       ${detailItem(b.ftp != null ? Math.round(b.ftp) + 'W' : '—', 'FTP')}
     </div>
     ${planHtml}
-    ${matchHtml}
-    <div class="act-sec"><div class="eyebrow" style="margin-bottom:8px">Coach analysis</div><div id="coach-analysis-slot">${analysisInner}</div></div>`;
+    ${matchHtml}`.replace('<div class="detail-grid">',
+      `<div class="act-sec" style="margin-top:0"><div class="eyebrow" style="margin-bottom:8px">Coach analysis</div><div id="coach-analysis-slot">${analysisInner}</div></div><div class="detail-grid">`);
   }
   return `
+    <div class="act-sec" style="margin-top:0"><div class="eyebrow" style="margin-bottom:8px">Coach analysis</div><div id="coach-analysis-slot">${analysisInner}</div></div>
     <div class="detail-grid">
       ${detailItem(distKm, 'Distance km')}${detailItem(duration, 'Duration')}${detailItem(pace, 'Avg Pace')}
       ${detailItem(act.avg_hr || '—', 'Avg HR')}${detailItem(act.max_hr || '—', 'Max HR')}${detailItem(act.calories || '—', 'Calories')}
@@ -3435,8 +3492,7 @@ function activityDetailBody(act, detail, analysisMd, match, candidates = []) {
     </div>
     ${charts}
     ${planHtml}
-    ${matchHtml}
-    <div class="act-sec"><div class="eyebrow" style="margin-bottom:8px">Coach analysis</div><div id="coach-analysis-slot">${analysisInner}</div></div>`;
+    ${matchHtml}`;
 }
 
 // Render an activity's full detail into a container (page or calendar panel). onBack,
@@ -4547,9 +4603,6 @@ function labelValue(label, value) {
 }
 function detailItem(value, label) {
   return `<div class="detail-item"><div class="d-val">${value}</div><div class="d-lbl">${label}</div></div>`;
-}
-function metricCard(label, value, sub) {
-  return `<div class="stat"><div class="stat-label">${label}</div><div class="stat-value">${value}</div>${sub ? `<div class="stat-sub">${escHtml(sub)}</div>` : ''}</div>`;
 }
 
 function formatPace(secPerKm) {

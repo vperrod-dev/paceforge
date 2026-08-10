@@ -1148,6 +1148,17 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
     if plan:
         store.save_plan(plan)  # persist garmin_workout_id changes
     store.save_calendar(cal_items)
+    # Persist the outcome for the portal — reconcile runs from cron, so these
+    # counts otherwise die in the journal.
+    status = store.load_sync_status() or {}
+    status["push"] = {
+        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "pushed": pushed,
+        "failed": len(failed),
+        "stale_deleted": stale_deleted,
+        "orphans_deleted": orphans_deleted,
+    }
+    store.save_sync_status(status)
     return {"weeks": [wk.week_number for wk in weeks], "pushed": pushed,
             "stale_deleted": stale_deleted, "orphans_deleted": orphans_deleted,
             "delete_failed": delete_failed, "failed": failed}

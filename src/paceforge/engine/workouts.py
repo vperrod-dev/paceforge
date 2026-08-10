@@ -293,20 +293,21 @@ class WorkoutFactory:
         from paceforge.engine.vdot import predict_time
 
         p = self.paces
-        pace_lo = pace_hi = None
         dur = None
+        tt_desc = f"{km:.0f} km all-out time trial"
         if p and p.vdot:
-            pace_c = predict_time(km * 1000, p.vdot) / km
-            pace_lo, pace_hi = pace_c * 0.98, pace_c * 1.02
-            dur = 15 * 60 + km * pace_c + 10 * 60
+            predicted = predict_time(km * 1000, p.vdot)
+            m, s = divmod(int(predicted), 60)
+            # The prediction is context, not a cage: an all-out benchmark goes
+            # to the watch as an OPEN step or its pace alerts sandbag the test.
+            tt_desc += f" — current fitness predicts ~{m}:{s:02d}"
+            dur = 15 * 60 + predicted + 10 * 60
         steps = [
             self._warmup(15),
             self._pace_step(
                 WorkoutStepType.INTERVAL,
-                f"{km:.0f} km all-out time trial",
+                tt_desc,
                 distance_meters=km * 1000,
-                pace_low=pace_lo,
-                pace_high=pace_hi,
             ),
             self._cooldown(10),
         ]

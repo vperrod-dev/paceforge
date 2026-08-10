@@ -12,6 +12,7 @@ from garminconnect import Garmin
 from garminconnect.workout import (
     ConditionType,
     ExecutableStep,
+    RepeatGroup,
     RunningWorkout,
     StepType,
     TargetType,
@@ -847,10 +848,11 @@ class GarminClient:
 
     def _upload(self, workout: Workout, sport: dict, plan_paces: dict | None,
                 pace_bands: dict | None = None) -> dict:
-        steps = workout.steps or _fallback_steps(workout, plan_paces)
-        garmin_steps = [_to_garmin_step(step, order=i + 1, pace_bands=pace_bands,
-                                        cadence=workout.cadence_target)
-                        for i, step in enumerate(steps)]
+        steps = workout.steps or _fallback_steps(workout, plan_paces, pace_bands)
+        garmin_steps = _renumber_steps(
+            [_to_garmin_step(step, order=i + 1, pace_bands=pace_bands,
+                             cadence=workout.cadence_target, briefing=workout.briefing)
+             for i, step in enumerate(steps)])
         garmin_workout = RunningWorkout(
             workoutName=workout.name,
             description=_build_garmin_description(workout, plan_paces),
@@ -864,6 +866,10 @@ class GarminClient:
                 )
             ],
         )
+        if workout.estimated_distance_meters:
+            # Without this the Garmin workout card shows 0 km planned.
+            garmin_workout.estimatedDistanceInMeters = float(  # type: ignore[attr-defined]
+                workout.estimated_distance_meters)
         return self.client.upload_running_workout(garmin_workout)
 
     # ── Weight & body composition ────────────────────────────────────
@@ -984,97 +990,35 @@ class GarminClient:
         return {"pushed": pushed, "failed": failed}
 
 
-def _fmt_pace(sec_per_km: float | None) -> str:
-    """Format sec/km as M:SS/km."""
-    if not sec_per_km or sec_per_km <= 0:
-        return ""
-    m, s = divmod(int(sec_per_km), 60)
-    return f"{m}:{s:02d}/km"
+def _truncate_at_word(text: str, limit: int) -> str:
+    """Cut at a word boundary with an ellipsis — a mid-word cut reads as a typo."""
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1]
+    head = cut.rsplit(None, 1)
+    if not text[limit - 1].isspace() and len(head) == 2:
+        cut = head[0]
+    return cut.rstrip() + "…"
 
 
 def _build_garmin_description(workout: Workout, plan_paces: dict | None = None) -> str:
-    """Build a rich workout description for the Garmin watch preview screen.
+    """Build the ≤500-char description for the Garmin watch preview screen.
 
-    Includes purpose, distance/duration, step breakdown with target paces,
-    and coaching notes. Kept under ~450 chars to stay within Garmin's limit.
+    Leads with the briefing (purpose → feel → cue), then Claude's coaching
+    note. Deliberately NO pace/step recap lines — the watch already renders
+    every step and target, and those lines used to truncate the coaching text.
     """
-    parts = []
-
-    # Line 1: Purpose + distance/duration
-    header = ""
-    if workout.purpose:
-        purpose_label = workout.purpose.value.replace("_", " ").title()
-        header = f"Goal: {purpose_label}"
-    dist_km = round(workout.estimated_distance_meters / 1000, 1) if workout.estimated_distance_meters else 0
-    dur_min = round(workout.estimated_duration_seconds / 60) if workout.estimated_duration_seconds else 0
-    summary_parts = []
-    if dist_km:
-        summary_parts.append(f"{dist_km}km")
-    if dur_min:
-        summary_parts.append(f"~{dur_min}min")
-    if header and summary_parts:
-        header += f" | {' '.join(summary_parts)}"
-    elif summary_parts:
-        header = ' '.join(summary_parts)
-    if header:
-        parts.append(header)
-
-    # Briefing purpose — the "why" the engine wrote for this session
-    if workout.briefing and workout.briefing.get("purpose"):
-        parts.append(workout.briefing["purpose"])
-
-    # Pace reference line
-    if plan_paces:
-        pace_items = []
-        label_map = [("easy_pace", "Easy"), ("marathon_pace", "MP"), ("threshold_pace", "Thresh"), ("interval_pace", "Intv")]
-        for key, label in label_map:
-            val = plan_paces.get(key)
-            if val:
-                pace_items.append(f"{label} {_fmt_pace(val)}")
-        if pace_items:
-            parts.append("Paces: " + " | ".join(pace_items))
-
-    # Step breakdown (compact)
-    if workout.steps:
-        step_lines = []
-        for step in workout.steps:
-            if step.repeat_count and step.steps:
-                # Repeat group
-                sub = step.steps[0] if step.steps else None
-                desc = sub.description if sub and sub.description else "interval"
-                pace = ""
-                if sub and sub.target_low:
-                    pace = f" @ {_fmt_pace(sub.target_low)}"
-                dist_part = ""
-                if sub and sub.distance_meters:
-                    dist_part = f" {sub.distance_meters/1000:.1f}km" if sub.distance_meters >= 1000 else f" {int(sub.distance_meters)}m"
-                step_lines.append(f"{step.repeat_count}x{dist_part} {desc}{pace}")
-            else:
-                desc = step.description or step.step_type.value
-                pace = ""
-                if step.target_low and step.target_low > 0:
-                    pace = f" ({_fmt_pace(step.target_low)})"
-                dur = ""
-                if step.distance_meters:
-                    dur = f"{step.distance_meters/1000:.1f}km " if step.distance_meters >= 1000 else f"{int(step.distance_meters)}m "
-                elif step.duration_seconds:
-                    dur = f"{int(step.duration_seconds/60)}min "
-                step_lines.append(f"{dur}{desc}{pace}")
-        if step_lines:
-            parts.append("Steps: " + " > ".join(step_lines))
-
-    if workout.cadence_target:
-        parts.append(f"Cadence: ~{workout.cadence_target} spm on the work reps")
-
-    # Coaching notes
-    if workout.notes:
-        parts.append(workout.notes)
-
-    result = "\n".join(parts)
-    # Truncate to stay within Garmin's limit (512)
-    if len(result) > 500:
-        result = result[:497] + "..."
-    return result or workout.description
+    briefing = workout.briefing or {}
+    parts = [p for p in (
+        briefing.get("purpose"),
+        f"Feel: {briefing['feel']}" if briefing.get("feel") else None,
+        f"Cue: {briefing['cue']}" if briefing.get("cue") else None,
+        f"Cadence: ~{workout.cadence_target} spm on the work reps"
+        if workout.cadence_target else None,
+        workout.notes,
+    ) if p]
+    result = "\n".join(parts) or workout.description
+    return _truncate_at_word(result, 500)
 
 
 def _meters_per_sec_to_sec_per_km(speed: float | None) -> float | None:
@@ -1083,28 +1027,79 @@ def _meters_per_sec_to_sec_per_km(speed: float | None) -> float | None:
     return round(1000.0 / speed, 1)
 
 
-def _fallback_steps(workout: Workout, plan_paces: dict | None) -> list[WorkoutStep]:
+# Step-less workout types whose fallback step is honestly run at easy pace.
+_EASY_FALLBACK_TYPES = {
+    "easy_run", "long_run", "recovery_run", "easy_with_strides",
+    "long_run_progressive", "long_run_with_race_pace",
+}
+
+
+def _fallback_steps(workout: Workout, plan_paces: dict | None,
+                    pace_bands: dict | None = None) -> list[WorkoutStep]:
     """A step-less workout still needs one structured step to load + track on Garmin.
 
-    Builds a single run step from the workout's estimated distance (or duration),
-    paced at easy so the watch can guide and record it.
+    Non-running sessions (gym classes, HYROX stations, bike) get a single timed
+    step with NO pace target — the old easy-pace cage had the watch beeping
+    "speed up" through classes. Race-day sessions get the plan's race band (or
+    run open), easy/long types the easy band, anything else a modest window.
     """
+    name = workout.name or "Run"
+    if workout.sport != "run" or str(workout.workout_type) in _SPORT_BY_WORKOUT_TYPE:
+        return [WorkoutStep(
+            step_type=WorkoutStepType.ACTIVE,
+            description=name,
+            duration_seconds=workout.estimated_duration_seconds or 3600,
+            target_type=IntensityTarget.OPEN,
+        )]
+    bands = pace_bands or {}
     easy = (plan_paces or {}).get("easy_pace")
+    modest = [easy - 5, easy + 5] if easy else None  # fast → slow, NOT inverted
+    wt = str(workout.workout_type)
+    if wt == "race_pace" or "RACE DAY" in name.upper():
+        # All-out day: the race band when the plan has one, otherwise open —
+        # never cage a race at easy pace.
+        band = bands.get("race")
+    elif wt in _EASY_FALLBACK_TYPES:
+        band = bands.get("easy") or modest
+    else:
+        band = modest
     dist = workout.estimated_distance_meters
     dur = None if dist else (workout.estimated_duration_seconds or 1800)
+    lo, hi = band if band else (None, None)
     return [WorkoutStep(
         step_type=WorkoutStepType.ACTIVE,
-        description=workout.name or "Run",
+        description=name,
         distance_meters=dist,
         duration_seconds=dur,
-        target_type=IntensityTarget.PACE if easy else IntensityTarget.OPEN,
-        target_low=(easy + 5) if easy else None,
-        target_high=(easy - 5) if easy else None,
+        target_type=IntensityTarget.PACE if lo else IntensityTarget.OPEN,
+        target_low=lo,
+        target_high=hi,
     )]
 
 
+def _renumber_steps(steps: list, _state: dict | None = None) -> list:
+    """Renumber the step tree the way Garmin's own payloads do.
+
+    Garmin numbers every node — repeat groups AND their children — depth-first
+    sequentially across the whole workout, and tags each repeat group's
+    children with a childStepId (group 1..k). Locally-restarting stepOrders
+    render out of order on the watch.
+    """
+    state = _state if _state is not None else {"order": 0, "groups": 0}
+    for s in steps:
+        state["order"] += 1
+        s.stepOrder = state["order"]
+        if isinstance(s, RepeatGroup):
+            state["groups"] += 1
+            gid = state["groups"]
+            for child in s.workoutSteps:
+                child.childStepId = gid
+            _renumber_steps(s.workoutSteps, state)
+    return steps
+
+
 def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None,  # noqa: ANN001
-                    cadence: int | None = None):
+                    cadence: int | None = None, briefing: dict | None = None):
     """Convert a PaceForge WorkoutStep to a garminconnect workout step dict.
 
     Handles pace targets (sec/km → m/s pace zone), custom heart-rate ranges,
@@ -1115,9 +1110,14 @@ def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None,  # noq
     """
     # ── Repeat groups must be checked first ──────────────────────────
     if step.repeat_count and step.steps:
-        sub_steps = [_to_garmin_step(s, i + 1, pace_bands=pace_bands, cadence=cadence)
+        sub_steps = [_to_garmin_step(s, i + 1, pace_bands=pace_bands, cadence=cadence,
+                                     briefing=briefing)
                      for i, s in enumerate(step.steps)]
-        return create_repeat_group(step.repeat_count, sub_steps, order)
+        group = create_repeat_group(step.repeat_count, sub_steps, order)
+        if step.description:
+            # RepeatGroup is extra="allow" — carry "6 x strides" to the watch.
+            group.description = step.description[:200]  # type: ignore[attr-defined]
+        return group
 
     has_bounds = (
         step.target_low is not None
@@ -1125,6 +1125,10 @@ def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None,  # noq
         and step.target_low > 0
         and step.target_high > 0
     )
+    # Recoveries/rests are walked or jogged by feel — a pace band there makes
+    # the watch alert "speed up" during every rest. They go up untargeted.
+    if step.step_type in (WorkoutStepType.RECOVERY, WorkoutStepType.REST):
+        has_bounds = False
 
     # ── Build target if available ────────────────────────────────────
     target = None
@@ -1239,8 +1243,14 @@ def _to_garmin_step(step, order: int = 1, pace_bands: dict | None = None,  # noq
         garmin_step.targetValueOne = target_val_one  # type: ignore[attr-defined]
         garmin_step.targetValueTwo = target_val_two  # type: ignore[attr-defined]
 
-    # Per-step notes — Garmin renders these on the watch during the step.
-    if step.description:
-        garmin_step.description = step.description[:200]  # type: ignore[attr-defined]
+    # Per-step notes — Garmin renders these on the watch during the step. Work
+    # steps carry the briefing's feel/cue (coaching the athlete can't get
+    # mid-rep) instead of restating the target the watch already shows; rests
+    # keep their own informative text ("45s walking rest").
+    note = step.description
+    if briefing and step.step_type in (WorkoutStepType.INTERVAL, WorkoutStepType.ACTIVE):
+        note = briefing.get("feel") or briefing.get("cue") or note
+    if note:
+        garmin_step.description = note[:200]  # type: ignore[attr-defined]
 
     return garmin_step

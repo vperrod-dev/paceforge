@@ -1,7 +1,20 @@
 """Tests for Garmin workout step conversion with pace targets."""
 
-from paceforge.garmin.client import _to_garmin_step
-from paceforge.models.plan import IntensityTarget, WorkoutStep, WorkoutStepType
+from paceforge.engine.vdot import paces_from_vdot
+from paceforge.engine.workouts import WorkoutFactory
+from paceforge.garmin.client import (
+    _build_garmin_description,
+    _fallback_steps,
+    _renumber_steps,
+    _to_garmin_step,
+)
+from paceforge.models.plan import (
+    IntensityTarget,
+    Workout,
+    WorkoutStep,
+    WorkoutStepType,
+    WorkoutType,
+)
 
 
 class TestGarminStepConversion:
@@ -151,7 +164,6 @@ class TestGarminStepConversion:
 class TestSportInference:
     def test_hyrox_and_station_workouts_push_as_fitness_equipment(self):
         from paceforge.garmin.client import _sport_for
-        from paceforge.models.plan import Workout, WorkoutType
 
         brick = Workout(name="Brick", workout_type=WorkoutType.HYROX_MIXED)
         stations = Workout(name="Stations", workout_type=WorkoutType.CROSS_TRAINING)
@@ -162,12 +174,173 @@ class TestSportInference:
 
 
 def test_stepless_workout_gets_a_fallback_paced_step():
-    from paceforge.garmin.client import _fallback_steps
-    from paceforge.models.plan import Workout, WorkoutType
-
     wo = Workout(workout_type=WorkoutType.EASY_RUN, name="Easy shakeout",
                  estimated_distance_meters=5000)
     steps = _fallback_steps(wo, {"easy_pace": 300.0})
     assert len(steps) == 1
     assert steps[0].distance_meters == 5000
     assert steps[0].target_low and steps[0].target_high  # paced, so Garmin guides it
+
+
+class TestRecoveryRestTargets:
+    def test_recovery_step_with_pace_band_has_no_target(self):
+        step = WorkoutStep(step_type=WorkoutStepType.RECOVERY, duration_seconds=120,
+                           target_type=IntensityTarget.PACE,
+                           target_low=290.0, target_high=320.0)
+        result = _to_garmin_step(step)
+        assert result.targetType["workoutTargetTypeKey"] == "no.target"
+
+    def test_rest_step_with_pace_band_has_no_target(self):
+        step = WorkoutStep(step_type=WorkoutStepType.REST, duration_seconds=60,
+                           target_type=IntensityTarget.PACE,
+                           target_low=290.0, target_high=320.0)
+        result = _to_garmin_step(step)
+        assert result.targetType["workoutTargetTypeKey"] == "no.target"
+
+    def test_warmup_keeps_its_pace_band(self):
+        step = WorkoutStep(step_type=WorkoutStepType.WARMUP, duration_seconds=600,
+                           target_type=IntensityTarget.PACE,
+                           target_low=290.0, target_high=320.0)
+        result = _to_garmin_step(step)
+        assert result.targetType["workoutTargetTypeKey"] == "pace.zone"
+
+
+def _repeat_group_step() -> WorkoutStep:
+    return WorkoutStep(
+        step_type=WorkoutStepType.INTERVAL,
+        description="4 x 3min VO2max",
+        repeat_count=4,
+        steps=[
+            WorkoutStep(step_type=WorkoutStepType.INTERVAL, duration_seconds=180,
+                        target_low=240.0, target_high=250.0),
+            WorkoutStep(step_type=WorkoutStepType.RECOVERY, duration_seconds=90),
+        ],
+    )
+
+
+def test_repeat_group_carries_description():
+    result = _to_garmin_step(_repeat_group_step())
+    assert result.description == "4 x 3min VO2max"
+
+
+def test_tree_renumbered_globally_with_child_step_ids():
+    steps = [
+        _to_garmin_step(WorkoutStep(step_type=WorkoutStepType.WARMUP,
+                                    duration_seconds=600), order=1),
+        _to_garmin_step(_repeat_group_step(), order=2),
+        _to_garmin_step(WorkoutStep(step_type=WorkoutStepType.COOLDOWN,
+                                    duration_seconds=600), order=3),
+    ]
+    _renumber_steps(steps)
+    group = steps[1]
+    assert [steps[0].stepOrder, group.stepOrder, steps[2].stepOrder] == [1, 2, 5]
+    assert [c.stepOrder for c in group.workoutSteps] == [3, 4]
+    assert [c.childStepId for c in group.workoutSteps] == [1, 1]
+    assert steps[0].childStepId is None  # top-level steps stay untagged
+
+
+class TestFallbackSteps:
+    def test_cross_training_gets_timed_step_with_no_pace_target(self):
+        wo = Workout(workout_type=WorkoutType.CROSS_TRAINING, name="HIIT class",
+                     estimated_duration_seconds=2700)
+        steps = _fallback_steps(wo, {"easy_pace": 300.0}, {"easy": [285.0, 320.0]})
+        assert steps[0].target_type == IntensityTarget.OPEN
+        assert steps[0].target_low is None
+        assert steps[0].duration_seconds == 2700
+
+    def test_race_day_uses_race_band(self):
+        wo = Workout(workout_type=WorkoutType.RACE_PACE, name="RACE DAY: Half",
+                     estimated_distance_meters=21097)
+        steps = _fallback_steps(wo, {"easy_pace": 300.0},
+                                {"easy": [285.0, 320.0], "race": [255.0, 268.0]})
+        assert (steps[0].target_low, steps[0].target_high) == (255.0, 268.0)
+
+    def test_race_day_without_race_band_stays_open(self):
+        wo = Workout(workout_type=WorkoutType.RACE_PACE, name="RACE DAY: Half",
+                     estimated_distance_meters=21097)
+        steps = _fallback_steps(wo, {"easy_pace": 300.0}, {"easy": [285.0, 320.0]})
+        assert steps[0].target_type == IntensityTarget.OPEN
+
+    def test_easy_run_uses_easy_band(self):
+        wo = Workout(workout_type=WorkoutType.EASY_RUN, name="Easy 8k",
+                     estimated_distance_meters=8000)
+        steps = _fallback_steps(wo, {"easy_pace": 300.0}, {"easy": [285.0, 320.0]})
+        assert (steps[0].target_low, steps[0].target_high) == (285.0, 320.0)
+
+    def test_modest_window_is_not_inverted(self):
+        wo = Workout(workout_type=WorkoutType.EASY_RUN, name="Easy 8k",
+                     estimated_distance_meters=8000)
+        steps = _fallback_steps(wo, {"easy_pace": 300.0})
+        assert (steps[0].target_low, steps[0].target_high) == (295.0, 305.0)
+
+
+def test_time_trial_step_is_open_with_prediction_in_description():
+    factory = WorkoutFactory(paces_from_vdot(50.0))
+    wo = factory.time_trial(5)
+    tt = wo.steps[1]
+    assert tt.target_type == IntensityTarget.OPEN
+    assert tt.target_low is None
+    assert "predicts ~" in tt.description
+
+
+class TestGarminDescription:
+    def test_leads_with_briefing_purpose_and_drops_pace_step_recaps(self):
+        wo = Workout(workout_type=WorkoutType.EASY_RUN, name="Easy 8k",
+                     estimated_distance_meters=8000,
+                     briefing={"purpose": "Aerobic maintenance between quality days.",
+                               "feel": "Conversational"},
+                     notes="Keep it honest.")
+        desc = _build_garmin_description(wo, {"easy_pace": 300.0})
+        assert desc.startswith("Aerobic maintenance")
+        assert "Paces:" not in desc
+        assert "Steps:" not in desc
+        assert "Keep it honest." in desc
+
+    def test_truncates_at_a_word_boundary(self):
+        wo = Workout(workout_type=WorkoutType.EASY_RUN, name="Easy 8k",
+                     briefing={"purpose": "Sharpen."},
+                     notes="wordishly " * 100)
+        desc = _build_garmin_description(wo, None)
+        assert len(desc) <= 500
+        assert desc.endswith("…")
+        assert desc[:-1].split()[-1] == "wordishly"  # never cut mid-word
+
+
+def test_full_wire_payload_easy_strides():
+    """Easy+strides through the real upload path — tree numbering + envelope."""
+    from paceforge.garmin.client import _RUNNING_SPORT, GarminClient
+
+    factory = WorkoutFactory(paces_from_vdot(50.0))
+    wo = factory.easy_with_strides(8, 6)
+    wo.briefing = {"purpose": "Leg speed on easy legs.",
+                   "feel": "Fast but never straining",
+                   "cue": "Tall hips, quick feet"}
+    captured = {}
+
+    class _FakeGarmin:
+        def upload_running_workout(self, gw):  # noqa: ANN001
+            captured["gw"] = gw
+            return {"workoutId": 1}
+
+    client = GarminClient(email="a@example.com", password="x", token_dir="")
+    client._client = _FakeGarmin()
+    client._upload(wo, _RUNNING_SPORT, {"easy_pace": 300.0},
+                   pace_bands={"easy": [285.0, 320.0]})
+    payload = captured["gw"].to_dict()
+
+    assert payload["estimatedDistanceInMeters"] == 8000.0
+    assert payload["description"].startswith("Leg speed on easy legs.")
+    easy, group = payload["workoutSegments"][0]["workoutSteps"]
+    assert (easy["stepOrder"], group["stepOrder"]) == (1, 2)
+    assert "childStepId" not in easy
+    stride, rest = group["workoutSteps"]
+    assert (stride["stepOrder"], rest["stepOrder"]) == (3, 4)
+    assert (stride["childStepId"], rest["childStepId"]) == (1, 1)
+    assert group["numberOfIterations"] == 6
+    assert group["description"] == "6 x strides"
+    assert rest["targetType"]["workoutTargetTypeKey"] == "no.target"
+    assert rest["description"] == "45s walking rest"
+    # Work steps carry the briefing feel instead of restating the target.
+    assert stride["description"] == "Fast but never straining"
+    assert easy["description"] == "Fast but never straining"
+    assert stride["targetType"]["workoutTargetTypeKey"] == "pace.zone"

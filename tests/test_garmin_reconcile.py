@@ -123,3 +123,15 @@ def test_failed_orphan_delete_is_reported_not_counted():
     fake = _FakeClient(scheduled=[_scheduled(555, 3)], fail_ids={77, 555})
     result = actions.garmin_reconcile(client=fake)
     assert (result["orphans_deleted"], result["delete_failed"]) == (0, 2)
+
+
+def test_reconcile_persists_push_summary_to_sync_status():
+    store.save_sync_status({"schema": 1, "result": "ok"})
+    store.save_plan(_plan())
+    actions.garmin_reconcile(client=_FakeClient())
+    status = store.load_sync_status()
+    assert status["result"] == "ok"  # pre-existing content preserved
+    push = status["push"]
+    assert (push["pushed"], push["failed"]) == (3, 0)
+    assert (push["stale_deleted"], push["orphans_deleted"]) == (1, 0)
+    assert push["at"]

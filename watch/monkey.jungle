@@ -1,0 +1,5 @@
+project.manifest = manifest.xml
+
+# ponytail: typecheck off so the field builds on any SDK line; bump to 1 once you build regularly
+project.typecheck = 0
+project.optimization = 2

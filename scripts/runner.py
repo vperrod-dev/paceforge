@@ -1231,11 +1231,28 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/manifest.webmanifest", "/pf-180.png", "/pf-512.png"):
             return self._static(REPO_DIR / "web" / path.lstrip("/"))
         if not self._authed():
-            if path.startswith(("/gh/", "/garmin/", "/runs", "/run/", "/extra_activities")):
+            if path.startswith(("/gh/", "/garmin/", "/runs", "/run/", "/analyses")):
                 return self._send(401, {"message": "sign in first"})
             return self._send(200, LOGIN_HTML.encode(), "text/html; charset=utf-8")
         if path == "/" or path == "/index.html":
             return self._static(REPO_DIR / "web" / "index.html")
+        if path == "/analyses":
+            # Coach-tab index: every per-activity analysis, newest first, with a
+            # headline (first non-empty line) so the list is scannable.
+            out = []
+            adir = REPO_DIR / "data" / "analyses"
+            if adir.is_dir():
+                for f in adir.glob("*.md"):
+                    try:
+                        text = f.read_text()
+                    except OSError:
+                        continue
+                    head = next((ln.lstrip("# ").strip() for ln in text.splitlines()
+                                 if ln.strip()), "")
+                    out.append({"id": f.stem, "headline": head[:200],
+                                "mtime": int(f.stat().st_mtime)})
+            out.sort(key=lambda x: -x["mtime"])
+            return self._send(200, out)
         if path.startswith("/data/"):
             return self._static(REPO_DIR / path.lstrip("/"), root="data")
         if path == "/garmin/status":
