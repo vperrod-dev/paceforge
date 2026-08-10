@@ -29,3 +29,15 @@ not the executor.
 - "Delete the plan" was literal and standalone — not "delete and I'll tell you what's next." After he deleted it, I kept treating a running plan as a hard dependency for unrelated features (cardio class scheduling) instead of questioning why that dependency existed at all. When a user deletes X and Y breaks, the fix is usually "Y shouldn't need X," not "recreate X."
 - Reported "fixed" after unit tests + one curl smoke test, twice, before it was actually fixed end-to-end in the real UI (a job-completion polling bug meant the calendar never refreshed after scheduling — confirmed only via real Playwright clicks, not API calls). Backend-correct ≠ user sees it. For any UI-surfaced fix, drive the actual browser flow before calling it done, not just the API/job it triggers.
 - A claimed timestamp comparison (`created_at >= dispatchedAt`) silently failed because the server truncates to whole seconds — ms-precision client comparisons against second-precision server timestamps are a recurring trap; prefer monotonic ids over time comparisons for "did my thing complete" polling.
+
+## 2026-08-10 — plan ambition must come from intake, not scraped history
+Victor, on the repetitive-plans complaint: "I do not want you to focus on what is
+my volume... my volume is low because your plans are shit." The engine anchored
+peak/weekly volume to recent Garmin mileage (2.2× clamp, 1.15× weekly cap), which
+plus the <25 km quality kill-switch produced easy/easy/long weeks — a spiral:
+boring plan → athlete runs less → history drops → next plan flatter. The athlete's
+GOAL (race, target time, stated recent times, declared volume) governs the plan;
+Garmin history is for prefills, suggestions and live metrics (readiness, load,
+adaptation) — advisory, never a cap. Generalization: when output quality drives
+the very signal used as input constraint, the constraint is circular — anchor on
+stated intent, validate with history, don't govern by it.

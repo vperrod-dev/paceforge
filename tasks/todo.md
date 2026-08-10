@@ -1,122 +1,29 @@
-# PaceForge user layer — tasks/todo.md (2026-07-22)
+# PaceForge gap-closing — tasks/todo.md (2026-08-10)
 
-Plan: ~/.claude/plans/ticklish-tickling-sprout.md
-Approach: one runner instance per athlete (own checkout, port, env, Garmin token, data).
+Plan: ~/.claude/plans/we-have-been-doing-recursive-wadler.md
+Research: tasks/running-plan-methodology-research-2026-08-10.md
 
-- [x] 1. runner.py: commit_push skips push when no `origin` remote
-- [x] 2. Garmin email survives restart (_garmin_finish saves it, actions._garmin_email falls back)
-- [x] 3. Per-instance identity in the UI (/auth/whoami + boot fetch, no hardcoded Victor)
-- [x] 4. ops/: systemd template units (runner/sync/autosync/coach @, randomized delays)
-- [x] 5. scripts/users.py add|list|update|remove (clone, env, units, Caddy route)
-- [x] 6. Namespace browser storage per portal path (localStorage is per-origin, one host)
-- [x] 7. Docs: CLAUDE.md "Multi-user" section + README "Sharing it with other athletes"
-- [x] 8. Verified: ruff + 445 tests + 3 bike selftests; throwaway `testuser` instance
-      provisioned, logged in, isolation checked, sync job failed cleanly with a
-      local-only commit, both portals rendered in a browser, instance removed
-- [x] 9. Committed + pushed
+- [x] Step 0: Garmin calendar cleared (21 entries), plan.json+plan.md deleted,
+      52-class snapshot saved (tasks/step0-classes-snapshot-2026-08-10.json),
+      4 recurring Un1t classes re-added interim via add-session (24 on Garmin)
+- [ ] WS1: auto-sync — coalescing, light mode, 15-min timers + 429 backoff,
+      WARP env, honest button, focus/interval refresh, chip thresholds,
+      Hermes day-pulse
+- [ ] WS2: intake-driven planning (form, VDOT from stated times, volume from
+      intake) + variety engine (low-vol variants, Rotation, kill 25km gate,
+      fartlek dosing, briefing variation, weekly-quality validator,
+      variant_key + hold_back_progression)
+- [ ] WS3: calendar decoupling — ScheduledItem/calendar.json, add_session
+      rewrite, calendar_view union endpoint, item-level Garmin push,
+      re-add classes from snapshot, Add-activity editor
+- [ ] WS4: Today redesign + mobile-first audit (390px, touch targets,
+      bottom sheets, lead-card date-sort fix, metricCard dupe)
+- [ ] WS5: Coach tab (HYROX folds under Fitness), analyses surfaced,
+      weekly content_md rendered, markdown renderer, RPE poll closure
+- [ ] WS6: watch push fidelity (recovery no-target, stepOrder/childStepId,
+      repeat descriptions, _fallback_steps by sport, description budget,
+      TT open, validate parity, push status) + on-watch confirm (VICTOR)
+      + CIQ data field (watch/)
 
 ## Review
-
-**Shape.** Multi-tenancy comes from the OS, not the app: `store.DATA_DIR` is an
-import-time global and the runner hardcodes `REPO_DIR/data`, so threading a user
-id through jobs would have been a large, risky refactor. One process per athlete
-in its own checkout gets the same result with ~40 lines of app change, because
-every path was already relative to the process's cwd or an env var.
-
-**Found while building, not in the plan:**
-- `localStorage`/`sessionStorage` are per-ORIGIN, and all instances share one
-  hostname — plan drafts, pending RPE, benchmarks and bike state would have bled
-  across portals. Every key is now suffixed with the portal's base path. Side
-  effect: existing browsers re-seed their cached plan draft from `data/plan.json`.
-- `git pull` cannot update an instance: this repo commits Victor's own training
-  data to the same branch, so `update` copies the code directories instead and
-  each instance's git history stays purely its own athlete's data.
-- The displayed athlete name was circular (`profileMeta()` returned the seed
-  constant it was supposed to replace), so every portal would have said "Victor".
-  It now comes from `/auth/whoami` + `token-meta.json`.
-- `build_site_data.py` crashed on a virgin instance, masking the real "connect
-  Garmin first" message. It now exits cleanly when there is no profile yet.
-
-**Open / optional:** the Settings page still shows a "GitHub Integration" panel
-naming `vperrod/paceforge` (pre-existing: `githubToken.has()` returns true on the
-VM); harmless but worth hiding when `LOCAL`, if friends ask what it is.
-
----
-
-## GitHub removal (2026-07-22, Victor: "we wont be back to gitactions or make the repo public")
-
-- [x] `.github/workflows/` deleted (19 files)
-- [x] Frontend: PAT storage, token guards, Settings→GitHub card, auth headers, `ref`, the
-      Pages branch of GH_API — all gone; two dead raw.githubusercontent.com fetches (HYROX
-      import) now read `./data/hyrox.json`; user-facing text says "job", not "workflow"
-- [x] Runner/CLI/skill/doc framing: the runner is the backend, not a stand-in
-- [x] Docs: README (3 ways, not 4), CLAUDE.md (jobs + env contract), AGENTS.md, and the OS
-      side (restore-checklist §0c CLOSED, registry constraints, backlog items closed/moot)
-- [x] Memory: paceforge-vm-runner + paceforge-garmin-token no longer describe a live GitHub path
-- [x] Nuno's instance updated + its stale .github/workflows removed
-
-**Bug found while verifying, fixed at the root:** `commit_push` committed the whole index,
-so a job that fired while this checkout had unrelated staged work swept it into a "data:"
-commit and pushed it (that is how the workflow deletion landed inside commit `2d89c1d`).
-It now commits only its own pathspec — `tests/test_runner_commit.py` covers it, and the
-next real sync was verified to touch `data/` only.
-
-**Left deliberately:** the `/gh/repos/<o>/<r>/…` URL shapes on both sides. They are the
-runner's own contract now (owner/repo ignored, no token); rewriting the wire would touch
-~20 call sites and two route tables to change nothing a user sees.
-
-## Bike history + workout library (2026-07-28)
-
-- [x] Fix stuck "pending" ride duplicates: reconcile localStorage pending list against
-      rides.json on every home render (matched by date, the runner's idempotency key)
-- [x] Ride-detail view: history rows clickable → power/HR chart with zone bands, FTP line,
-      time-in-zone bar, stats + notes; rides saved from now on carry a downsampled `trace`
-      ([sec, watts, hr] ≤400 pts, sanitized server-side in `append_ride`)
-- [x] Workout library 10 → 18: Endurance 60/120, 3x12 Sweet Spot, 3x10 Threshold,
-      30/30s 3x10, 6x1 Anaerobic, Tempo 60, Big Gear 5x5 (stats computed by the app's own
-      parser; selftest-formats requires index sorted by filename and recomputes every entry)
-- [x] Verified: ruff + pytest (35 passed), node selftests (126 passed), runner restarted,
-      served view.js/index.json checked on 8223, nunoduarte instance updated (8224)
-
-Note: yesterday's ride (2026-07-27) predates trace capture — its detail view shows stats
-only. The duplicate "pending" copy of it disappears on first page load with the new code.
-
-## Coach auto-analysis for ALL workouts (2026-07-28)
-
-- [x] Root cause: `pending_analyses` only returned plan-matched activity ids →
-      unplanned cardio/runs and bike rides never analysed
-- [x] Rewritten: all Garmin activities (any sport, 30-day lookback) + bike rides
-      minus existing analyses, newest first, batch 10/pass (sync fires it 3×/day)
-- [x] job_analyze prompt + coach SKILL.md §Per-activity updated (unplanned + bike: ids)
-- [x] Tests: 3 new pending_analyses tests (coverage, cap/order, missing files); 18 passed
-- [x] Runner restarted, nunoduarte updated, analyze dispatched for the 8-session backlog
-
-## Matching fixes + manual match control + RPE re-trigger (2026-08-04)
-
-- [x] Bike rides never matched: `_CROSS_TYPES` had only `indoor_cycling`, so Garmin's
-      `road_biking`/`cycling`/`virtual_ride`/… fell outside every pool. Whole cycling
-      family added (+ `mixed_cardio`, which HYROX already had)
-- [x] Today's session claimed by tomorrow's slot: the `for tol in (0, 1)` loop sat
-      *inside* each pass, so the hyrox pass ran both tolerances before cross-training
-      got a turn — a ±1-day hyrox slot beat an exact-date cross-training slot.
-      Tolerance hoisted above pass order; 2 tests
-- [x] Portal cache never cleared a completion: `planStore._mergeSynced()` was
-      additive-only, so a session unmatched server-side still rendered ✓ done until
-      localStorage was wiped. Match-derived completions now clear; manual "Mark done"
-      (no matched ids) survives
-- [x] Manual match control (activity detail → "Plan match"): link to any free session
-      within ±7 days (`manual_activity_ids`, applied verbatim) or unmatch (detach +
-      `excluded_activity_ids`). New `match-edit` runner job; 5 tests. Garmin ids only —
-      `bike:<date>` rides aren't ids `link_activity` can resolve
-- [x] `save-rpe` was a plain file write: the rating never reached the plan and the
-      coach analysis stayed frozen (`pending_analyses` skips any id that already has a
-      file, so "no RPE logged" was permanent). Job now re-matches, deletes that
-      activity's analysis and dispatches `analyze`; 6 tests
-- [x] Garmin-side RPE import ruled out: neither `activity-service/activity/{id}` nor
-      the activity-list endpoint returns any feel/RPE/exertion field, and the pinned
-      `garminconnect` fork has no support. Portal buttons are the only source
-- [x] Verified: ruff clean on touched files, 658 pytest passed, Playwright against the
-      live runner (Unmatch button + link picker render, no page errors), match-edit
-      link/unlink round-tripped on the real ride, RPE 8 on session 23844831869 →
-      `user_rpe=8` on the plan + analysis rewritten reading the rating.
-      Runner restarted, nunoduarte instance updated
+(fill as workstreams land)
