@@ -199,6 +199,25 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
   `bike:<date>`. Python side: POWER
   intensity targets (watts), `sport="bike"` workouts, Garmin `power.zone` push.
 
+## Plan intake (2026-08-10)
+Plans are built from what the athlete STATES — goal + target time, a recent
+race/TT (`--recent-race 10K=3150`, derives VDOT ahead of any device metric),
+declared weekly volume (`--weekly-km`, anchors the ramp) — via the portal's
+intake modal (Riegel estimate + feasibility verdict before building). Garmin
+history prefills and suggests; it NEVER caps plan ambition (the old
+2.2×-recent-mileage clamp caused the boring-plan → run-less → flatter-plan
+spiral). `TrainingPlan.intake` records what was stated; Reassess reuses it.
+`engine/variants.py::Rotation` gives seeded, no-consecutive-repeat variety
+with per-flavor progression; `validate._check_weekly_quality` fails any
+non-taper week without a quality session; `adaptation.hold_back_progression`
+repeats (not advances) a flavor whose last attempt failed.
+
+## Watch (`watch/`)
+Connect IQ full-screen data field ("PaceForge Coach Field", fēnix 7X):
+current workout step + target pace band + drift color + next-step preview.
+Compiled `.prg` in `watch/build/` (committed); rebuild/sideload steps in
+`watch/README.md` (SDK 9.2.0 at `~/tools/connectiq-sdk-9.2.0`).
+
 ## The AI / validation split
 Deterministic facts stay in code; judgement is Claude's. The **engine owns**
 plan structure, session variety/progression, and the per-session briefings —
@@ -211,8 +230,18 @@ personalise notes, re-validate, regenerate the human view with
 (athlete-accepted, guarded), never hand-edits.
 
 ## Jobs (the runner's `JOBS` map; portal buttons and timers dispatch these)
-`sync` runs **3×/day (06:45 / 13:00 / 21:00 Dublin)** so runs are matched and
-coach-analysed the same day; the morning pass (and only that one) pushes
+`sync` runs **3×/day full (06:45 / 13:00 / 21:00 Dublin)** plus **light passes
+every 15 min 07:00–23:00 Dublin** (`paceforge-lightsync.timer` → `{"light":true}`:
+7-day lookback, skips publish/analyze when nothing changed, never briefs; an
+adaptive cooldown in `~/.local/state/paceforge-runner/sync-cooldown.json`
+doubles 15→120 min on any Garmin 429 and resets on a clean pass — the cadence
+finds Garmin's tolerance by itself; sync data reads egress via WARP like the
+login). Light passes in the 11:00/15:00/19:00 Dublin hours dispatch `day-pulse`
+(once per slot): a short intraday coach read via the hermes-agent gateway
+(HERMES_API_URL/TOKEN in the env file; `claude` CLI fallback) appended to
+`data/daily-brief.json` `pulses[]` and rendered under the morning read.
+`dispatch()` coalesces same-name queued jobs. Runs are matched and
+coach-analysed the same day; the morning full pass (and only that one) pushes
 `paceforge brief --telegram` (`TG_TOKEN` + `TG_CHAT_ID`; skipped when unset)
 and dispatches `daily` — the coach's morning read → `data/daily-brief.json`,
 rendered as the lead card on the Today page. Every sync dispatches `analyze`
