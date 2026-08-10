@@ -573,11 +573,68 @@ def job_sync(run: Run, inputs: dict) -> None:
         _maybe_day_pulse()
 
 
+# ── Proactive coach: exception alerts (Telegram), max once/day per signal ──
+
+def _alert_state_path() -> Path:
+    return STATE_DIR / "health-alerts.json"
+
+
+def _health_alerts() -> None:
+    """HRV off-baseline / resting-HR creep / recovery-HR trend break → Telegram.
+    The coach messages FIRST when something matters; quiet otherwise."""
+    today = datetime.now(ZoneInfo("Europe/Dublin")).strftime("%Y-%m-%d")
+    try:
+        state = json.loads(_alert_state_path().read_text())
+    except Exception:
+        state = {}
+    alerts: list[tuple[str, str]] = []
+
+    try:
+        hist = [json.loads(ln) for ln in
+                (REPO_DIR / "data" / "history.jsonl").read_text().splitlines()[-15:]]
+        hrv = [h.get("hrv_last_night") for h in hist if h.get("hrv_last_night")]
+        if len(hrv) >= 8:
+            base = sum(hrv[:-1]) / len(hrv[:-1])
+            if hrv[-1] < base * 0.82:
+                alerts.append(("hrv", f"⚠️ HRV {hrv[-1]:.0f}ms is {100 - hrv[-1] / base * 100:.0f}% "
+                                      f"below your 2-week baseline ({base:.0f}ms) — treat today "
+                                      "as easy regardless of the plan."))
+        rhr = [h.get("resting_hr") for h in hist if h.get("resting_hr")]
+        if len(rhr) >= 8:
+            base = sum(rhr[:-1]) / len(rhr[:-1])
+            if rhr[-1] >= base + 5:
+                alerts.append(("rhr", f"⚠️ Resting HR {rhr[-1]:.0f} is {rhr[-1] - base:.0f} bpm over "
+                                      f"baseline ({base:.0f}) — early illness/fatigue flag."))
+    except Exception:
+        pass
+
+    try:
+        fit = json.loads((REPO_DIR / "data" / "fitness.json").read_text())
+        rec = (fit.get("form") or {}).get("recovery_hr") or {}
+        t = rec.get("trend_28d")
+        if t is not None and t <= -8:
+            alerts.append(("hrr", f"⚠️ Recovery HR trend broke: 60s post-effort drop is down "
+                                  f"{abs(t):.0f} bpm vs 4 weeks ago — accumulating fatigue; "
+                                  "protect the next two days."))
+    except Exception:
+        pass
+
+    fired = False
+    for key, msg in alerts:
+        if state.get(key) != today:
+            telegram(msg)
+            state[key] = today
+            fired = True
+    if fired:
+        _alert_state_path().write_text(json.dumps(state))
+
+
 _PULSE_HOURS = (11, 15, 19)  # Dublin — late morning / afternoon / evening
 
 
 def _maybe_day_pulse() -> None:
     """Dispatch a day-pulse in the pulse hours, once per slot, only from light passes."""
+    _health_alerts()   # every light pass; per-signal daily dedupe inside
     dublin = datetime.now(ZoneInfo("Europe/Dublin"))
     if dublin.hour not in _PULSE_HOURS:
         return
@@ -873,6 +930,39 @@ def job_match_edit(run: Run, inputs: dict) -> None:
     publish(run)
 
 
+def job_adjust_today(run: Run, inputs: dict) -> None:
+    """Same-day rewrite: portal 'Not 100% / Short on time / Sick' buttons."""
+    from paceforge import actions
+    run.step("Adjust today's session")
+    result = actions.adjust_today(
+        mode=str(inputs.get("mode") or "tired"),
+        minutes=int(inputs["minutes"]) if inputs.get("minutes") else None,
+    )
+    run.log(json.dumps(result))
+    run.step("Commit adjusted plan")
+    commit_push(run, ["data/plan.json"],
+                f"plan: same-day adjust ({inputs.get('mode')}) — {result.get('summary', '')}")
+    publish(run)
+    if result.get("adjusted"):
+        telegram(f"🔧 Today's session adjusted ({result.get('mode')}): "
+                 f"{result.get('name')} — {result.get('summary')}"
+                 + ("" if result.get("pushed") else " (watch push pending — next reconcile)"))
+
+
+def job_proposal(run: Run, inputs: dict) -> None:
+    """Apply/reject a coach proposal (portal Accept/Dismiss buttons)."""
+    from paceforge import actions
+    run.step("Resolve proposal")
+    result = actions.resolve_proposal(str(inputs["id"]), str(inputs.get("action") or "apply"))
+    run.log(json.dumps(result))
+    run.step("Commit")
+    commit_push(run, ["data/plan.json", "data/pending-changes.json"],
+                f"plan: proposal {result['action']} ({inputs['id']})")
+    publish(run)
+    if result["action"] == "applied":
+        reconcile_garmin(run)
+
+
 def job_add_session(run: Run, inputs: dict) -> None:
     from paceforge import actions
     run.step("Schedule session")
@@ -990,6 +1080,8 @@ JOBS = {
     "analyze": job_analyze,
     "daily": job_daily,
     "day-pulse": job_day_pulse,
+    "adjust-today": job_adjust_today,
+    "proposal": job_proposal,
     "plan": job_plan,
     "coach": job_coach,
     "push": job_push,
@@ -1232,6 +1324,79 @@ class Handler(BaseHTTPRequestHandler):
             return self._static(REPO_DIR / "web" / path.lstrip("/"))
         # Watch data field (Connect IQ makeWebRequest, no cookies): tokened,
         # read-only, serves ONLY the cadence-target JSON — nothing sensitive.
+        # Phone-calendar feed: the plan + classes as read-only ics (tokened)
+        if path == "/plan.ics":
+            tok = os.environ.get("PF_WATCH_TOKEN", "")
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            if not tok or q.get("k", [""])[0] != tok:
+                return self._send(401, {"message": "bad token"})
+            lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PaceForge//EN",
+                     "X-WR-CALNAME:PaceForge"]
+            try:
+                plan = json.loads((REPO_DIR / "data" / "plan.json").read_text())
+                for wk in plan.get("weeks", []):
+                    for wo in wk.get("workouts", []):
+                        d = str(wo.get("scheduled_date") or "")
+                        if not d or wo.get("workout_type") == "rest":
+                            continue
+                        ds = d.replace("-", "")
+                        name = str(wo.get("name") or "Workout").replace("\n", " ")
+                        km = (wo.get("estimated_distance_meters") or 0) / 1000
+                        desc = (f"{km:.1f} km. " if km else "") + str(
+                            (wo.get("briefing") or {}).get("purpose") or "")[:180]
+                        lines += ["BEGIN:VEVENT",
+                                  f"UID:pf-{wo.get('session_id', ds)}@paceforge",
+                                  f"DTSTART;VALUE=DATE:{ds}",
+                                  f"SUMMARY:🏃 {name}",
+                                  "DESCRIPTION:" + desc.replace(",", "\\,").replace(";", " "),
+                                  "END:VEVENT"]
+            except Exception:
+                pass
+            try:
+                cal = json.loads((REPO_DIR / "data" / "calendar.json").read_text())
+                for it in cal:
+                    d = str(it.get("date") or "")
+                    if not d:
+                        continue
+                    lines += ["BEGIN:VEVENT",
+                              f"UID:pf-item-{it.get('item_id', d)}@paceforge",
+                              f"DTSTART;VALUE=DATE:{d.replace('-', '')}",
+                              f"SUMMARY:💪 {str(it.get('title') or it.get('sport') or 'Class')}",
+                              "END:VEVENT"]
+            except Exception:
+                pass
+            lines.append("END:VCALENDAR")
+            return self._send(200, "\r\n".join(lines).encode(),
+                              "text/calendar; charset=utf-8")
+
+        # Race-day / ghost field: goal + prognosis + target pace (tokened)
+        if path == "/watch-race":
+            tok = os.environ.get("PF_WATCH_TOKEN", "")
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            if not tok or q.get("k", [""])[0] != tok:
+                return self._send(401, {"message": "bad token"})
+            out = {"distance_km": 21.0975, "goal_time_sec": None,
+                   "target_pace_sec_km": None, "prognosis_time_sec": None}
+            try:
+                plan = json.loads((REPO_DIR / "data" / "plan.json").read_text())
+                gt = plan.get("target_time_seconds")
+                dist_km = {"5K": 5.0, "10K": 10.0, "HALF_MARATHON": 21.0975,
+                           "MARATHON": 42.195}.get(plan.get("goal_type"), 21.0975)
+                out["distance_km"] = dist_km
+                if gt:
+                    out["goal_time_sec"] = int(gt)
+                    out["target_pace_sec_km"] = int(gt / dist_km)
+            except Exception:
+                pass
+            try:
+                fit = json.loads((REPO_DIR / "data" / "fitness.json").read_text())
+                prog = fit.get("prognosis") or {}
+                if prog.get("prognosis_time_sec"):
+                    out["prognosis_time_sec"] = int(prog["prognosis_time_sec"])
+            except Exception:
+                pass
+            return self._send(200, out)
+
         # Watch widget: today's session + coach headline (tokened, low-sensitivity)
         if path == "/watch-brief":
             tok = os.environ.get("PF_WATCH_TOKEN", "")
@@ -1275,9 +1440,29 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(401, {"message": "bad token"})
             f = REPO_DIR / "data" / "watch-targets.json"
             try:
-                return self._send(200, json.loads(f.read_text()))
+                out = json.loads(f.read_text())
             except Exception:
-                return self._send(200, {"cadence_lo": 168, "cadence_hi": 172})
+                out = {"cadence_lo": 168, "cadence_hi": 172}
+            # Planned load for TODAY's session → the Coach field's "stimulus %"
+            try:
+                plan = json.loads((REPO_DIR / "data" / "plan.json").read_text())
+                today = datetime.now(ZoneInfo("Europe/Dublin")).strftime("%Y-%m-%d")
+                weights = {"easy_run": 1.5, "recovery": 1.0, "easy_with_strides": 1.7,
+                           "long_run": 2.0, "long_run_progressive": 2.4,
+                           "long_run_with_race_pace": 2.6, "tempo": 3.0, "threshold": 3.2,
+                           "vo2max": 4.0, "speed": 4.0, "intervals": 3.8, "hills": 3.8,
+                           "fartlek": 3.0, "progressive": 2.6, "race_pace": 3.4}
+                for wk in plan.get("weeks", []):
+                    for wo in wk.get("workouts", []):
+                        if wo.get("scheduled_date") == today and not wo.get("completed"):
+                            mins = (wo.get("estimated_duration_seconds") or 0) / 60
+                            wgt = weights.get(str(wo.get("workout_type")), 2.0)
+                            if mins:
+                                out["planned_trimp"] = round(mins * wgt)
+                            break
+            except Exception:
+                pass
+            return self._send(200, out)
         if not self._authed():
             if path.startswith(("/gh/", "/garmin/", "/runs", "/run/", "/analyses")):
                 return self._send(401, {"message": "sign in first"})

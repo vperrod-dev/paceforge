@@ -63,6 +63,33 @@ def garmin_push_workout(week: int | None = None, dry_run: bool = False) -> dict:
 
 
 @mcp.tool()
+def get_activities(limit: int = 20) -> list:
+    """Most recent synced activities, newest first."""
+    acts = store.load_activities()
+    return [a.model_dump(mode="json") for a in acts[:limit]]
+
+
+@mcp.tool()
+def adjust_today(mode: str, minutes: int | None = None) -> dict:
+    """Same-day rewrite of today's session: mode=tired|sick|time (+minutes)."""
+    return actions.adjust_today(mode, minutes)
+
+
+@mcp.tool()
+def propose_plan_change(title: str, description: str, changes: list) -> dict:
+    """Queue a plan-change proposal for the athlete to Accept/Dismiss in the
+    portal. changes: [{session_id, field(scheduled_date|name|notes), to, label}].
+    Nothing is applied until the athlete accepts."""
+    import uuid
+    items = actions._load_proposals()
+    prop = {"id": str(uuid.uuid4())[:8], "created": str(actions.date.today()),
+            "title": title, "description": description, "changes": changes}
+    items.append(prop)
+    actions._save_proposals(items)
+    return {"queued": prop["id"]}
+
+
+@mcp.tool()
 def log_rpe(rpe: int, activity_id: int | None = None, date: str | None = None,
             duration_min: float | None = None, notes: str = "") -> dict:
     """Record a session RPE (1-10) so HR-less strength/HYROX sessions count toward

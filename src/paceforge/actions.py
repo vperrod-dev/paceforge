@@ -736,9 +736,18 @@ def fitness() -> dict:
     activities = store.load_activities()
     details = store.load_all_details()
     from paceforge.engine.form import compute_form
+    from paceforge.engine.prognosis import compute_prognosis
     running = compute_running_metrics(activities, details, profile)
     running["pace_curves"] = compute_pace_curves(activities, details)
     form = compute_form(activities, details)
+    plan_for_prog = store.load_plan()
+    _dist = {"5K": 5.0, "10K": 10.0, "HALF_MARATHON": 21.0975, "MARATHON": 42.195}
+    prognosis = compute_prognosis(
+        activities, details, profile,
+        goal_distance_km=_dist.get(plan_for_prog.goal_type, 21.0975) if plan_for_prog else 21.0975,
+        goal_time_sec=plan_for_prog.target_time_seconds if plan_for_prog else None,
+        prior_vdot=plan_for_prog.vdot if plan_for_prog else None,
+    )
     load = compute_load_recovery(store.load_history(), activities, profile,
                                  rpe_map=store.rpe_by_activity(),
                                  bike_rides=store.load_bike_rides())
@@ -771,8 +780,8 @@ def fitness() -> dict:
                               todays_type=todays_type, last_sync=last_sync)
 
     return {"running": running, "load": load, "strength": strength,
-            "form": form, "compliance": compliance, "pace_insights": pace_insights,
-            "insights": insights, **limiters}
+            "form": form, "prognosis": prognosis, "compliance": compliance,
+            "pace_insights": pace_insights, "insights": insights, **limiters}
 
 
 # ── HYROX race import (results.hyrox.com) ────────────────────────────
@@ -1435,6 +1444,153 @@ def add_session(session_date: str, sport: str, minutes: int, name: str = "",
     store.save_calendar(items)
     return {"session_ids": [i.item_id for i in new_items], "scheduled_date": session_date,
             "repeat_weeks": count, "sport": sport}
+
+
+_PROPOSAL_FIELDS = {"scheduled_date", "name", "notes"}   # what a proposal may touch
+
+
+def _load_proposals() -> list[dict]:
+    p = store.DATA_DIR / "pending-changes.json"
+    try:
+        return json.loads(p.read_text()) or []
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def _save_proposals(items: list[dict]) -> None:
+    store._write(store.DATA_DIR / "pending-changes.json", json.dumps(items, indent=1))
+
+
+def resolve_proposal(proposal_id: str, action: str) -> dict:
+    """Coach proposes, athlete disposes: apply or reject one pending change set.
+
+    Proposals live in data/pending-changes.json (written by the coach skill —
+    per-session field diffs only, never silent edits). Apply mutates plan.json,
+    re-validates, and leaves the Garmin push to the caller's reconcile.
+    """
+    items = _load_proposals()
+    prop = next((x for x in items if x.get("id") == proposal_id), None)
+    if prop is None:
+        raise RuntimeError(f"No pending proposal {proposal_id!r}.")
+    items.remove(prop)
+    if action == "reject":
+        _save_proposals(items)
+        return {"action": "rejected", "id": proposal_id}
+    if action != "apply":
+        raise ValueError(f"Unknown proposal action {action!r}")
+
+    plan = store.load_plan()
+    if plan is None:
+        raise RuntimeError("No plan to apply the proposal to.")
+    by_id = {w.session_id: w for wk in plan.weeks for w in wk.workouts}
+    applied = 0
+    for ch in prop.get("changes", []):
+        w = by_id.get(ch.get("session_id"))
+        field = ch.get("field")
+        if w is None or field not in _PROPOSAL_FIELDS:
+            continue
+        value = ch.get("to")
+        if field == "scheduled_date":
+            value = date.fromisoformat(str(value))
+        setattr(w, field, value)
+        applied += 1
+    issues = validate_plan(plan)
+    if issues:
+        # A proposal must not corrupt the plan — put it back and refuse.
+        items.append(prop)
+        _save_proposals(items)
+        raise RuntimeError(f"Proposal breaks validation: {issues[:3]}")
+    store.save_plan(plan)
+    _save_proposals(items)
+    return {"action": "applied", "id": proposal_id, "applied_changes": applied}
+
+
+def _scale_step(step, factor: float) -> None:
+    """Scale one workout step (and its children) in place."""
+    if step.duration_seconds:
+        step.duration_seconds = max(60.0, round(step.duration_seconds * factor))
+    if step.distance_meters:
+        step.distance_meters = max(200.0, round(step.distance_meters * factor, -1))
+    for sub in (step.steps or []):
+        _scale_step(sub, factor)
+
+
+def adjust_today(mode: str, minutes: int | None = None) -> dict:
+    """Same-day workout rewrite: "not feeling 100%" / "only have N minutes" /
+    "sick" — compress or downgrade TODAY's session in place (same session_id,
+    same Garmin id so the push replaces it on the watch) while keeping the
+    stimulus intent. Reductions only, so no ramp/validation risk.
+    """
+    from paceforge.models.plan import TrainingPurpose, WorkoutStep, WorkoutStepType
+
+    plan = store.load_plan()
+    if plan is None:
+        raise RuntimeError("No plan — nothing scheduled to adjust.")
+    today = date.today()
+    workout = next((w for wk in plan.weeks for w in wk.workouts
+                    if w.scheduled_date == today
+                    and w.workout_type.value != "rest" and not w.completed), None)
+    if workout is None:
+        raise RuntimeError("No uncompleted session scheduled today.")
+
+    original_name = workout.name
+    est_min = (workout.estimated_duration_seconds or 3600) / 60
+
+    if mode == "sick":
+        # Keep the calendar slot but make it optional, untargeted movement.
+        workout.steps = [WorkoutStep(
+            step_type=WorkoutStepType.ACTIVE, duration_seconds=1200.0,
+            description="20min very easy — or skip entirely, full rest is the "
+                        "better call if symptoms are below the neck.",
+        )]
+        workout.workout_type = WorkoutType.RECOVERY
+        workout.purpose = TrainingPurpose.RECOVERY
+        workout.estimated_duration_seconds = 1200.0
+        workout.estimated_distance_meters = None
+        summary = "replaced with 20min optional recovery"
+    elif mode == "time":
+        if not minutes or minutes < 15:
+            raise ValueError("mode=time needs minutes >= 15")
+        factor = min(1.0, (minutes * 60) / (workout.estimated_duration_seconds or 3600))
+        if factor >= 0.98:
+            return {"adjusted": False, "reason": "session already fits", "name": original_name}
+        for s in workout.steps:
+            _scale_step(s, factor)
+        if workout.estimated_duration_seconds:
+            workout.estimated_duration_seconds = round(workout.estimated_duration_seconds * factor)
+        if workout.estimated_distance_meters:
+            workout.estimated_distance_meters = round(workout.estimated_distance_meters * factor, -1)
+        summary = f"compressed ~{round(factor * 100)}% to fit {minutes} min"
+    elif mode == "tired":
+        factor = 0.65
+        for s in workout.steps:
+            _scale_step(s, factor)
+        if workout.estimated_duration_seconds:
+            workout.estimated_duration_seconds = round(workout.estimated_duration_seconds * factor)
+        if workout.estimated_distance_meters:
+            workout.estimated_distance_meters = round(workout.estimated_distance_meters * factor, -1)
+        summary = "reduced ~35% — same shape, lighter dose"
+    else:
+        raise ValueError(f"Unknown adjust mode {mode!r}")
+
+    if not workout.name.endswith("(adjusted)"):
+        workout.name = (workout.name + " (adjusted)")[:120]
+    workout.notes = (f"[Adjusted same-day: {summary} — was '{original_name}', "
+                     f"~{est_min:.0f}min] " + (workout.notes or "")).strip()
+
+    # Replace on the watch immediately (same garmin_workout_id → delete+re-push).
+    pushed = False
+    try:
+        client = garmin_connect()
+        client.push_plan_week([workout], plan_paces=_plan_paces(plan),
+                              pace_bands=plan.pace_bands)
+        pushed = True
+    except Exception:
+        logger.warning("adjust_today: Garmin push failed — reconcile will retry",
+                       exc_info=True)
+    store.save_plan(plan)
+    return {"adjusted": True, "mode": mode, "summary": summary,
+            "name": workout.name, "pushed": pushed}
 
 
 def adapt(dry_run: bool = False) -> dict:

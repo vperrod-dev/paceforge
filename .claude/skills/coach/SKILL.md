@@ -220,3 +220,15 @@ cite the session's `hrr60_best` when it stands out either way. When the
 athlete's 3-run cadence average sits inside the target band for 2+ weeks,
 nudge `watch-targets.json` up 3-5 spm (toward 175-180) and say so in the
 weekly review.
+
+## Plan-change proposals (2026-08-10)
+
+Structural suggestions (reschedules, renames, note rewrites on future
+sessions) are PROPOSED, never silently applied: append to
+`data/pending-changes.json` —
+`{"id": "<8-hex>", "created": "YYYY-MM-DD", "title": "...", "description":
+"why, in athlete language", "changes": [{"session_id": "...", "field":
+"scheduled_date|name|notes", "to": "...", "label": "Tue tempo → Wed (readiness)"}]}`.
+The portal shows Accept/Dismiss; apply re-validates and re-syncs Garmin.
+Direct edits remain allowed ONLY for the enrichment layer (notes/rationale/
+tips during plan builds) and analyses.

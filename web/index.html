@@ -546,7 +546,7 @@ const cache = {};
 
 // Live files change server-side every few minutes (15-min light syncs,
 // intraday pulses) — caching them for the page's lifetime shows stale data.
-const NEVER_CACHE = new Set(['sync-status.json', 'daily-brief.json', 'calendar.json']);
+const NEVER_CACHE = new Set(['sync-status.json', 'daily-brief.json', 'calendar.json', 'pending-changes.json']);
 
 async function loadJSON(file) {
   const key = 'f:' + file;
@@ -835,6 +835,40 @@ async function syncFromGarmin(btn) {
       toast('warn', 'Sync still running', 'Taking longer than usual — the page will refresh itself when it lands.');
     }
   });
+}
+
+// Coach proposal: apply or dismiss, then refresh (apply also re-syncs Garmin).
+async function resolveProposal(id, action) {
+  const baseline = await latestJobRunId('proposal.yml');
+  const res = await fetch(`${API}/repos/${REPO}/actions/workflows/proposal.yml/dispatches`, {
+    method: 'POST', headers: JSON_HDR,
+    body: JSON.stringify({ inputs: { id, action } }),
+  });
+  if (res.status !== 204) { toast('err', 'Failed', await jobError(res)); return; }
+  toast('ok', action === 'apply' ? 'Applying…' : 'Dismissed', '');
+  const run = await waitForJobRun('proposal.yml', baseline, 60000);
+  if (run && run.conclusion === 'success') await refreshAfterSync();
+  else if (action === 'apply') toast('err', 'Apply failed', 'The proposal may break plan rules — see job log.');
+}
+
+// Same-day rewrite: engine compresses/downgrades today's session and pushes
+// the revised workout to the watch, replacing it by Garmin id.
+async function adjustToday(mode, minutes) {
+  const labels = { tired: 'Easing today\'s session…', sick: 'Converting to optional recovery…', time: 'Compressing the session…' };
+  toast('ok', labels[mode] || 'Adjusting…', 'The coach rewrites it and updates your watch.');
+  const baseline = await latestJobRunId('adjust-today.yml');
+  const res = await fetch(`${API}/repos/${REPO}/actions/workflows/adjust-today.yml/dispatches`, {
+    method: 'POST', headers: JSON_HDR,
+    body: JSON.stringify({ inputs: { mode, minutes: minutes ? String(minutes) : '' } }),
+  });
+  if (res.status !== 204) { toast('err', 'Adjust failed', await jobError(res)); return; }
+  const run = await waitForJobRun('adjust-today.yml', baseline, 60000);
+  if (run && run.conclusion === 'success') {
+    await refreshAfterSync();
+    toast('ok', 'Session adjusted', 'The revised workout is on your Garmin calendar.');
+  } else {
+    toast('err', 'Adjust failed', 'Check Settings → Job history.');
+  }
 }
 
 // Invalidate everything a completed sync can change, then re-render the tab.
@@ -1504,6 +1538,12 @@ async function renderToday(page) {
         <button class="btn btn-primary" id="td-open-wo" style="min-height:44px">Open workout</button>
         <button class="btn btn-outline" id="td-goto-plan" style="min-height:44px">Full plan</button>
       </div>
+      ${!todaysWo.completed && todaysWo.scheduled_date === todayISO ? `
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="td-adj-tired" style="min-height:40px">😮‍💨 Not feeling 100%</button>
+        <button class="btn btn-ghost btn-sm" id="td-adj-time" style="min-height:40px">⏱ Short on time</button>
+        <button class="btn btn-ghost btn-sm" id="td-adj-sick" style="min-height:40px">🤒 Sick</button>
+      </div>` : ''}
     </div>`;
   } else if (todaysItem) {
     const isToday = String(todaysItem.date) === todayISO;
@@ -1655,8 +1695,26 @@ async function renderToday(page) {
     <div style="display:flex;gap:2px">${strip.join('')}</div>
   </div>`;
 
+  const proposals = await loadJSON('pending-changes.json').catch(() => []);
+  const proposalCard = (proposals || []).length ? `<div class="card" style="border-left:3px solid var(--amber)">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Coach proposes</div></div>
+    ${proposals.map(p => `
+      <div style="padding:8px 0;border-bottom:1px solid var(--border-s)">
+        <div style="font-weight:700;font-size:.92rem">${escHtml(p.title || 'Plan change')}</div>
+        ${p.description ? `<div style="font-size:.84rem;color:var(--text-2);margin-top:3px;line-height:1.5">${escHtml(p.description)}</div>` : ''}
+        <ul style="margin:6px 0 8px 18px;font-size:.8rem;color:var(--text-3)">
+          ${(p.changes || []).map(c => `<li>${escHtml(c.label || (c.field + ' → ' + c.to))}</li>`).join('')}
+        </ul>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" data-prop-apply="${escHtml(p.id)}" style="min-height:40px">Accept</button>
+          <button class="btn btn-outline btn-sm" data-prop-reject="${escHtml(p.id)}" style="min-height:40px">Dismiss</button>
+        </div>
+      </div>`).join('')}
+  </div>` : '';
+
   page.innerHTML = `<div class="fade-in">
     <div class="dash-grid">
+    ${proposalCard ? `<div class="span-12">${proposalCard}</div>` : ''}
     <div class="span-12">${sessionCard}</div>
     ${briefCard ? `<div class="span-12">${briefCard}</div>` : ''}
     <div class="span-7">${readinessCard}</div>
@@ -1687,6 +1745,18 @@ async function renderToday(page) {
     el.addEventListener('click', () => openActivity(doneToday[Number(el.dataset.doneAct)])));
   bindWeekJump(page);
   if (todaysWo) on('td-open-wo', 'click', () => showWorkoutSheet(todaysWo, todaysIdx[0], todaysIdx[1]));
+  page.querySelectorAll('[data-prop-apply]').forEach(b => b.addEventListener('click', () => resolveProposal(b.dataset.propApply, 'apply')));
+  page.querySelectorAll('[data-prop-reject]').forEach(b => b.addEventListener('click', () => resolveProposal(b.dataset.propReject, 'reject')));
+  on('td-adj-tired', 'click', () => adjustToday('tired'));
+  on('td-adj-sick', 'click', () => adjustToday('sick'));
+  on('td-adj-time', 'click', () => openModal(`
+    <div class="modal-h"><div><div class="modal-title">How much time do you have?</div>
+      <div class="modal-sub">The session compresses to fit — warmup trimmed, stimulus kept.</div></div>
+      <button class="modal-close" data-close>${icons.x}</button></div>
+    <div style="display:flex;gap:10px">
+      ${[30, 45, 60].map(m => `<button class="btn btn-outline" data-adj-min="${m}" style="flex:1;min-height:48px">${m} min</button>`).join('')}
+    </div>`).then?.() || document.querySelectorAll('[data-adj-min]').forEach(b =>
+      b.addEventListener('click', () => { closeModal(); adjustToday('time', Number(b.dataset.adjMin)); })));
   if (unrated) {
     bindRpeSelector(page, {
       date: String(unrated.start_time).slice(0, 10),
@@ -1900,7 +1970,7 @@ async function renderFitness(page) {
       case 'strength': el.innerHTML = fitness ? renderStrength(fitness) : emptyState('No data', ''); bindBenchmarkForm(el, draw); break;
       case 'form': el.className = ''; el.innerHTML = fitness ? renderForm(fitness) : emptyState('No data', ''); break;
       case 'economy': el.className = 'grid cols-auto'; el.innerHTML = renderEconomy(analytics); break;
-      case 'races': el.className = 'grid cols-auto'; el.innerHTML = renderRaces(analytics); break;
+      case 'races': el.className = 'grid cols-auto'; el.innerHTML = renderPrognosisCard(fitness) + renderRaces(analytics); break;
       case 'hyrox_p': el.className = 'grid cols-auto'; el.innerHTML =
         `<div class="span-12" style="margin-bottom:10px"><button class="btn btn-outline btn-sm" data-tab="hyrox">Full HYROX page — races &amp; splits →</button></div>`
         + renderHyroxProfile(analytics); el.querySelector('[data-tab]')?.addEventListener('click', () => goTab('hyrox')); break;
@@ -2005,7 +2075,60 @@ function renderForm(f) {
       </div>
       <div class="hint" style="margin-top:8px">Contact time and vertical ratio fall naturally as cadence rises — they confirm the cadence work is landing, no separate drills needed.</div>
     </div></div>
+    <div class="span-12"><div class="card">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.calendar}</span>Training year</div></div>
+      ${consistencyHeatmap(f)}
+      <div class="hint" style="margin-top:6px">Every day of the last 52 weeks, colored by training load. Consistency beats heroics.</div>
+    </div></div>
   </div>`;
+}
+
+// GitHub-style contribution grid from the load series. Daily load is
+// reconstructed exactly from the ATL EWMA: load_t = 7*atl_t - 6*atl_(t-1).
+function consistencyHeatmap(f) {
+  const series = (((f.load || {}).ctl_atl_tsb) || {}).series || [];
+  if (series.length < 14) return '<div style="color:var(--text-3);font-size:.82rem">Not enough history yet.</div>';
+  const load = {};
+  for (let i = 1; i < series.length; i++) {
+    const v = 7 * series[i].atl - 6 * series[i - 1].atl;
+    load[series[i].date] = Math.max(0, v);
+  }
+  const vals = Object.values(load).filter(v => v > 1);
+  const q = p => { const s = [...vals].sort((a, b) => a - b); return s[Math.floor(p * (s.length - 1))] || 1; };
+  const t1 = q(0.35), t2 = q(0.6), t3 = q(0.85);
+  const colors = ['var(--border-s)', 'color-mix(in srgb, var(--emerald) 30%, var(--border-s))',
+                  'color-mix(in srgb, var(--emerald) 55%, transparent)', 'var(--emerald)',
+                  'color-mix(in srgb, var(--emerald) 70%, var(--amber))'];
+  // 52 columns of 7, ending today (Mon-first columns)
+  const end = new Date();
+  const endOff = (end.getDay() + 6) % 7;
+  let streak = 0, checking = true;
+  let cols = '';
+  for (let wk = 51; wk >= 0; wk--) {
+    let col = '';
+    for (let d = 0; d < 7; d++) {
+      const dt = new Date(end);
+      dt.setDate(end.getDate() - endOff - wk * 7 + d - (0));
+      if (dt > end) { col += '<div style="width:9px;height:9px"></div>'; continue; }
+      const ds = dt.toISOString().slice(0, 10);
+      const v = load[ds] || 0;
+      const lvl = v <= 1 ? 0 : v <= t1 ? 1 : v <= t2 ? 2 : v <= t3 ? 3 : 4;
+      col += `<div title="${ds}: ${Math.round(v)}" style="width:9px;height:9px;border-radius:2px;background:${colors[lvl]}"></div>`;
+    }
+    cols += `<div style="display:flex;flex-direction:column;gap:2px">${col}</div>`;
+  }
+  // streak: consecutive days (back from today) with load
+  for (let i = 0; ; i++) {
+    const dt = new Date(end); dt.setDate(end.getDate() - i);
+    const v = load[dt.toISOString().slice(0, 10)] || 0;
+    if (v > 1) streak++;
+    else if (i > 0) break;
+    else if (i === 0) continue;   // today may not be synced yet — don't break streak on it
+    if (i > 400) break;
+  }
+  return `<div style="overflow-x:auto"><div style="display:flex;gap:2px;min-width:580px">${cols}</div></div>
+    <div style="font-size:.76rem;color:var(--text-3);margin-top:6px">${streak} day streak ·
+      <span style="display:inline-flex;gap:2px;vertical-align:middle;margin-left:4px">${colors.map(c => `<span style="width:9px;height:9px;border-radius:2px;background:${c};display:inline-block"></span>`).join('')}</span> less → more</div>`;
 }
 
 function renderCoachTake(f) {
@@ -2324,6 +2447,34 @@ function renderLoadRecovery(a) {
     html += `<div class="card"><div class="card-title" style="font-size:.95rem;margin-bottom:12px">Recovery Tips</div>${lr.recovery_tips.map(t => `<div style="font-size:.86rem;color:var(--text-2);padding:5px 0">• ${escHtml(t)}</div>`).join('')}</div>`;
   }
   return html;
+}
+
+// Independent race prognosis (Runalyze method) vs the goal + Garmin's guess.
+function renderPrognosisCard(f) {
+  const p = (f || {}).prognosis || {};
+  if (!p.available) return '';
+  const verdictMap = {
+    on_track: ['On track', 'var(--emerald)', 'Your goal is within today\'s shape — execute, don\'t chase.'],
+    stretch: ['Stretch', 'var(--amber)', 'Goal is a little faster than today\'s shape predicts — possible on a good day with a smart first half.'],
+    unrealistic: ['Aggressive', 'var(--rose)', 'Goal is well beyond current shape — consider adjusting, or expect to hurt.'],
+  };
+  const v = verdictMap[p.goal_verdict] || null;
+  const evSeries = (p.series || []).map(r => r.effective_vo2max);
+  return `<div class="card" style="grid-column:1/-1">
+    <div class="card-h"><div class="card-title"><span class="ico">${icons.hyrox}</span>Race prognosis — independent of Garmin</div>
+      <span class="chip">shape ×${(p.shape || {}).factor ?? '—'}</span></div>
+    <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:baseline;margin-bottom:8px">
+      <div><div class="eyebrow">Prognosis</div><div style="font-family:var(--font-m);font-weight:800;font-size:1.9rem">${p.prognosis_time_sec ? formatSeconds(p.prognosis_time_sec) : '—'}</div>
+        <div style="font-size:.76rem;color:var(--text-3)">${p.prognosis_pace_sec_km ? formatPace(p.prognosis_pace_sec_km) + '/km' : ''}</div></div>
+      ${p.goal_time_sec ? `<div><div class="eyebrow">Your goal</div><div style="font-family:var(--font-m);font-weight:800;font-size:1.9rem">${formatSeconds(p.goal_time_sec)}</div>
+        ${v ? `<div style="font-size:.8rem;font-weight:700;color:${v[1]}">${v[0]}</div>` : ''}</div>` : ''}
+      <div><div class="eyebrow">Effective VO₂max</div><div style="font-family:var(--font-m);font-weight:800;font-size:1.9rem;color:var(--sky)">${p.effective_vo2max ?? '—'}</div>
+        <div style="font-size:.76rem;color:var(--text-3)">from HR-vs-pace, every run</div></div>
+    </div>
+    ${v ? `<div style="font-size:.85rem;color:var(--text-2);margin-bottom:8px">${v[2]}</div>` : ''}
+    ${evSeries.length > 2 ? miniChart(evSeries, { color: 'var(--sky)', height: 110, fmt: x => x.toFixed(1) }) : ''}
+    <div class="hint" style="margin-top:6px">Runalyze-style: fitness from every run's HR-vs-pace (not just races), corrected for race endurance (weekly volume ${(p.shape || {}).weekly_km_avg ?? '—'} km + longest run ${(p.shape || {}).longest_run_km ?? '—'} km). This method beats Garmin's own forecast in community comparisons.</div>
+  </div>`;
 }
 
 function renderRaces(a) {

@@ -1,5 +1,10 @@
 project.manifest = manifest.xml
 
+# scope to this field's own tree — the default glob would also swallow the
+# form/ widget/ classfield/ race/ subprojects living next to it
+base.sourcePath = source
+base.resourcePath = resources
+
 # ponytail: typecheck off so the field builds on any SDK line; bump to 1 once you build regularly
 project.typecheck = 0
 project.optimization = 2

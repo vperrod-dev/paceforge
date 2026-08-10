@@ -4,6 +4,8 @@ using Toybox.Math;
 using Toybox.UserProfile;
 using Toybox.Activity;
 using Toybox.Lang;
+using Toybox.Communications;
+using Toybox.Application;
 
 // PaceForge Coach Field — full-screen (single-field layout) run data field.
 // With an active structured workout: step name + notes, target pace band,
@@ -31,8 +33,62 @@ class PaceForgeFieldView extends WatchUi.DataField {
     hidden var stepStartSec = 0;
     hidden var stepStartDist = 0.0;
 
+    // stimulus: zone-weighted TRIMP accumulated on-watch (minutes x zone
+    // weight 1..5), shown as % of the coach's planned_trimp when present
+    hidden var plannedTrimp = null;      // from watch-targets; null = show TIME
+    hidden var trimpWeightedSec = 0.0;   // sum(seconds x zone weight)
+    hidden var lastTimerSec = 0;
+
+    // HR drift: efficiency factor (speed/HR) baseline = first 5 min of a
+    // steady step, compared to the rolling last 3 min
+    hidden var driftStartSec = 0;
+    hidden var prevLowSpeed = null;
+    hidden var prevHighSpeed = null;
+    hidden var efBaseSum = 0.0;
+    hidden var efBaseN = 0;
+    hidden var efBuf;                    // 180-sample ring (last 3 min)
+    hidden var efBufIdx = 0;
+    hidden var efBufN = 0;
+    hidden var efBufSum = 0.0;
+    hidden var driftPct = null;          // Number, null = no alert
+
     function initialize() {
         DataField.initialize();
+        efBuf = new [180];
+        var pt = Application.Storage.getValue("planned_trimp");
+        if (pt != null) {
+            plannedTrimp = pt.toFloat();
+        }
+        fetchTargets();
+    }
+
+    // Pull the coach's targets through the phone (same fetch the Form field
+    // does). Fire-and-forget: offline -> cached/absent, the run is unaffected.
+    hidden function fetchTargets() {
+        if (!(Communications has :makeWebRequest) || TARGETS_URL.equals("")) {
+            return;
+        }
+        try {
+            Communications.makeWebRequest(TARGETS_URL, null,
+                { :method => Communications.HTTP_REQUEST_METHOD_GET,
+                  :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON },
+                method(:onTargets));
+        } catch (e) {
+        }
+    }
+
+    function onTargets(code, data) {
+        if (code != 200 || !(data instanceof Lang.Dictionary)) {
+            return;
+        }
+        if (data["planned_trimp"] != null) {
+            plannedTrimp = data["planned_trimp"].toFloat();
+            Application.Storage.setValue("planned_trimp", plannedTrimp);
+        } else {
+            // no planned stimulus today -> fall back to the TIME column
+            plannedTrimp = null;
+            Application.Storage.deleteValue("planned_trimp");
+        }
     }
 
     // ---- activity event callbacks -------------------------------------
@@ -48,6 +104,10 @@ class PaceForgeFieldView extends WatchUi.DataField {
     function onTimerReset() {
         stepStartSec = 0;
         stepStartDist = 0.0;
+        trimpWeightedSec = 0.0;
+        lastTimerSec = 0;
+        resetDrift();
+        driftStartSec = 0;
     }
 
     hidden function resetStepStart() {
@@ -58,6 +118,17 @@ class PaceForgeFieldView extends WatchUi.DataField {
         } else {
             stepStartDist = 0.0;
         }
+        resetDrift();
+    }
+
+    hidden function resetDrift() {
+        driftStartSec = timerSec;
+        efBaseSum = 0.0;
+        efBaseN = 0;
+        efBufIdx = 0;
+        efBufN = 0;
+        efBufSum = 0.0;
+        driftPct = null;
     }
 
     // ---- compute (1 Hz) ------------------------------------------------
@@ -92,6 +163,7 @@ class PaceForgeFieldView extends WatchUi.DataField {
         stepName = "";
 
         if (ws == null) {
+            tick();
             return null;
         }
 
@@ -130,7 +202,67 @@ class PaceForgeFieldView extends WatchUi.DataField {
             nextText = nextLabel(nx);
         }
 
+        tick();
         return null;
+    }
+
+    // ---- per-tick accumulation (stimulus TRIMP + HR drift) ---------------
+
+    // Runs once per compute(); only accumulates while the timer advances.
+    hidden function tick() {
+        // a pace-band change (incl. workout start/end) restarts the drift
+        // baseline — steadiness is measured from the last band change
+        if (lowSpeed != prevLowSpeed || highSpeed != prevHighSpeed) {
+            prevLowSpeed = lowSpeed;
+            prevHighSpeed = highSpeed;
+            resetDrift();
+        }
+
+        var dt = timerSec - lastTimerSec;
+        lastTimerSec = timerSec;
+        if (dt <= 0 || dt > 10) {   // paused, reset, or a stale gap
+            return;
+        }
+
+        if (curHr != null && curHr > 0) {
+            var z = zones();
+            var wgt = (z != null && z.size() >= 6) ? zoneIndex(curHr, z) + 1 : 1;
+            trimpWeightedSec += dt * wgt;
+        }
+
+        if (curSpeed != null && curSpeed > 0.5 && curHr != null && curHr > 100) {
+            var ef = curSpeed / curHr;   // efficiency factor
+            if (timerSec - driftStartSec <= 300) {
+                efBaseSum += ef;
+                efBaseN += 1;
+            }
+            if (efBufN < 180) {
+                efBufN += 1;
+            } else {
+                efBufSum -= efBuf[efBufIdx];
+            }
+            efBuf[efBufIdx] = ef;
+            efBufSum += ef;
+            efBufIdx = (efBufIdx + 1) % 180;
+        }
+
+        updateDrift();
+    }
+
+    // Conservative: >= 8 min into the steady step, >= 3 of the first 5 min and
+    // >= 2 of the last 3 min with valid samples, and EF down > 6% vs baseline.
+    hidden function updateDrift() {
+        driftPct = null;
+        if (timerSec - driftStartSec < 480) {
+            return;
+        }
+        if (efBaseN < 180 || efBufN < 120 || efBaseSum <= 0) {
+            return;
+        }
+        var ratio = (efBufSum / efBufN) / (efBaseSum / efBaseN);
+        if (ratio < 0.94) {
+            driftPct = ((1.0 - ratio) * 100.0 + 0.5).toNumber();
+        }
     }
 
     // ---- workout step helpers -------------------------------------------
@@ -424,9 +556,16 @@ class PaceForgeFieldView extends WatchUi.DataField {
         dc.drawText(cx, h * 0.20, Graphics.FONT_NUMBER_HOT, paceStr(curSpeed),
             Graphics.TEXT_JUSTIFY_CENTER);
 
-        // verdict word (teal/red), or step name under the pace when banded
+        // verdict word (teal/red), or step name under the pace when banded;
+        // an active HR-drift alert shares the line, alternating each second
         var v = verdict();
-        if (v != null) {
+        var drift = (driftPct != null)
+            ? "DRIFT +" + driftPct.format("%d") + "%" : null;
+        if (drift != null && (v == null || timerSec % 2 == 1)) {
+            dc.setColor(RED, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, h * 0.455, Graphics.FONT_TINY, drift,
+                Graphics.TEXT_JUSTIFY_CENTER);
+        } else if (v != null) {
             dc.setColor(v.equals("GOOD PACE") ? TEAL : RED, Graphics.COLOR_TRANSPARENT);
             dc.drawText(cx, h * 0.455, Graphics.FONT_TINY, v,
                 Graphics.TEXT_JUSTIFY_CENTER);
@@ -444,14 +583,26 @@ class PaceForgeFieldView extends WatchUi.DataField {
                 Graphics.TEXT_JUSTIFY_CENTER);
         }
 
-        // three labeled stat columns: step-left / time / distance
+        // three labeled stat columns: step-left / load-or-time / distance.
+        // LOAD = live zone-weighted TRIMP as % of the coach's planned_trimp;
+        // without a planned value the column stays TIME as before.
+        var midVal = fmtTime(timerSec);
+        var midLab = "TIME";
+        if (plannedTrimp != null && plannedTrimp > 0) {
+            var pct = trimpWeightedSec / 60.0 / plannedTrimp * 100.0;
+            if (pct > 999.0) {
+                pct = 999.0;
+            }
+            midVal = pct.toNumber().format("%d") + "%";
+            midLab = "LOAD";
+        }
         var xs = [w * 0.26, w * 0.5, w * 0.74];
         var vals = [
             remainText.equals("") ? "--" : stripLeft(remainText),
-            fmtTime(timerSec),
+            midVal,
             (dist != null) ? fmtDist(dist) : "0 m",
         ];
-        var labs = ["STEP LEFT", "TIME", "DISTANCE"];
+        var labs = ["STEP LEFT", midLab, "DISTANCE"];
         for (var i = 0; i < 3; i++) {
             dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
             dc.drawText(xs[i], h * 0.615, Graphics.FONT_SMALL, vals[i],
