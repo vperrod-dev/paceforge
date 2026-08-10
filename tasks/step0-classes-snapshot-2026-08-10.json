@@ -1,0 +1,542 @@
+{
+ "snapshot_date": "2026-08-10",
+ "reason": "Step 0 of gap-closing plan: Victor ordered current plan deleted; classes snapshotted for re-add as calendar items in WS3",
+ "plan_deleted": {
+  "name": "Half Marathon \u2014 Intermediate",
+  "goal": "HALF_MARATHON",
+  "target_date": "2026-09-20",
+  "weeks": 8
+ },
+ "classes": [
+  {
+   "name": "Un1t",
+   "date": "2026-08-04",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": true,
+   "matched": [
+    23844831869
+   ]
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-08-05",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": true,
+   "matched": [
+    23866461473
+   ]
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-08-06",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": true,
+   "matched": [
+    23870932697
+   ]
+  },
+  {
+   "name": "Outdoor cycling",
+   "date": "2026-08-03",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 90.0,
+   "garmin_id": null,
+   "completed": true,
+   "matched": [
+    23838686027
+   ]
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-08-08",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": true,
+   "matched": [
+    23894658462
+   ]
+  },
+  {
+   "name": "Un1t hybrid",
+   "date": "2026-08-09",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1658078542,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Outdoor cycling",
+   "date": "2026-08-09",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 120.0,
+   "garmin_id": 1658078549,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-08-11",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660092518,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-08-12",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660092549,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-08-13",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660092574,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-08-15",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660092602,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-08-18",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660092824,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-08-19",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660092854,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-08-20",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660092881,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-08-22",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660092908,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-08-25",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660093150,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-08-26",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660093192,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-08-27",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660093217,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-08-29",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": 1660093240,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-09-01",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-09-02",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-09-03",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-09-05",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-09-08",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-09-09",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-09-10",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-09-12",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-09-15",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-09-22",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-09-29",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-10-06",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-10-13",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-10-20",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-09-16",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-09-23",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-09-30",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-10-07",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-10-14",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t Hyrox",
+   "date": "2026-10-21",
+   "type": "hyrox_mixed",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-09-17",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-09-24",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-10-01",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-10-08",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-10-15",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t",
+   "date": "2026-10-22",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-09-19",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-09-26",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-10-03",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-10-10",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-10-17",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-10-24",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  },
+  {
+   "name": "Un1t training",
+   "date": "2026-10-31",
+   "type": "cross_training",
+   "sport": "run",
+   "dur_min": 45.0,
+   "garmin_id": null,
+   "completed": false,
+   "matched": []
+  }
+ ]
+}
