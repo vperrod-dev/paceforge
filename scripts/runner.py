@@ -1230,6 +1230,18 @@ class Handler(BaseHTTPRequestHandler):
         # root workspace app and the home-screen icon opens the wrong portal
         if path in ("/manifest.webmanifest", "/pf-180.png", "/pf-512.png"):
             return self._static(REPO_DIR / "web" / path.lstrip("/"))
+        # Watch data field (Connect IQ makeWebRequest, no cookies): tokened,
+        # read-only, serves ONLY the cadence-target JSON — nothing sensitive.
+        if path == "/watch-targets":
+            tok = os.environ.get("PF_WATCH_TOKEN", "")
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            if not tok or q.get("k", [""])[0] != tok:
+                return self._send(401, {"message": "bad token"})
+            f = REPO_DIR / "data" / "watch-targets.json"
+            try:
+                return self._send(200, json.loads(f.read_text()))
+            except Exception:
+                return self._send(200, {"cadence_lo": 168, "cadence_hi": 172})
         if not self._authed():
             if path.startswith(("/gh/", "/garmin/", "/runs", "/run/", "/analyses")):
                 return self._send(401, {"message": "sign in first"})

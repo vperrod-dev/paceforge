@@ -193,3 +193,14 @@ as first-class items — NOT in the plan. When reviewing a day or week, read it
 alongside the plan: `[{item_id, date, sport, title, duration_min, completed,
 matched_activity_ids}]`. A completed item's activity appears in
 `data/activities.json` as usual.
+
+## Watch targets (2026-08-10)
+
+`data/watch-targets.json` drives the on-watch cadence gauge (PaceForge Form
+field fetches it live). Whenever your cadence guidance for the athlete changes
+(per-activity analysis or weekly review — e.g. "aim 168-172 spm"), update this
+file in the same commit: `{"cadence_lo": <spm>, "cadence_hi": <spm>,
+"updated": "YYYY-MM-DD", "source": "<one-line why>"}`. Progress it gradually
+(~+3-5 spm per block) toward the eventual 175-180 range — never jump it.
+Stride length is derived on the watch (speed/cadence); coach guidance stays
+cadence-first.

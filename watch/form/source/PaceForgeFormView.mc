@@ -3,6 +3,8 @@ using Toybox.Graphics;
 using Toybox.Activity;
 using Toybox.Math;
 using Toybox.Lang;
+using Toybox.Communications;
+using Toybox.Application;
 
 // PaceForge Form Field — companion data screen to the Coach Field, focused on
 // the form numbers being worked on: BIG cadence with a target-band arc gauge,
@@ -14,10 +16,12 @@ class PaceForgeFormView extends WatchUi.DataField {
     hidden var curHr = null;
     hidden var curCad = null;     // steps/min
 
-    // Cadence target band shown teal on the gauge. 170-180 spm is the classic
-    // efficient-running range; the gauge domain is 140-200.
-    hidden var CAD_LO = 170.0;
-    hidden var CAD_HI = 180.0;
+    // Cadence target band shown teal on the gauge — the COACH's current
+    // prescription, fetched from the PaceForge runner (data/watch-targets.json)
+    // via the phone at startup and cached; baked default = the prescription at
+    // build time. Gauge domain is 140-200.
+    hidden var CAD_LO = 168.0;
+    hidden var CAD_HI = 172.0;
     hidden var DOM_LO = 140.0;
     hidden var DOM_HI = 200.0;
 
@@ -28,6 +32,39 @@ class PaceForgeFormView extends WatchUi.DataField {
 
     function initialize() {
         DataField.initialize();
+        // last coach targets we saw (survives across activities)
+        var lo = Application.Storage.getValue("cad_lo");
+        var hi = Application.Storage.getValue("cad_hi");
+        if (lo != null && hi != null) {
+            CAD_LO = lo.toFloat();
+            CAD_HI = hi.toFloat();
+        }
+        fetchTargets();
+    }
+
+    // Pull the coach's current cadence band through the phone. Fire-and-forget:
+    // offline or no phone -> keep cached/baked values, the workout is unaffected.
+    hidden function fetchTargets() {
+        if (!(Communications has :makeWebRequest) || TARGETS_URL.equals("")) {
+            return;
+        }
+        try {
+            Communications.makeWebRequest(TARGETS_URL, null,
+                { :method => Communications.HTTP_REQUEST_METHOD_GET,
+                  :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON },
+                method(:onTargets));
+        } catch (e) {
+        }
+    }
+
+    function onTargets(code, data) {
+        if (code == 200 && data instanceof Lang.Dictionary
+            && data["cadence_lo"] != null && data["cadence_hi"] != null) {
+            CAD_LO = data["cadence_lo"].toFloat();
+            CAD_HI = data["cadence_hi"].toFloat();
+            Application.Storage.setValue("cad_lo", CAD_LO);
+            Application.Storage.setValue("cad_hi", CAD_HI);
+        }
     }
 
     function compute(info) {
