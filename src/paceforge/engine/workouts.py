@@ -757,11 +757,12 @@ class WorkoutFactory:
         t_lo, t_hi = self._resolve_pace("threshold")
         steps = [
             self._warmup(10),
-            # Alternating surges — modeled as a repeat block
+            # Alternating surges — dose scales with total_min so a 25' and a
+            # 45' fartlek are genuinely different sessions (16' = WU+CD).
             WorkoutStep(
                 step_type=WorkoutStepType.INTERVAL,
                 description="Fartlek surges — varied pace",
-                repeat_count=6,
+                repeat_count=max(4, round((total_min - 16) / 4)),
                 steps=[
                     self._pace_step(
                         WorkoutStepType.INTERVAL,

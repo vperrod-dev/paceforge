@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+import zlib
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -18,7 +19,7 @@ import yaml
 
 from paceforge.engine.briefings import build_briefing, week_intro
 from paceforge.engine.events import event_profile
-from paceforge.engine.variants import pick_variant
+from paceforge.engine.variants import Rotation, pick_variant
 from paceforge.engine.vdot import (
     RACE_DISTANCES,
     ZONE_KEYS,
@@ -39,29 +40,25 @@ from paceforge.models.plan import (
     WorkoutStepType,
     WorkoutType,
 )
-from paceforge.models.profile import GoalType, TrainingGoal, UserFitnessProfile
+from paceforge.models.profile import TrainingGoal, UserFitnessProfile
 
 logger = logging.getLogger(__name__)
 
 
 def _starting_and_peak_km(
-    profile: UserFitnessProfile, goal_type: GoalType, table_peak: float
+    profile: UserFitnessProfile, goal: TrainingGoal, table_peak: float
 ) -> tuple[float, float]:
-    """Anchor plan volume to the athlete's actual mileage, not a fixed table.
+    """Peak volume comes from the GOAL (template, level-scaled), not history.
 
-    Peak is the greater of the template default and the athlete's current weekly
-    mileage scaled by the event's peak factor; start ramps in at ~75% of peak.
+    2026-08-10: the old 2.2x-recent-mileage clamp made plans circular — a
+    boring plan shrank the very history the next plan was capped by. Ambition
+    now comes from the template; safety comes from the ramp (week 1 anchors to
+    the athlete's DECLARED current volume and grows ~12%/week, see the week_kms
+    cap in _generate_template_plan). Garmin history is advisory only.
     """
-    actual = profile.weekly_mileage_km or 0.0
-    peak = max(table_peak, actual * event_profile(goal_type).peak_km_factor)
-    if actual:
-        # A low-mileage athlete can't absorb the table peak in one plan —
-        # cap peak at ~2.2x current load (still a big build), floor at half
-        # the table so the plan stays event-credible.
-        peak = min(peak, max(actual * 2.2, table_peak * 0.5))
-    peak = round(peak, 1)
-    start = round(peak * 0.75, 1)
-    return start, peak
+    declared = goal.current_weekly_km or profile.weekly_mileage_km or 0.0
+    peak = round(max(table_peak, declared * event_profile(goal.goal_type).peak_km_factor), 1)
+    return round(declared, 1), peak  # start of 0 = "unknown, template curve stands"
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -99,14 +96,14 @@ _TEMPLATE_MAP: dict[str, str] = {
 
 # Quality session 1: speed / power / VO2 slot
 _Q1_BASE = ["hills", "speed_200s", "fartlek", "easy_with_strides"]
-_Q1_BUILD = ["vo2max", "speed_400s", "vo2max", "hills"]
-_Q1_PEAK = ["vo2max", "speed_200s", "vo2max", "hills"]
+_Q1_BUILD = ["vo2max", "speed_400s", "hills", "fartlek"]
+_Q1_PEAK = ["vo2max", "speed_200s", "hills", "vo2max"]
 _Q1_TAPER = ["easy_with_strides", "speed_200s"]
 
 # Quality session 2: threshold / race-specificity slot
 _Q2_BASE = ["tempo", "progressive", "steady_m", "threshold_cruise"]
 _Q2_BUILD = ["progressive", "alternations", "tempo", "threshold_cruise"]
-_Q2_PEAK = ["alternations", "race_pace", "threshold_cruise", "race_pace"]
+_Q2_PEAK = ["alternations", "race_pace", "threshold_cruise", "steady_m"]
 _Q2_TAPER = ["tempo", "race_pace"]
 
 # Easy run slot: alternate easy and easy+strides
@@ -124,7 +121,7 @@ _LR_HARD = {
 
 
 def _long_run_type(phase: str, wk_idx: int, deload: bool, weeks_to_race: int,
-                   week_in_phase: int, phase_len: int) -> str:
+                   week_in_phase: int, phase_len: int, seed: int = 0) -> str:
     """Pick the long-run subtype for a week (C10 rules).
 
     Cutback weeks and the taper are unstructured; the dress rehearsal
@@ -138,7 +135,7 @@ def _long_run_type(phase: str, wk_idx: int, deload: bool, weeks_to_race: int,
     if deload or wk_idx % 2 == 0:
         return "long"  # unstructured — switch off, run to feel
     hard = _LR_HARD.get(phase, _LR_HARD["Build"])
-    pick = hard[(wk_idx // 2) % len(hard)]
+    pick = hard[(wk_idx // 2 + seed) % len(hard)]
     if pick == "long_with_race_pace" and phase == "Build" and week_in_phase < phase_len / 2:
         return "long_progressive"  # race-pace waits until mid-build
     return pick
@@ -188,8 +185,19 @@ def generate_plan(
     the coach skill) and checked by ``engine.validate.validate_plan``.
     """
 
-    # 1. Determine training paces
-    paces, pace_source = _derive_paces(profile)
+    # 1. Determine training paces — a STATED recent race/TT beats every device
+    # metric (intake truth, 2026-08-10): it's an actual performance the athlete
+    # vouches for, where VO2max is a wrist estimate.
+    paces, pace_source = None, ""
+    stated_dist = RACE_DISTANCES.get(goal.recent_race_distance or "")
+    if stated_dist and goal.recent_race_seconds:
+        paces = paces_from_race(stated_dist, goal.recent_race_seconds)
+        mins, secs = divmod(int(goal.recent_race_seconds), 60)
+        hrs, mins = divmod(mins, 60)
+        t = f"{hrs}:{mins:02d}:{secs:02d}" if hrs else f"{mins}:{secs:02d}"
+        pace_source = f"Stated recent {goal.recent_race_distance} ({t} → VDOT {paces.vdot:.1f})"
+    else:
+        paces, pace_source = _derive_paces(profile)
     # Override with user-provided custom paces if given
     if paces and (goal.custom_easy_pace or goal.custom_marathon_pace or goal.custom_threshold_pace):
         paces = TrainingPaces(
@@ -256,8 +264,16 @@ def _generate_template_plan(
     plan_start = race_week_start - timedelta(weeks=total_weeks - 1)
 
     table_peak = template["peak_weekly_km"].get(level, template["peak_weekly_km"]["intermediate"])
-    _, peak_km = _starting_and_peak_km(profile, goal.goal_type, table_peak)
+    start_km, peak_km = _starting_and_peak_km(profile, goal, table_peak)
     volume_prog = template["volume_progression"]
+
+    # Deterministic per-plan rotation seed: different goals open on different
+    # flavors, the same goal regenerates the identical plan (NOT plan_id — that
+    # is a fresh uuid every run and would break regeneration).
+    seed = zlib.crc32(
+        f"{plan_start}:{goal.goal_type.value}:{goal.target_date}".encode()
+    ) % 251
+    rotation = Rotation(seed)
 
     phase_map: dict[int, str] = {}
     for p in template.get("phases", []):
@@ -289,16 +305,16 @@ def _generate_template_plan(
         goal_pace = goal.target_time_seconds / (goal_dist / 1000)
     factory = WorkoutFactory(paces, goal_pace_sec_km=goal_pace)
 
-    # Anchor early volume to the athlete's actual mileage: cap week 1 near
-    # current load and let the cap grow ~12%/week (inside the validate ramp)
-    # until the template curve takes over. Deload dips survive via min().
+    # Ramp safety anchors to the DECLARED current volume (intake), not scraped
+    # history: week 1 starts near what the athlete says they run now and the
+    # cap grows ~12%/week until the template curve takes over. Deload dips
+    # survive via min(). With no declared volume the template curve stands.
     week_kms = [
         round(peak_km * volume_prog[min(_template_week(i) - 1, len(volume_prog) - 1)], 1)
         for i in range(total_weeks)
     ]
-    actual_km = profile.weekly_mileage_km or 0.0
-    if actual_km:
-        cap = max(actual_km * 1.15, peak_km * 0.35)
+    if start_km:
+        cap = max(start_km * 1.15, peak_km * 0.35)
         for i in range(total_weeks):
             week_kms[i] = round(min(week_kms[i], cap), 1)
             cap *= 1.12
@@ -350,7 +366,7 @@ def _generate_template_plan(
         deload = wk_idx > 0 and week_kms[wk_idx] < week_kms[wk_idx - 1]
         weeks_to_race = total_weeks - wk_num
         lr_type = _long_run_type(
-            phase, wk_idx, deload, weeks_to_race, week_in_phase, len(members)
+            phase, wk_idx, deload, weeks_to_race, week_in_phase, len(members), seed=seed
         )
         # Milestone time trial on a deload ≥4 weeks out, ≥4 weeks apart — a
         # maximal effort, so it consumes BOTH quality slots that week.
@@ -360,7 +376,7 @@ def _generate_template_plan(
             last_tt = wk_idx
         workouts = _build_varied_week(
             factory=factory, phase=phase, week_km=week_km,
-            week_start=week_start, wk_idx=wk_idx,
+            week_start=week_start, wk_idx=wk_idx, rotation=rotation,
             long_run_day=goal.long_run_day,
             max_days=goal.max_days_per_week,
             training_days=goal.training_days,
@@ -372,8 +388,9 @@ def _generate_template_plan(
             time_trial_km=tt_km,
         )
         for w in workouts:
-            w.briefing = build_briefing(w, phase=phase, hyrox=compromised)
-        focus = _get_focus(phase, wk_idx)
+            w.briefing = build_briefing(w, phase=phase, hyrox=compromised,
+                                        rot=wk_idx + seed)
+        focus = _get_focus(phase, wk_idx, workouts)
         actual_km = round(sum(
             (w.estimated_distance_meters or 0) / 1000
             for w in workouts
@@ -406,11 +423,40 @@ def _generate_template_plan(
         vdot=paces.vdot if paces else None,
         pace_source=pace_source,
         athlete_summary=athlete_summary,
+        intake={
+            "goal_type": goal.goal_type.value,
+            "target_date": goal.target_date.isoformat(),
+            "target_time_seconds": goal.target_time_seconds,
+            "recent_race_distance": goal.recent_race_distance,
+            "recent_race_seconds": goal.recent_race_seconds,
+            "current_weekly_km": goal.current_weekly_km,
+            "training_days": goal.training_days,
+            "long_run_day": goal.long_run_day,
+            "experience_level": level,
+        },
     )
 
 
-def _get_focus(phase: str, wk_idx: int) -> str:
-    """Get a focus string for the week based on phase and rotation index."""
+def _get_focus(phase: str, wk_idx: int, workouts: list[Workout] | None = None) -> str:
+    """Focus string derived from the week's ACTUAL quality sessions, so the
+    header tells the athlete what this week really trains — the static pools
+    only back up quality-free weeks (taper, recovery)."""
+    if workouts:
+        quality = [
+            w.name for w in workouts
+            if w.workout_type not in (
+                WorkoutType.EASY_RUN, WorkoutType.RECOVERY, WorkoutType.REST,
+                WorkoutType.LONG_RUN, WorkoutType.EASY_WITH_STRIDES,
+            )
+        ]
+        lr = next((w for w in workouts if w.workout_type in (
+            WorkoutType.LONG_RUN, WorkoutType.LONG_RUN_PROGRESSIVE,
+            WorkoutType.LONG_RUN_WITH_RACE_PACE)), None)
+        parts = quality[:2]
+        if lr and lr.workout_type != WorkoutType.LONG_RUN:
+            parts.append(lr.name)
+        if parts:
+            return " + ".join(parts)
     pool = {
         "Base": _FOCUS_BASE,
         "Build": _FOCUS_BUILD,
@@ -427,6 +473,7 @@ def _build_varied_week(
     week_start: date,
     wk_idx: int,
     long_run_day: str,
+    rotation: Rotation | None = None,
     max_days: int = 5,
     training_days: list[str] | None = None,
     compromised: bool = False,
@@ -483,9 +530,9 @@ def _build_varied_week(
         "Base": _Q2_BASE, "Build": _Q2_BUILD, "Peak": _Q2_PEAK, "Taper": _Q2_TAPER,
     }.get(phase, _Q2_BUILD)
 
-    q1_type = q1_pool[wk_idx % len(q1_pool)]
-    q2_type = q2_pool[wk_idx % len(q2_pool)]
-    easy_type = _EASY_ROTATION[wk_idx % len(_EASY_ROTATION)]
+    rotation = rotation or Rotation(0)
+    q1_type = rotation.pick_flavor("q1", q1_pool, wk_idx)
+    q2_type = rotation.pick_flavor("q2", q2_pool, wk_idx)
 
     # Skeleton density: at ≤3 run days a hard long-run subtype consumes a
     # quality slot — the week is (Q1 + easy + hard long), never Q1+Q2+hard long,
@@ -493,10 +540,10 @@ def _build_varied_week(
     # likewise strips the second quality session.
     demote_q2 = (num_run_days <= 3 and lr_type != "long") or time_trial_km is not None
 
-    # Low-volume weeks (ACWR anchor biting): hard Q1 doesn't fit the budget —
-    # keep the stimulus mild until volume supports real quality work.
-    # ponytail: blunt threshold; PR3's variant volume-gating generalizes this.
-    if week_km < 25 and q1_type not in ("easy_with_strides",):
+    # Every non-taper week keeps ONE real quality session (Runna's beginner
+    # rule: time/effort-based when volume is low — the 12km variant rows carry
+    # it). Only a genuinely tiny week drops to strides.
+    if week_km < 12 and q1_type not in ("easy_with_strides",):
         q1_type = "easy_with_strides"
 
     # ── Assign roles to training days ────────────────────────────────
@@ -549,17 +596,24 @@ def _build_varied_week(
 
     core: dict[str, Workout] = {}
     if "q1" in role_map.values():
-        core["q1"] = (
-            factory.time_trial(time_trial_km)
-            if time_trial_km
-            else _make_quality(factory, q1_type, q1_km, week_in_phase, deload, week_km)
-        )
+        if time_trial_km:
+            core["q1"] = factory.time_trial(time_trial_km)
+        else:
+            occ = rotation.occurrence("q1", q1_type)
+            core["q1"] = _make_quality(factory, q1_type, q1_km, occ, deload, week_km)
+            core["q1"].variant_key = f"q1:{q1_type}:{occ}"
     if "q2" in role_map.values():
-        core["q2"] = (
-            factory.easy_run(q2_km)
-            if demote_q2
-            else _make_quality(factory, q2_type, q2_km, week_in_phase, deload, week_km)
-        )
+        if demote_q2:
+            # The filler day itself rotates so 3-day weeks don't read identical.
+            core["q2"] = (
+                factory.easy_with_strides(q2_km)
+                if (wk_idx + rotation.seed) % 2
+                else factory.easy_run(q2_km)
+            )
+        else:
+            occ = rotation.occurrence("q2", q2_type)
+            core["q2"] = _make_quality(factory, q2_type, q2_km, occ, deload, week_km)
+            core["q2"].variant_key = f"q2:{q2_type}:{occ}"
     num_easy = sum(1 for r in role_map.values() if r.startswith("easy_"))
     # The long run is the week's volume dial: quality sessions carry fixed
     # overhead that can overshoot their budget, so size the long run to the
@@ -569,7 +623,11 @@ def _build_varied_week(
     if num_easy:
         long_km = min(long_km, max(rem - 2.0 * num_easy, week_km * 0.30))
     else:
-        long_km = max(rem, week_km * 0.33)
+        # No easy days (3-day weeks): the long run absorbs the remainder, but
+        # never more than ~49% of the week's ACTUAL total (validate's
+        # frequency-scaled cap) — quality stays small at low volume, so an
+        # uncapped remainder made the long run 55%+ of the real week.
+        long_km = min(max(rem, week_km * 0.33), round(q_km * 0.96, 1))
     long_km = round(min(long_km, week_km * 0.48), 1)
     core["long_run"] = _make_long_run(factory, lr_type, long_km, rehearsal=lr_rehearsal)
     core_km = sum((w.estimated_distance_meters or 0) / 1000 for w in core.values())
@@ -602,14 +660,20 @@ def _build_varied_week(
 
         if role in core:
             w = core[role]
-        elif (
-            day_name == strides_day
-            if strides_day
-            else easy_type == "easy_with_strides"
-        ):
+        elif day_name == strides_day:
             w = factory.easy_with_strides(per_easy_km)
         else:
-            w = factory.easy_run(per_easy_km)
+            # Per-day rotation: easy / easy+strides / recovery — never a
+            # recovery jog the day before the long run (fresh legs matter more).
+            i = int(role.split("_")[1]) if role.startswith("easy_") else 0
+            kind = ("easy", "easy_with_strides", "recovery")[(wk_idx + rotation.seed + i) % 3]
+            before_lr = _DAY_OFFSETS.get(lr_day, 99) - _DAY_OFFSETS[day_name] == 1
+            if kind == "recovery" and not before_lr:
+                w = factory.recovery_run(max(per_easy_km, 3.0))
+            elif kind == "easy_with_strides":
+                w = factory.easy_with_strides(per_easy_km)
+            else:
+                w = factory.easy_run(per_easy_km)
 
         w.scheduled_date = workout_date
         workouts.append(w)

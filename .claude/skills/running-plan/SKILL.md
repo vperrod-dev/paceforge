@@ -14,7 +14,11 @@ the **judgement**. State is files in `data/`. Run `paceforge` via the venv local
 ## Inputs
 From the runner job (env vars or the prompt): `mode` (create|reassess), `event_type`
 (5K/10K/HALF_MARATHON/MARATHON/HYROX), `target_date`, `days`, `level`, optional
-`goal_time`. Missing value → sensible default, and say so.
+`goal_time`, `recent_race` (DIST=SECONDS — the athlete's stated pace truth) and
+`weekly_km` (self-declared current volume). Missing value → sensible default, and
+say so. **Intake governs (2026-08-10):** what the athlete STATED (recent race,
+declared volume) drives paces and ramp; Garmin history is prefill/suggestion and
+live-metrics context only — never a cap on plan ambition.
 
 ## The loop (create mode)
 1. **Evidence.** Read `data/profile.json` and run `paceforge analyze` — aerobic /
@@ -22,7 +26,8 @@ From the runner job (env vars or the prompt): `mode` (create|reassess), `event_t
    read `data/hyrox_analysis.json`. This is the panel's evidence base.
 2. **Scaffold with the given event — mandatory, sets the paces:**
    `paceforge plan --goal <EVENT_TYPE> --date <TARGET_DATE> --level <LEVEL> --days <DAYS>`
-   (`--target-time <sec>` if given). Never invent paces; never change the event.
+   (`--target-time <sec>`, `--recent-race <DIST=SEC>`, `--weekly-km <km>` if given).
+   Never invent paces; never change the event.
 3. **Panel deliberation** — work the plan through these roles, then converge. Take as
    many rounds as the plan needs:
    - **Head Coach** — periodisation (base→build→peak→taper), 3:1 build:deload, total

@@ -63,6 +63,7 @@ def validate_plan(plan: TrainingPlan) -> list[str]:
     issues += _check_taper(plan)
     issues += _check_goal_feasibility(plan)
     issues += _check_session_variety(plan)
+    issues += _check_weekly_quality(plan)
     return issues
 
 
@@ -160,6 +161,37 @@ def _check_session_variety(plan: TrainingPlan) -> list[str]:
                 f"Week {week.week_number}: '{name}' repeats the previous week's session"
             )
         prev_keys = keys
+    return issues
+
+
+def _check_weekly_quality(plan: TrainingPlan) -> list[str]:
+    """Every normal training week carries at least one real quality session.
+
+    The 2026-08-10 complaint in rule form: weeks of nothing but easy running
+    are exactly what made plans boring, so they now fail validation. Exempt:
+    the final (race) week, the Taper phase, and deload/cutback weeks — a
+    deload passes with strides (quality steps back, it doesn't vanish) and a
+    time trial counts as quality (RACE_PACE). Weeks under 12 km are exempt to
+    match the planner's floor guard.
+    """
+    issues = []
+    prev_km: float | None = None
+    for week in plan.weeks:
+        deload = prev_km is not None and (week.total_distance_km or 0) < prev_km
+        prev_km = week.total_distance_km or 0
+        if (week.week_number == plan.total_weeks or week.phase == "Taper"
+                or (week.total_distance_km or 0) < 12):
+            continue
+        has_quality = any(w.workout_type in INTENSE_TYPES for w in week.workouts)
+        has_strides = any(
+            w.workout_type == WorkoutType.EASY_WITH_STRIDES for w in week.workouts
+        )
+        if has_quality or (deload and has_strides):
+            continue
+        issues.append(
+            f"Week {week.week_number}: no quality session — only easy running "
+            "outside taper/recovery"
+        )
     return issues
 
 

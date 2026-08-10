@@ -1355,7 +1355,11 @@ def adapt(dry_run: bool = False) -> dict:
     this gives it (and the athlete) a safe, rule-based lever."""
     from datetime import timedelta
 
-    from paceforge.engine.adaptation import readiness_gate, reflow_missed_sessions
+    from paceforge.engine.adaptation import (
+        hold_back_progression,
+        readiness_gate,
+        reflow_missed_sessions,
+    )
     from paceforge.engine.load import compute_load_recovery
 
     plan = store.load_plan()
@@ -1379,6 +1383,7 @@ def adapt(dry_run: bool = False) -> dict:
 
     changes = reflow_missed_sessions(plan)
     changes += readiness_gate(plan, readiness, yesterday_rpe=yesterday_rpe)
+    changes += hold_back_progression(plan)
     issues = validate_plan(plan)
     if not dry_run and changes and not issues:
         store.save_plan(plan)

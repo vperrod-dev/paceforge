@@ -36,6 +36,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="comma-separated training days")
     p_plan.add_argument("--long-run-day", default="sunday")
     p_plan.add_argument("--target-time", type=float, default=None, help="goal finish seconds")
+    p_plan.add_argument("--recent-race", default=None,
+                        help="stated recent race as DIST=SECONDS (e.g. 10K=3150) — "
+                             "derives paces ahead of any device metric")
+    p_plan.add_argument("--weekly-km", type=float, default=None,
+                        help="self-declared current weekly volume (km) — anchors the ramp")
     sub.add_parser("status", help="show stored profile + plan summary")
     sub.add_parser("analyze", help="run analytics over the stored profile")
     sub.add_parser("validate", help="validate data/plan.json")
@@ -125,14 +130,20 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "sync":
             _emit(actions.sync(lookback_days=args.lookback_days, details_limit=args.details))
         elif args.cmd == "plan":
-            _emit(actions.scaffold({
+            goal_dict = {
                 "goal_type": args.goal,
                 "target_date": args.date,
                 "experience_level": args.level,
                 "training_days": [d.strip() for d in args.days.split(",")],
                 "long_run_day": args.long_run_day,
                 "target_time_seconds": args.target_time,
-            }))
+                "current_weekly_km": args.weekly_km,
+            }
+            if args.recent_race and "=" in args.recent_race:
+                dist, _, secs = args.recent_race.partition("=")
+                goal_dict["recent_race_distance"] = dist.strip()
+                goal_dict["recent_race_seconds"] = float(secs)
+            _emit(actions.scaffold(goal_dict))
         elif args.cmd == "status":
             _emit(actions.status())
         elif args.cmd == "analyze":

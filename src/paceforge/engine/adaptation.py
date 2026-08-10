@@ -61,6 +61,72 @@ def _adjacent_to_hard(d: date, hard_dates: set) -> bool:
     return any(abs((d - h).days) <= 1 for h in hard_dates if h)
 
 
+def hold_back_progression(plan: TrainingPlan, today: date | None = None) -> list[str]:
+    """Repeat, don't advance: a failed quality session holds its flavor's
+    progression instead of stepping up next time.
+
+    Looks at last week's quality workouts (by ``variant_key`` slot:flavor:index).
+    Failed = compliance status red, missed entirely, or rated RPE >= 9. The next
+    scheduled workout of the same slot+flavor at a HIGHER index is replaced by a
+    copy of the failed session (fresh id/date, completion state reset). Long runs
+    and the taper are never touched; conservative by design.
+    """
+    today = today or date.today()
+    changes: list[str] = []
+    week_ago = today - timedelta(days=7)
+
+    failed: dict[str, Workout] = {}
+    for week in plan.weeks:
+        for w in week.workouts:
+            if not (w.variant_key and w.scheduled_date
+                    and week_ago <= w.scheduled_date < today):
+                continue
+            status = (w.completion_metrics or {}).get("status")
+            if (status == "red" or (w.user_rpe or 0) >= 9
+                    or (not w.completed and w.scheduled_date < today)):
+                slot_flavor = ":".join(w.variant_key.split(":")[:2])
+                failed[slot_flavor] = w
+
+    if not failed:
+        return changes
+
+    for week in plan.weeks:
+        if week.phase == "Taper":
+            continue
+        for i, w in enumerate(week.workouts):
+            if not (w.variant_key and w.scheduled_date and w.scheduled_date >= today):
+                continue
+            parts = w.variant_key.split(":")
+            slot_flavor = ":".join(parts[:2])
+            prior = failed.get(slot_flavor)
+            if prior is None:
+                continue
+            prior_idx = int(prior.variant_key.split(":")[2])
+            if int(parts[2]) <= prior_idx:
+                continue
+            repeat = prior.model_copy(deep=True)
+            repeat.session_id = w.session_id           # keep the calendar slot's id
+            repeat.scheduled_date = w.scheduled_date
+            repeat.completed = False
+            repeat.completion_metrics = None
+            repeat.completion_analysis = None
+            repeat.matched_activity_ids = []
+            repeat.manual_activity_ids = []
+            repeat.excluded_activity_ids = []
+            repeat.user_rpe = None
+            repeat.garmin_workout_id = w.garmin_workout_id  # re-push overwrites by id
+            repeat.variant_key = prior.variant_key
+            repeat.notes = ("[Repeated — last attempt didn't land; advance next time] "
+                            + (prior.notes or "")).strip()
+            week.workouts[i] = repeat
+            changes.append(
+                f"Held back {w.name} on {w.scheduled_date} — repeating "
+                f"{prior.name} (last attempt didn't land)"
+            )
+            del failed[slot_flavor]   # hold back one occurrence, not the whole plan
+    return changes
+
+
 def readiness_gate(plan: TrainingPlan, readiness: dict | None,
                    yesterday_rpe: int | None = None,
                    today: date | None = None) -> list[str]:

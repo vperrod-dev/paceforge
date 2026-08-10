@@ -185,6 +185,12 @@ class TrainingGoal(BaseModel):
     custom_easy_pace: float | None = Field(None, description="User-provided easy pace in sec/km")
     custom_marathon_pace: float | None = Field(None, description="User-provided marathon pace in sec/km")
     custom_threshold_pace: float | None = Field(None, description="User-provided threshold pace in sec/km")
+    # Intake truth (2026-08-10): the athlete's stated fitness governs the plan;
+    # Garmin history only prefills/suggests. recent_race_* derives VDOT ahead of
+    # any device metric; current_weekly_km anchors the volume ramp.
+    recent_race_distance: str | None = Field(None, description="Stated recent race/TT distance key (5K/10K/HALF_MARATHON/MARATHON)")
+    recent_race_seconds: float | None = Field(None, description="Stated recent race/TT finish time in seconds")
+    current_weekly_km: float | None = Field(None, description="Self-declared current comfortable weekly volume (km)")
 
     @property
     def max_days_per_week(self) -> int:

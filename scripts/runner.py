@@ -730,6 +730,10 @@ def job_plan(run: Run, inputs: dict) -> None:
             cmd += ["--long-run-day", str(inputs["long_run_day"])]
         if inputs.get("goal_time"):
             cmd += ["--target-time", str(inputs["goal_time"])]
+        if inputs.get("recent_race"):        # "10K=3150" — intake pace truth
+            cmd += ["--recent-race", str(inputs["recent_race"])]
+        if inputs.get("weekly_km"):          # declared current volume
+            cmd += ["--weekly-km", str(inputs["weekly_km"])]
         sh(run, cmd)
         plan_path = REPO_DIR / "data" / "plan.json"
         p = json.loads(plan_path.read_text())

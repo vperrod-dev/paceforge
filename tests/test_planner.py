@@ -54,13 +54,22 @@ def test_hyrox_plan_is_running_only():
     assert WorkoutType.CROSS_TRAINING not in types
 
 
-def test_volume_anchored_to_athlete_not_fixed_table():
+def test_volume_anchored_to_intake_not_history():
+    """2026-08-10: declared volume raises the peak; scraped history never caps it."""
     prof = _make_profile()
     prof.weekly_mileage_km = 60
-    # HYROX table peak for intermediate is a fixed 40 — anchoring must beat it.
-    start, peak = _starting_and_peak_km(prof, GoalType.HYROX, table_peak=40)
+    goal = _make_goal()
+    goal.goal_type = GoalType.HYROX
+    # High declared/actual volume must beat the fixed table peak of 40...
+    start, peak = _starting_and_peak_km(prof, goal, table_peak=40)
     assert peak >= 60
-    assert start >= peak * 0.7
+    assert start == 60
+    # ...and a LOW history must NOT drag the peak below the template (the old
+    # 2.2x-actual clamp did exactly that — the boring-plan spiral).
+    prof.weekly_mileage_km = 15
+    goal.current_weekly_km = 15
+    _, peak_low = _starting_and_peak_km(prof, goal, table_peak=40)
+    assert peak_low == 40
 
 
 class TestPlanGeneration:

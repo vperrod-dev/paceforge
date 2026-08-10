@@ -63,22 +63,34 @@ _T: dict[WorkoutType, dict[str, str]] = {
         "than slowing the whole run — quality of pace beats quantity today.",
     },
     WorkoutType.TEMPO: {
-        "purpose": "Lactate threshold — raises the pace you can sustain. The single "
-        "biggest lever for {phase}-phase fitness at your distance.",
+        "purpose": [
+            "Lactate threshold — raises the pace you can sustain. The single "
+            "biggest lever for {phase}-phase fitness at your distance.",
+            "Sustained comfortably-hard running moves the pace you can hold for an "
+            "hour — the most trainable lever there is for race performance.",
+        ],
         "feel": "Comfortably hard, RPE 7. You could speak a sentence, not hold a chat.",
         "if_wrong": "Too hard? Slow 5-10 s/km rather than stopping — the aerobic stimulus "
         "survives a slower tempo, not a broken one. Heat or hills: switch to effort.",
     },
     WorkoutType.THRESHOLD: {
-        "purpose": "Lactate threshold in pieces — same stimulus as tempo with the mental "
-        "load broken up. Floats/recoveries keep the lactate shuttling.",
+        "purpose": [
+            "Lactate threshold in pieces — same stimulus as tempo with the mental "
+            "load broken up. Floats/recoveries keep the lactate shuttling.",
+            "Cruise work at the red-line edge: enough stimulus to move your "
+            "threshold, broken up so form never collapses.",
+        ],
         "feel": "Comfortably hard, RPE 7-8. The last rep should feel like one more was possible.",
         "if_wrong": "Fading mid-set: slow 5 s/km, don't bail. If floats become jogs, "
         "you started too fast — that's the lesson, bank it.",
     },
     WorkoutType.VO2MAX: {
-        "purpose": "Aerobic ceiling — short hard reps at ~3K-5K effort push maximal "
-        "oxygen uptake, which everything below it hangs from.",
+        "purpose": [
+            "Aerobic ceiling — short hard reps at ~3K-5K effort push maximal "
+            "oxygen uptake, which everything below it hangs from.",
+            "Aerobic power day — hard reps flood the engine with oxygen demand "
+            "and lift the ceiling every other pace hangs from.",
+        ],
         "feel": "Hard, RPE 8-9. Controlled discomfort — the last rep matches the first.",
         "if_wrong": "Fading before the final rep: slow 5 s/km or take 30s more recovery. "
         "In heat or wind run by RPE 8 — the pace window assumes calm, flat ground.",
@@ -172,12 +184,28 @@ def build_structure(workout: Workout) -> str:
     return " → ".join(parts)
 
 
+def _pick(v: str | list[str], rot: int) -> str:
+    return v if isinstance(v, str) else v[rot % len(v)]
+
+
+# One-line phase context appended to quality purposes — the athlete should
+# always know WHY this session sits in THIS part of the plan.
+_PHASE_TAIL = {
+    "Base": " Right now this is groundwork — economy and resilience for the harder blocks ahead.",
+    "Build": " This is the meat of the build: each week stacks a little more than the last.",
+    "Peak": " Race-sharpening territory — quality stays, fatigue drains away.",
+    "Taper": " Small dose on purpose: keep the legs awake while the taper does its work.",
+}
+
+
 def build_briefing(
     workout: Workout,
     phase: str = "",
     hyrox: bool = False,
+    rot: int = 0,
 ) -> dict[str, str]:
-    """Assemble the coaching briefing for a built workout."""
+    """Assemble the coaching briefing for a built workout. ``rot`` selects
+    among text alternates deterministically (planner passes wk_idx + seed)."""
     structure = build_structure(workout) or workout.description or workout.name
     if "RACE DAY" in workout.name.upper():
         return {
@@ -193,11 +221,14 @@ def build_briefing(
     t = _T.get(workout.workout_type)
     if t is None:
         return {"purpose": workout.description or workout.name, "structure": structure}
+    purpose = _pick(t["purpose"], rot).format(phase=phase or "this")
+    if workout.workout_type in _QUALITY_TYPES and phase in _PHASE_TAIL:
+        purpose += _PHASE_TAIL[phase]
     b: dict[str, str] = {
-        "purpose": t["purpose"].format(phase=phase or "this"),
+        "purpose": purpose,
         "structure": structure,
-        "feel": t["feel"],
-        "if_wrong": t["if_wrong"],
+        "feel": _pick(t["feel"], rot),
+        "if_wrong": _pick(t["if_wrong"], rot),
     }
     if "Time Trial" in workout.name:
         b["purpose"] = (

@@ -1002,24 +1002,52 @@ function planStageList(steps) {
   return rows.length ? `<div style="max-width:320px;margin:10px auto 0">${rows.join('')}</div>` : '';
 }
 
-// Create a running plan (plan.yml → running-plan coaching-panel skill).
-function openCreatePlanModal() {
+// ── Plan intake (2026-08-10): the plan is built from what YOU state — goal,
+// times, declared volume. Garmin history only prefills and suggests.
+const RACE_KM = { '5K': 5, '10K': 10, HALF_MARATHON: 21.0975, MARATHON: 42.195 };
+
+function parseHms(s) {
+  const p = (s || '').trim().split(':').map(Number);
+  if (p.some(isNaN) || !p.length) return null;
+  if (p.length === 3) return p[0] * 3600 + p[1] * 60 + p[2];
+  if (p.length === 2) return p[0] * 60 + p[1];
+  return null;
+}
+function fmtHms(sec) {
+  sec = Math.round(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`;
+}
+// Riegel: t2 = t1 * (d2/d1)^1.06 — the standard cross-distance estimate.
+function riegel(fromKm, fromSec, toKm) { return fromSec * Math.pow(toKm / fromKm, 1.06); }
+
+const WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+async function openCreatePlanModal() {
+  const profile = await loadJSON('profile.json').catch(() => ({}));
+  const suggestedKm = profile.weekly_mileage_km ? Math.round(profile.weekly_mileage_km) : '';
+  const dayBoxes = WEEKDAYS.map(d => `
+    <label style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;min-width:40px">
+      <input type="checkbox" class="cp-day" value="${d}" ${['tuesday', 'thursday', 'sunday'].includes(d) ? 'checked' : ''}>
+      <span style="font-size:.75rem;text-transform:capitalize">${d.slice(0, 3)}</span>
+    </label>`).join('');
   openModal(`
     <div class="modal-h">
       <div>
         <div class="modal-title">Create running plan</div>
-        <div class="modal-sub">Claude's coaching panel builds a running-only plan for your event.</div>
+        <div class="modal-sub">Built from your goal and your times — the engine periodizes it, the coach personalises it.</div>
       </div>
       <button class="modal-close" data-close>${icons.x}</button>
     </div>
+    <div class="eyebrow" style="margin-bottom:6px">Your goal</div>
     <div class="field">
       <label for="cp-event">Event</label>
       <select id="cp-event">
         <option value="5K">5K</option>
         <option value="10K">10K</option>
-        <option value="HALF_MARATHON">Half marathon</option>
+        <option value="HALF_MARATHON" selected>Half marathon</option>
         <option value="MARATHON">Marathon</option>
-        <option value="HYROX" selected>HYROX</option>
+        <option value="HYROX">HYROX</option>
       </select>
     </div>
     <div class="field">
@@ -1027,9 +1055,37 @@ function openCreatePlanModal() {
       <input type="date" id="cp-date">
     </div>
     <div class="field">
-      <label for="cp-days">Training days</label>
-      <input id="cp-days" value="tuesday,thursday,saturday,sunday">
-      <div class="hint">Comma-separated weekday names.</div>
+      <label for="cp-goal">Goal time (optional)</label>
+      <input id="cp-goal" placeholder="h:mm:ss" inputmode="numeric">
+    </div>
+    <div class="eyebrow" style="margin:14px 0 6px">Where you are now</div>
+    <div class="field">
+      <label for="cp-recent-dist">Recent race or hard time trial</label>
+      <div style="display:flex;gap:8px">
+        <select id="cp-recent-dist" style="flex:0 0 40%">
+          <option value="">None / not sure</option>
+          <option value="5K">5K</option>
+          <option value="10K" selected>10K</option>
+          <option value="HALF_MARATHON">Half marathon</option>
+          <option value="MARATHON">Marathon</option>
+        </select>
+        <input id="cp-recent-time" placeholder="h:mm:ss" inputmode="numeric" style="flex:1">
+      </div>
+      <div class="hint">Your paces derive from THIS — an actual performance beats any watch estimate.${profile.vo2_max ? ` (Watch VO2max: ${Math.round(profile.vo2_max)})` : ''}</div>
+    </div>
+    <div class="field">
+      <label for="cp-weekly">Current comfortable weekly volume (km)</label>
+      <input id="cp-weekly" type="number" min="0" max="200" value="${suggestedKm}" inputmode="numeric">
+      <div class="hint">${suggestedKm ? `Garmin suggests ~${suggestedKm} km/wk from recent weeks — override freely; the plan ramps from what you enter.` : 'The plan ramps up from here.'}</div>
+    </div>
+    <div class="eyebrow" style="margin:14px 0 6px">Your week</div>
+    <div class="field">
+      <label>Training days</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:space-between">${dayBoxes}</div>
+    </div>
+    <div class="field">
+      <label for="cp-lrd">Long run day</label>
+      <select id="cp-lrd">${WEEKDAYS.map(d => `<option value="${d}" ${d === 'sunday' ? 'selected' : ''}>${d[0].toUpperCase() + d.slice(1)}</option>`).join('')}</select>
     </div>
     <div class="field">
       <label for="cp-level">Level</label>
@@ -1039,32 +1095,67 @@ function openCreatePlanModal() {
         <option value="advanced">Advanced</option>
       </select>
     </div>
-    <div class="field">
-      <label for="cp-goal">Goal time (optional)</label>
-      <input id="cp-goal" placeholder="h:mm:ss">
-    </div>
+    <div id="cp-summary"></div>
     <div class="modal-foot">
       <button class="btn btn-outline" data-close>Cancel</button>
-      <button class="btn btn-primary" id="cp-submit">${icons.spark} Build plan</button>
+      <button class="btn btn-primary" id="cp-review">${icons.spark} Review &amp; build</button>
     </div>
-  `);
-  on('cp-submit', 'click', () => {
-    const date = val('cp-date');
-    if (!date) { toast('err', 'Pick a race date', 'A target date is required.'); return; }
-    const goalStr = (val('cp-goal') || '').trim();
-    let goalSecs = '';
-    if (goalStr) {
-      const p = goalStr.split(':').map(Number);
-      if (p.length === 3) goalSecs = String(p[0] * 3600 + p[1] * 60 + p[2]);
-      else if (p.length === 2) goalSecs = String(p[0] * 60 + p[1]);
+  `, true);
+
+  const summaryHtml = () => {
+    const ev = val('cp-event');
+    const goalSec = parseHms(val('cp-goal'));
+    const rd = val('cp-recent-dist');
+    const rs = parseHms(val('cp-recent-time'));
+    const rows = [];
+    if (rd && rs && RACE_KM[ev]) {
+      const est = riegel(RACE_KM[rd], rs, RACE_KM[ev]);
+      rows.push(`<div><b>Estimated ${ev.replace('_', ' ').toLowerCase()} today:</b> ${fmtHms(est)} <span style="color:var(--text-3)">(from your ${rd} ${fmtHms(rs)})</span></div>`);
+      if (goalSec) {
+        const ratio = goalSec / est;
+        let verdict, color;
+        if (ratio >= 0.98) { verdict = 'Realistic — the plan sharpens you toward it.'; color = 'var(--emerald)'; }
+        else if (ratio >= 0.93) { verdict = 'Ambitious — doable with a full, consistent block.'; color = 'var(--amber)'; }
+        else { verdict = 'Very aggressive vs current fitness — consider a softer goal or expect the plan to feel hard.'; color = 'var(--rose)'; }
+        rows.push(`<div><b>Goal ${fmtHms(goalSec)}:</b> <span style="color:${color}">${verdict}</span></div>`);
+      }
+      rows.push('<div style="color:var(--text-3)">Training paces will derive from this stated time (VDOT), not from watch estimates.</div>');
+    } else if (goalSec) {
+      rows.push('<div style="color:var(--text-3)">No recent race given — paces fall back to watch metrics. A recent hard 5K/10K makes them far more accurate.</div>');
     }
-    closeModal();
-    dispatchWorkflow('plan.yml', {
-      mode: 'create', event_type: val('cp-event'), target_date: date,
-      days: val('cp-days'), level: val('cp-level'), goal_time: goalSecs,
-    }, 'Plan build started',
-       'Watch it build below — this page tracks each stage live.');
-    planDispatchedAt = Date.now(); goTab('plan');
+    const days = [...document.querySelectorAll('.cp-day:checked')].map(c => c.value);
+    const wk = val('cp-weekly');
+    rows.push(`<div style="color:var(--text-3)">${days.length} runs/week from ${wk || '?'} km/wk, long run ${val('cp-lrd')}.</div>`);
+    return `<div class="card" style="margin-top:10px;padding:12px;font-size:.87rem;line-height:1.6">
+      <div class="eyebrow" style="margin-bottom:6px">Plan summary</div>${rows.join('')}
+      <div class="modal-foot" style="margin-top:10px">
+        <button class="btn btn-primary btn-block" id="cp-submit">${icons.spark} Build this plan</button>
+      </div></div>`;
+  };
+
+  on('cp-review', 'click', () => {
+    if (!val('cp-date')) { toast('err', 'Pick a race date', 'A target date is required.'); return; }
+    document.getElementById('cp-summary').innerHTML = summaryHtml();
+    document.getElementById('cp-summary').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    on('cp-submit', 'click', () => {
+      const days = [...document.querySelectorAll('.cp-day:checked')].map(c => c.value);
+      if (days.length < 2) { toast('err', 'Pick at least 2 training days', ''); return; }
+      const goalSec = parseHms(val('cp-goal'));
+      const rd = val('cp-recent-dist');
+      const rs = parseHms(val('cp-recent-time'));
+      const inputs = {
+        mode: 'create', event_type: val('cp-event'), target_date: val('cp-date'),
+        days: days.join(','), level: val('cp-level'),
+        goal_time: goalSec ? String(goalSec) : '',
+        long_run_day: val('cp-lrd'),
+      };
+      if (rd && rs) inputs.recent_race = `${rd}=${rs}`;
+      if (val('cp-weekly')) inputs.weekly_km = val('cp-weekly');
+      closeModal();
+      dispatchWorkflow('plan.yml', inputs, 'Plan build started',
+        'Watch it build below — this page tracks each stage live.');
+      planDispatchedAt = Date.now(); goTab('plan');
+    });
   });
 }
 
@@ -2289,7 +2380,7 @@ async function renderPlan(page) {
         <div style="font-weight:600">Last plan build failed</div>
         <a class="btn-link" href="${st.url}" target="_blank" rel="noopener">See the error →</a></div>`;
     }
-    page.innerHTML = `<div class="fade-in">${emptyState('No training plan yet', 'Create a running plan for your event — Claude\'s coaching panel builds it.', icons.plan)}
+    page.innerHTML = `<div class="fade-in">${emptyState('No training plan yet', 'Tell us your goal and your times — the engine builds a periodized plan from them, and the coach personalises it.', icons.plan)}
       <div style="text-align:center;margin-top:18px"><button class="btn btn-primary" id="plan-create">${icons.spark} Create running plan</button></div>
       ${banner}</div>`;
     on('plan-create', 'click', () => openCreatePlanModal());
@@ -2379,6 +2470,12 @@ function planHeaderHtml(p) {
       ${paceItem('Easy', p.easy_pace)}${paceItem('Marathon', p.marathon_pace)}${paceItem('Threshold', p.threshold_pace)}${paceItem('Interval', p.interval_pace)}${paceItem('Repetition', p.repetition_pace)}
     </div>
     ${p.pace_source ? `<div style="font-size:.74rem;color:var(--text-3);margin-top:12px">Paces from ${escHtml(p.pace_source)}</div>` : ''}
+    ${p.intake ? `<div style="font-size:.74rem;color:var(--text-3);margin-top:4px">Built from your intake: ${escHtml([
+      p.intake.recent_race_distance && p.intake.recent_race_seconds ? `${p.intake.recent_race_distance} ${fmtHms(p.intake.recent_race_seconds)}` : '',
+      p.intake.current_weekly_km ? `${p.intake.current_weekly_km} km/wk` : '',
+      (p.intake.training_days || []).length ? `${p.intake.training_days.length} days/wk` : '',
+      p.intake.experience_level || '',
+    ].filter(Boolean).join(' · '))}</div>` : ''}
     ${p.rationale ? `<div style="font-size:.84rem;color:var(--text-2);line-height:1.55;margin-top:12px;border-top:1px solid var(--border-s);padding-top:12px">${escHtml(p.rationale)}</div>` : ''}
   </div>`;
 }

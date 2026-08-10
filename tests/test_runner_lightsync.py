@@ -40,7 +40,8 @@ def test_sync_rate_limited_detects_429(tmp_path, monkeypatch):
     assert runner._sync_rate_limited() is False
 
 
-def test_dispatch_coalesces_queued_same_job(monkeypatch):
+def test_dispatch_coalesces_queued_same_job(monkeypatch, tmp_path):
+    monkeypatch.setattr(runner, "STATE_DIR", tmp_path)  # keep runs.jsonl out of live state
     started = []
     monkeypatch.setitem(runner.JOBS, "noop-test", lambda run, inputs: started.append(run.id))
     # Hold the lock so dispatched jobs stay queued.

@@ -115,6 +115,9 @@ class Workout(BaseModel):
     completion_analysis: str | None = Field(None, description="AI analysis of how the workout went")
     completion_metrics: dict | None = Field(None, description="Actual vs planned metrics from matched activity")
     garmin_workout_id: int | None = Field(None, description="Garmin workout id from the last push (delete-by-id on re-push)")
+    variant_key: str | None = Field(
+        None, description="slot:flavor:index that generated this session (e.g. 'q1:vo2max:2') — lets adaptation hold progression back"
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -166,6 +169,9 @@ class TrainingPlan(BaseModel):
     total_weeks: int
     weeks: list[TrainingWeek] = Field(default_factory=list)
     created_at: date = Field(default_factory=date.today)
+    intake: dict | None = Field(
+        None, description="What the athlete told us at plan creation (goal, stated times, declared volume, days) — Reassess reuses it"
+    )
 
     # Paces derived from VDOT (sec/km)
     easy_pace: float | None = None
