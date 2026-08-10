@@ -221,6 +221,19 @@ athlete's 3-run cadence average sits inside the target band for 2+ weeks,
 nudge `watch-targets.json` up 3-5 spm (toward 175-180) and say so in the
 weekly review.
 
+## Overnight & strength signals (2026-08-10)
+
+`data/profile.json` + `history.jsonl` now carry `skin_temp_deviation_c`
+(fever/overreaching precursor — it joins `load.illness_watch` as triggering
+evidence), `sleep_restless_moments`, `body_battery_overnight_change`
+(overnight recharge), `sleep_avg_stress` and `spo2_lowest`;
+`fitness.json` adds `load.skin_temp` and `load.sleep.stages_14d`. Cite skin
+temp whenever the illness watch is non-clear. `strength.set_volume` holds
+real gym volume (28-day tonnage, per-exercise sets/reps) from watch-recorded
+exercise sets — when `available`, ground strength coaching in it instead of
+the HR proxy; when not, the athlete's gym classes were recorded outside the
+watch's Strength profile (worth a nudge if strength volume is a limiter).
+
 ## Plan-change proposals (2026-08-10)
 
 Structural suggestions (reschedules, renames, note rewrites on future
