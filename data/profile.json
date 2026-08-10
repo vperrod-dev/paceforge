@@ -1623,5 +1623,10 @@
   "hill_score": 36.0,
   "respiration_avg_sleep": 15.0,
   "spo2_avg": null,
+  "spo2_lowest": null,
+  "skin_temp_deviation_c": -0.5,
+  "sleep_restless_moments": 26,
+  "body_battery_overnight_change": 50,
+  "sleep_avg_stress": 20.0,
   "running_tolerance": null
 }
