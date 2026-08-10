@@ -110,19 +110,19 @@ class PaceForgeClassView extends WatchUi.DataField {
 
         drawZoneRing(dc, w, h, cx);
 
-        // elapsed
+        // elapsed — big enough to read without squinting
         dc.setColor(dim, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.115, Graphics.FONT_SMALL, fmtTime(timerSec),
+        dc.drawText(cx, h * 0.095, Graphics.FONT_MEDIUM, fmtTime(timerSec),
             Graphics.TEXT_JUSTIFY_CENTER);
 
         // BIG heart rate, zone-colored
         var z = zones();
         var zi = (curHr != null && z != null && z.size() >= 6) ? zoneIndex(curHr, z) : null;
         dc.setColor((zi != null) ? ZONE_COLORS[zi] : fg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.185, Graphics.FONT_NUMBER_HOT,
+        dc.drawText(cx, h * 0.205, Graphics.FONT_NUMBER_HOT,
             (curHr != null) ? curHr.format("%d") : "--",
             Graphics.TEXT_JUSTIFY_CENTER);
-        dc.drawText(cx, h * 0.45, Graphics.FONT_TINY,
+        dc.drawText(cx, h * 0.465, Graphics.FONT_TINY,
             (zi != null) ? "ZONE " + (zi + 1).format("%d") : "bpm",
             Graphics.TEXT_JUSTIFY_CENTER);
 
