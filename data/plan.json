@@ -1,6 +1,6 @@
 {
   "plan_id": "21a4aefd",
-  "name": "Half Marathon \u2014 Intermediate",
+  "name": "Half Marathon — Intermediate",
   "goal_type": "HALF_MARATHON",
   "target_date": "2026-09-21",
   "target_time_seconds": 5400.0,
@@ -34,13 +34,13 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "Readiness has been sliding all week (80 to 11 over the last six days, sleep only 40 last night) and today's status reads Recovery \u2014 this is a real fatigue signal, not noise. You already ran an easy 5K this morning instead of the planned hill reps, which was the right call; this entry now matches what actually happened. The hill work isn't lost, just postponed until readiness rebounds.",
+          "notes": "Readiness has been sliding all week (80 to 11 over the last six days, sleep only 40 last night) and today's status reads Recovery — this is a real fatigue signal, not noise. You already ran an easy 5K this morning instead of the planned hill reps, which was the right call; this entry now matches what actually happened. The hill work isn't lost, just postponed until readiness rebounds.",
           "briefing": {
-            "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
+            "purpose": "Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
             "structure": "7.0 km easy @ 4:50-5:19/km",
             "feel": "Conversational, RPE 3-4. You should finish feeling like you could do it again.",
-            "if_wrong": "If pace drifts above the window to hold a conversation, let it \u2014 easy means effort, not a number. Heart rate above ~75% max: slow down.",
-            "cue": "Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) \u2014 quicker, shorter steps, no overstriding."
+            "if_wrong": "If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.",
+            "cue": "Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding."
           },
           "purpose": "aerobic_base",
           "cadence_target": null,
@@ -50,7 +50,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": null,
+          "garmin_workout_id": 1660531357,
           "variant_key": null,
           "user_rpe": null,
           "user_notes": null
@@ -104,10 +104,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Lactate threshold \u2014 raises the pace you can sustain. The single biggest lever for Base-phase fitness at your distance. Right now this is groundwork \u2014 economy and resilience for the harder blocks ahead.",
-            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 4 km tempo at threshold pace @ 4:18-4:32/km \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "purpose": "Lactate threshold — raises the pace you can sustain. The single biggest lever for Base-phase fitness at your distance. Right now this is groundwork — economy and resilience for the harder blocks ahead.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km → 4 km tempo at threshold pace @ 4:18-4:32/km → 10 min easy jog to finish @ 4:50-5:19/km",
             "feel": "Comfortably hard, RPE 7. You could speak a sentence, not hold a chat.",
-            "if_wrong": "Too hard? Slow 5-10 s/km rather than stopping \u2014 the aerobic stimulus survives a slower tempo, not a broken one. Heat or hills: switch to effort.",
+            "if_wrong": "Too hard? Slow 5-10 s/km rather than stopping — the aerobic stimulus survives a slower tempo, not a broken one. Heat or hills: switch to effort.",
             "cue": "Lock the rhythm with your breathing (e.g. 2:2) and let pace follow it."
           },
           "purpose": "lactate_threshold",
@@ -118,7 +118,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": null,
+          "garmin_workout_id": 1660531368,
           "variant_key": "q2:tempo:0",
           "user_rpe": null,
           "user_notes": null
@@ -148,10 +148,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
+            "purpose": "Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
             "structure": "13.4 km easy @ 4:50-5:19/km",
-            "feel": "Relaxed, conversational. The watch stays quiet today \u2014 that's the point.",
-            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great \u2260 speed up \u2014 save it for the structured long runs.",
+            "feel": "Relaxed, conversational. The watch stays quiet today — that's the point.",
+            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.",
             "cue": "Check posture every ~15min: tall hips, relaxed shoulders, quiet feet."
           },
           "purpose": "endurance",
@@ -162,14 +162,14 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": null,
+          "garmin_workout_id": 1660531390,
           "variant_key": null,
           "user_rpe": null,
           "user_notes": null
         }
       ],
       "focus": "4km Tempo Run",
-      "intro": "Base week 1 of 2: laying aerobic foundation and durable form \u2014 economy work now makes every later phase cheaper."
+      "intro": "Base week 1 of 2: laying aerobic foundation and durable form — economy work now makes every later phase cheaper."
     },
     {
       "week_number": 2,
@@ -210,7 +210,7 @@
               "steps": [
                 {
                   "step_type": "interval",
-                  "description": "200m fast & relaxed \u2014 mile race effort",
+                  "description": "200m fast & relaxed — mile race effort",
                   "duration_seconds": null,
                   "distance_meters": 200.0,
                   "target_type": "pace",
@@ -250,13 +250,13 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Speed and running economy \u2014 short, fast reps recruit fast-twitch fibres and sharpen form, making every slower pace cheaper. Right now this is groundwork \u2014 economy and resilience for the harder blocks ahead.",
-            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 10\u00d7 (200m fast & relaxed \u2014 mile race effort @ 3:41-3:57/km / 60s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
-            "feel": "Fast, springy and light \u2014 ~95%, never an all-out sprint. Full recovery is part of the design; R work only counts when you're fresh for each rep.",
-            "if_wrong": "Form breaking (shoulders up, overstriding)? Stop the set \u2014 junk reps train junk form. These reps are about quality, never volume.",
-            "warmup": "After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides \u2014 fast reps on a cold engine is how calves tear.",
-            "cue": "Think 'fast feet on hot coals' \u2014 ground contact short, heels never settling.",
-            "venue": "Track or a measured flat stretch \u2014 GPS pace lies over 200-400m, so run these by effort and check splits after."
+            "purpose": "Speed and running economy — short, fast reps recruit fast-twitch fibres and sharpen form, making every slower pace cheaper. Right now this is groundwork — economy and resilience for the harder blocks ahead.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km → 10× (200m fast & relaxed — mile race effort @ 3:41-3:57/km / 60s walking rest @ 4:50-5:19/km) → 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Fast, springy and light — ~95%, never an all-out sprint. Full recovery is part of the design; R work only counts when you're fresh for each rep.",
+            "if_wrong": "Form breaking (shoulders up, overstriding)? Stop the set — junk reps train junk form. These reps are about quality, never volume.",
+            "warmup": "After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides — fast reps on a cold engine is how calves tear.",
+            "cue": "Think 'fast feet on hot coals' — ground contact short, heels never settling.",
+            "venue": "Track or a measured flat stretch — GPS pace lies over 200-400m, so run these by effort and check splits after."
           },
           "purpose": "speed_neuromuscular",
           "cadence_target": 174,
@@ -305,7 +305,7 @@
               "steps": [
                 {
                   "step_type": "interval",
-                  "description": "Stride \u2014 fast & relaxed",
+                  "description": "Stride — fast & relaxed",
                   "duration_seconds": null,
                   "distance_meters": 100.0,
                   "target_type": "pace",
@@ -333,10 +333,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
-            "structure": "8.8 km easy @ 4:50-5:19/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:41-3:57/km / 45s walking rest @ 4:50-5:19/km)",
+            "purpose": "Easy volume plus neuromuscular priming — strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
+            "structure": "8.8 km easy @ 4:50-5:19/km → 6× (Stride — fast & relaxed @ 3:41-3:57/km / 45s walking rest @ 4:50-5:19/km)",
             "feel": "Easy throughout; strides are fast and springy, ~90% effort, never sprinted.",
-            "if_wrong": "Strides feeling forced or heavy-legged? Cut them \u2014 the easy running is the session; strides are a bonus.",
+            "if_wrong": "Strides feeling forced or heavy-legged? Cut them — the easy running is the session; strides are a bonus.",
             "cue": "Strides are turnover practice: quick light steps, arms driving straight back, eyes up."
           },
           "purpose": "running_economy",
@@ -401,10 +401,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Endurance plus fatigue-resistance \u2014 running strong in the back half is exactly the race-day skill, trained under control.",
-            "structure": "8.9 km easy @ 4:50-5:19/km \u2192 4.4 km at marathon pace @ 4:30-4:47/km \u2192 1.5 km at threshold pace @ 4:18-4:32/km",
+            "purpose": "Endurance plus fatigue-resistance — running strong in the back half is exactly the race-day skill, trained under control.",
+            "structure": "8.9 km easy @ 4:50-5:19/km → 4.4 km at marathon pace @ 4:30-4:47/km → 1.5 km at threshold pace @ 4:18-4:32/km",
             "feel": "Patient early, purposeful late. The final segment is honest work, RPE 6-7.",
-            "if_wrong": "If the faster segments break form, back off to the slow edge of the window \u2014 finishing strong matters more than the split."
+            "if_wrong": "If the faster segments break form, back off to the slow edge of the window — finishing strong matters more than the split."
           },
           "purpose": "mental_toughness",
           "cadence_target": null,
@@ -421,7 +421,7 @@
         }
       ],
       "focus": "10 x 200m Speed Reps + 15km Progressive Long Run + 15km Progressive Long Run",
-      "intro": "Base week 2 of 2: laying aerobic foundation and durable form \u2014 economy work now makes every later phase cheaper."
+      "intro": "Base week 2 of 2: laying aerobic foundation and durable form — economy work now makes every later phase cheaper."
     },
     {
       "week_number": 3,
@@ -502,11 +502,11 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Strength, power and economy \u2014 uphill running loads the posterior chain at low impact and forces a strong knee drive. This is the meat of the build: each week stacks a little more than the last.",
-            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 8\u00d7 (60s hard uphill effort / 90s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
-            "feel": "Hard but controlled, RPE 8 \u2014 effort-based, forget pace on a gradient.",
-            "if_wrong": "Calves or achilles complaining? Shorten the reps and stay tall \u2014 lean from the ankles, not the waist.",
-            "cue": "Drive the knee, push the ground away, arms compact \u2014 and walk the first 20m of each descent before jogging.",
+            "purpose": "Strength, power and economy — uphill running loads the posterior chain at low impact and forces a strong knee drive. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km → 8× (60s hard uphill effort / 90s walking rest @ 4:50-5:19/km) → 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Hard but controlled, RPE 8 — effort-based, forget pace on a gradient.",
+            "if_wrong": "Calves or achilles complaining? Shorten the reps and stay tall — lean from the ankles, not the waist.",
+            "cue": "Drive the knee, push the ground away, arms compact — and walk the first 20m of each descent before jogging.",
             "venue": "Find a steady 4-6% gradient that takes 45-75s to climb; grass or trail saves the calves."
           },
           "purpose": "running_economy",
@@ -571,10 +571,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Lactate threshold \u2014 raises the pace you can sustain. The single biggest lever for Build-phase fitness at your distance. This is the meat of the build: each week stacks a little more than the last.",
-            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 5 km tempo at threshold pace @ 4:18-4:32/km \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "purpose": "Lactate threshold — raises the pace you can sustain. The single biggest lever for Build-phase fitness at your distance. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km → 5 km tempo at threshold pace @ 4:18-4:32/km → 10 min easy jog to finish @ 4:50-5:19/km",
             "feel": "Comfortably hard, RPE 7. You could speak a sentence, not hold a chat.",
-            "if_wrong": "Too hard? Slow 5-10 s/km rather than stopping \u2014 the aerobic stimulus survives a slower tempo, not a broken one. Heat or hills: switch to effort.",
+            "if_wrong": "Too hard? Slow 5-10 s/km rather than stopping — the aerobic stimulus survives a slower tempo, not a broken one. Heat or hills: switch to effort.",
             "cue": "Lock the rhythm with your breathing (e.g. 2:2) and let pace follow it."
           },
           "purpose": "lactate_threshold",
@@ -615,10 +615,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
+            "purpose": "Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
             "structure": "15.0 km easy @ 4:50-5:19/km",
-            "feel": "Relaxed, conversational. The watch stays quiet today \u2014 that's the point.",
-            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great \u2260 speed up \u2014 save it for the structured long runs.",
+            "feel": "Relaxed, conversational. The watch stays quiet today — that's the point.",
+            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.",
             "cue": "Check posture every ~15min: tall hips, relaxed shoulders, quiet feet."
           },
           "purpose": "endurance",
@@ -636,7 +636,7 @@
         }
       ],
       "focus": "8 x 60s Hill Reps + 5km Tempo Run",
-      "intro": "Build week 1 of 3: the engine room \u2014 threshold and VO2 work stack week over week, each session one visible step up on the last. 4 weeks to race day."
+      "intro": "Build week 1 of 3: the engine room — threshold and VO2 work stack week over week, each session one visible step up on the last. 4 weeks to race day."
     },
     {
       "week_number": 4,
@@ -648,7 +648,7 @@
           "workout_type": "fartlek",
           "sport": "run",
           "name": "30min Fartlek",
-          "description": "Unstructured speed play \u2014 alternate between hard surges and easy running by feel.",
+          "description": "Unstructured speed play — alternate between hard surges and easy running by feel.",
           "scheduled_date": "2026-08-31",
           "estimated_duration_seconds": 1800.0,
           "estimated_distance_meters": 6510.679635681229,
@@ -667,7 +667,7 @@
             },
             {
               "step_type": "interval",
-              "description": "Fartlek surges \u2014 varied pace",
+              "description": "Fartlek surges — varied pace",
               "duration_seconds": null,
               "distance_meters": null,
               "target_type": "open",
@@ -717,10 +717,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Speed play \u2014 unstructured surges build gear changes and make hard running feel playful again. Deliberately loose. This is the meat of the build: each week stacks a little more than the last.",
-            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 4\u00d7 (2 min hard surge @ 4:18-4:14/km / 120s walking rest @ 4:50-5:19/km) \u2192 6 min easy jog to finish @ 4:50-5:19/km",
+            "purpose": "Speed play — unstructured surges build gear changes and make hard running feel playful again. Deliberately loose. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km → 4× (2 min hard surge @ 4:18-4:14/km / 120s walking rest @ 4:50-5:19/km) → 6 min easy jog to finish @ 4:50-5:19/km",
             "feel": "Surges roughly threshold-to-5K effort, by feel. Have fun with it.",
-            "if_wrong": "If every surge becomes a time trial, you've missed the point \u2014 vary them, land some easy ones."
+            "if_wrong": "If every surge becomes a time trial, you've missed the point — vary them, land some easy ones."
           },
           "purpose": "aerobic_base",
           "cadence_target": null,
@@ -769,7 +769,7 @@
               "steps": [
                 {
                   "step_type": "interval",
-                  "description": "Stride \u2014 fast & relaxed",
+                  "description": "Stride — fast & relaxed",
                   "duration_seconds": null,
                   "distance_meters": 100.0,
                   "target_type": "pace",
@@ -797,10 +797,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
-            "structure": "10.0 km easy @ 4:50-5:19/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:41-3:57/km / 45s walking rest @ 4:50-5:19/km)",
+            "purpose": "Easy volume plus neuromuscular priming — strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
+            "structure": "10.0 km easy @ 4:50-5:19/km → 6× (Stride — fast & relaxed @ 3:41-3:57/km / 45s walking rest @ 4:50-5:19/km)",
             "feel": "Easy throughout; strides are fast and springy, ~90% effort, never sprinted.",
-            "if_wrong": "Strides feeling forced or heavy-legged? Cut them \u2014 the easy running is the session; strides are a bonus.",
+            "if_wrong": "Strides feeling forced or heavy-legged? Cut them — the easy running is the session; strides are a bonus.",
             "cue": "Strides are turnover practice: quick light steps, arms driving straight back, eyes up."
           },
           "purpose": "running_economy",
@@ -877,11 +877,11 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Race specificity \u2014 goal pace on tired legs, plus a dress rehearsal for pacing, fueling and kit.",
-            "structure": "15 min easy jog at conversational pace @ 4:50-5:19/km \u2192 4.8 km easy @ 4:50-5:19/km \u2192 7 km at race pace @ 4:12-4:23/km \u2192 10 min easy jog to finish @ 4:50-5:19/km",
-            "feel": "Race-pace block should feel controlled and rhythmic, not desperate \u2014 lock in after 1km and relax into it.",
-            "if_wrong": "Can't hold the window without straining? Shorten the block rather than slowing the whole run \u2014 quality of pace beats quantity today.",
-            "fuel": "Fuel it: carbs beforehand, then practice race-day intake \u2014 a gel every ~25-30min and sips of fluid. The gut is trainable; race day is not the day to find out."
+            "purpose": "Race specificity — goal pace on tired legs, plus a dress rehearsal for pacing, fueling and kit.",
+            "structure": "15 min easy jog at conversational pace @ 4:50-5:19/km → 4.8 km easy @ 4:50-5:19/km → 7 km at race pace @ 4:12-4:23/km → 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Race-pace block should feel controlled and rhythmic, not desperate — lock in after 1km and relax into it.",
+            "if_wrong": "Can't hold the window without straining? Shorten the block rather than slowing the whole run — quality of pace beats quantity today.",
+            "fuel": "Fuel it: carbs beforehand, then practice race-day intake — a gel every ~25-30min and sips of fluid. The gut is trainable; race day is not the day to find out."
           },
           "purpose": "race_specificity",
           "cadence_target": null,
@@ -898,7 +898,7 @@
         }
       ],
       "focus": "30min Fartlek + 16km Long Run w/ 7km Race Pace + 16km Long Run w/ 7km Race Pace",
-      "intro": "Build week 2 of 3: the engine room \u2014 threshold and VO2 work stack week over week, each session one visible step up on the last. 3 weeks to race day."
+      "intro": "Build week 2 of 3: the engine room — threshold and VO2 work stack week over week, each session one visible step up on the last. 3 weeks to race day."
     },
     {
       "week_number": 5,
@@ -939,7 +939,7 @@
               "steps": [
                 {
                   "step_type": "interval",
-                  "description": "2.5 min hard \u2014 3K-5K race effort",
+                  "description": "2.5 min hard — 3K-5K race effort",
                   "duration_seconds": 150.0,
                   "distance_meters": null,
                   "target_type": "pace",
@@ -979,12 +979,12 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Aerobic ceiling \u2014 short hard reps at ~3K-5K effort push maximal oxygen uptake, which everything below it hangs from. This is the meat of the build: each week stacks a little more than the last.",
-            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 5\u00d7 (2.5 min hard \u2014 3K-5K race effort @ 3:55-4:14/km / 2.5 min recovery jog @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
-            "feel": "Hard, RPE 8-9. Controlled discomfort \u2014 the last rep matches the first.",
-            "if_wrong": "Fading before the final rep: slow 5 s/km or take 30s more recovery. In heat or wind run by RPE 8 \u2014 the pace window assumes calm, flat ground.",
-            "warmup": "After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides \u2014 fast reps on a cold engine is how calves tear.",
-            "cue": "Relax the face and hands on the back half of each rep \u2014 tension is free speed lost."
+            "purpose": "Aerobic ceiling — short hard reps at ~3K-5K effort push maximal oxygen uptake, which everything below it hangs from. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km → 5× (2.5 min hard — 3K-5K race effort @ 3:55-4:14/km / 2.5 min recovery jog @ 4:50-5:19/km) → 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Hard, RPE 8-9. Controlled discomfort — the last rep matches the first.",
+            "if_wrong": "Fading before the final rep: slow 5 s/km or take 30s more recovery. In heat or wind run by RPE 8 — the pace window assumes calm, flat ground.",
+            "warmup": "After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides — fast reps on a cold engine is how calves tear.",
+            "cue": "Relax the face and hands on the back half of each rep — tension is free speed lost."
           },
           "purpose": "vo2max",
           "cadence_target": 172,
@@ -1048,10 +1048,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Pacing discipline \u2014 each third faster teaches negative splitting, the highest-percentage race strategy there is. This is the meat of the build: each week stacks a little more than the last.",
-            "structure": "3.6 km easy @ 4:50-5:19/km \u2192 3.6 km at marathon pace @ 4:30-4:47/km \u2192 3.6 km at threshold pace @ 4:18-4:32/km",
+            "purpose": "Pacing discipline — each third faster teaches negative splitting, the highest-percentage race strategy there is. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "3.6 km easy @ 4:50-5:19/km → 3.6 km at marathon pace @ 4:30-4:47/km → 3.6 km at threshold pace @ 4:18-4:32/km",
             "feel": "First third annoyingly easy, last third honest work. Smooth gear changes.",
-            "if_wrong": "If the final third isn't the fastest, the start was too quick \u2014 that's the exact race-day error this session exists to fix.",
+            "if_wrong": "If the final third isn't the fastest, the start was too quick — that's the exact race-day error this session exists to fix.",
             "cue": "Change gear with cadence first, stride length second."
           },
           "purpose": "lactate_threshold",
@@ -1092,12 +1092,12 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
+            "purpose": "Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
             "structure": "17.2 km easy @ 4:50-5:19/km",
-            "feel": "Relaxed, conversational. The watch stays quiet today \u2014 that's the point.",
-            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great \u2260 speed up \u2014 save it for the structured long runs.",
+            "feel": "Relaxed, conversational. The watch stays quiet today — that's the point.",
+            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.",
             "cue": "Check posture every ~15min: tall hips, relaxed shoulders, quiet feet.",
-            "fuel": "Fuel it: carbs beforehand, then practice race-day intake \u2014 a gel every ~25-30min and sips of fluid. The gut is trainable; race day is not the day to find out."
+            "fuel": "Fuel it: carbs beforehand, then practice race-day intake — a gel every ~25-30min and sips of fluid. The gut is trainable; race day is not the day to find out."
           },
           "purpose": "endurance",
           "cadence_target": null,
@@ -1114,7 +1114,7 @@
         }
       ],
       "focus": "5 x 2.5min VO2max Intervals + 11km Progressive Run",
-      "intro": "Cutback week (Build phase) \u2014 volume drops on purpose. Adaptation happens in the recovery, not the work; resist making up the kilometres, next week builds from a higher base because of this one."
+      "intro": "Cutback week (Build phase) — volume drops on purpose. Adaptation happens in the recovery, not the work; resist making up the kilometres, next week builds from a higher base because of this one."
     },
     {
       "week_number": 6,
@@ -1155,7 +1155,7 @@
               "steps": [
                 {
                   "step_type": "interval",
-                  "description": "300m fast & relaxed \u2014 mile race effort",
+                  "description": "300m fast & relaxed — mile race effort",
                   "duration_seconds": null,
                   "distance_meters": 300.0,
                   "target_type": "pace",
@@ -1195,13 +1195,13 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Speed and running economy \u2014 short, fast reps recruit fast-twitch fibres and sharpen form, making every slower pace cheaper. Race-sharpening territory \u2014 quality stays, fatigue drains away.",
-            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 8\u00d7 (300m fast & relaxed \u2014 mile race effort @ 3:41-3:57/km / 90s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
-            "feel": "Fast, springy and light \u2014 ~95%, never an all-out sprint. Full recovery is part of the design; R work only counts when you're fresh for each rep.",
-            "if_wrong": "Form breaking (shoulders up, overstriding)? Stop the set \u2014 junk reps train junk form. These reps are about quality, never volume.",
-            "warmup": "After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides \u2014 fast reps on a cold engine is how calves tear.",
-            "cue": "Think 'fast feet on hot coals' \u2014 ground contact short, heels never settling.",
-            "venue": "Track or a measured flat stretch \u2014 GPS pace lies over 200-400m, so run these by effort and check splits after."
+            "purpose": "Speed and running economy — short, fast reps recruit fast-twitch fibres and sharpen form, making every slower pace cheaper. Race-sharpening territory — quality stays, fatigue drains away.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km → 8× (300m fast & relaxed — mile race effort @ 3:41-3:57/km / 90s walking rest @ 4:50-5:19/km) → 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Fast, springy and light — ~95%, never an all-out sprint. Full recovery is part of the design; R work only counts when you're fresh for each rep.",
+            "if_wrong": "Form breaking (shoulders up, overstriding)? Stop the set — junk reps train junk form. These reps are about quality, never volume.",
+            "warmup": "After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides — fast reps on a cold engine is how calves tear.",
+            "cue": "Think 'fast feet on hot coals' — ground contact short, heels never settling.",
+            "venue": "Track or a measured flat stretch — GPS pace lies over 200-400m, so run these by effort and check splits after."
           },
           "purpose": "speed_neuromuscular",
           "cadence_target": 174,
@@ -1290,10 +1290,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Race specificity \u2014 goal pace becomes automatic through repetition. Rhythm, relaxation and confidence at the pace that matters. Race-sharpening territory \u2014 quality stays, fatigue drains away.",
-            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 3\u00d7 (1.0 km at race pace @ 4:12-4:23/km / 90s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
-            "feel": "Should feel 'sustainably quick' \u2014 if it feels like a fight now, the goal needs re-examining (that's useful information, not failure).",
-            "if_wrong": "Consistently outside the window at honest effort: log it \u2014 the adaptive review uses exactly this signal to adjust your paces."
+            "purpose": "Race specificity — goal pace becomes automatic through repetition. Rhythm, relaxation and confidence at the pace that matters. Race-sharpening territory — quality stays, fatigue drains away.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km → 3× (1.0 km at race pace @ 4:12-4:23/km / 90s walking rest @ 4:50-5:19/km) → 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Should feel 'sustainably quick' — if it feels like a fight now, the goal needs re-examining (that's useful information, not failure).",
+            "if_wrong": "Consistently outside the window at honest effort: log it — the adaptive review uses exactly this signal to adjust your paces."
           },
           "purpose": "race_specificity",
           "cadence_target": null,
@@ -1333,10 +1333,10 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
+            "purpose": "Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
             "structure": "12.9 km easy @ 4:50-5:19/km",
-            "feel": "Relaxed, conversational. The watch stays quiet today \u2014 that's the point.",
-            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great \u2260 speed up \u2014 save it for the structured long runs.",
+            "feel": "Relaxed, conversational. The watch stays quiet today — that's the point.",
+            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.",
             "cue": "Check posture every ~15min: tall hips, relaxed shoulders, quiet feet."
           },
           "purpose": "endurance",
@@ -1354,7 +1354,7 @@
         }
       ],
       "focus": "8 x 300m Speed Reps + 3 x 1.0km Race Pace Intervals",
-      "intro": "Peak week 1 of 1: converting fitness to race-readiness \u2014 race-pace work dominates and sessions look like the race. 1 weeks to race day."
+      "intro": "Peak week 1 of 1: converting fitness to race-readiness — race-pace work dominates and sessions look like the race. 1 weeks to race day."
     },
     {
       "week_number": 7,
@@ -1373,11 +1373,11 @@
           "steps": [],
           "notes": "",
           "briefing": {
-            "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
+            "purpose": "Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
             "structure": "Easy shakeout",
             "feel": "Conversational, RPE 3-4. You should finish feeling like you could do it again.",
-            "if_wrong": "If pace drifts above the window to hold a conversation, let it \u2014 easy means effort, not a number. Heart rate above ~75% max: slow down.",
-            "cue": "Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) \u2014 quicker, shorter steps, no overstriding."
+            "if_wrong": "If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.",
+            "cue": "Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding."
           },
           "purpose": "recovery",
           "cadence_target": null,
@@ -1466,11 +1466,11 @@
           ],
           "notes": "",
           "briefing": {
-            "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
-            "structure": "warmup \u2192 4\u00d7 (interval @ 3:41-3:57/km / recovery @ 4:50-5:19/km) \u2192 cooldown",
+            "purpose": "Aerobic base — most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
+            "structure": "warmup → 4× (interval @ 3:41-3:57/km / recovery @ 4:50-5:19/km) → cooldown",
             "feel": "Conversational, RPE 3-4. You should finish feeling like you could do it again.",
-            "if_wrong": "If pace drifts above the window to hold a conversation, let it \u2014 easy means effort, not a number. Heart rate above ~75% max: slow down.",
-            "cue": "Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) \u2014 quicker, shorter steps, no overstriding."
+            "if_wrong": "If pace drifts above the window to hold a conversation, let it — easy means effort, not a number. Heart rate above ~75% max: slow down.",
+            "cue": "Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) — quicker, shorter steps, no overstriding."
           },
           "purpose": "recovery",
           "cadence_target": null,
@@ -1489,18 +1489,18 @@
           "session_id": "64038642",
           "workout_type": "race_pace",
           "sport": "run",
-          "name": "RACE DAY \u2014 Half Marathon",
-          "description": "RACE DAY \u2014 Half Marathon",
+          "name": "RACE DAY — Half Marathon",
+          "description": "RACE DAY — Half Marathon",
           "scheduled_date": "2026-09-27",
           "estimated_duration_seconds": 6139.442373339002,
           "estimated_distance_meters": 21100.0,
           "steps": [],
           "notes": "",
           "briefing": {
-            "purpose": "The day it was all for. Nothing new today \u2014 the kit, fueling and pacing you rehearsed are the plan.",
-            "structure": "RACE DAY \u2014 Half Marathon",
+            "purpose": "The day it was all for. Nothing new today — the kit, fueling and pacing you rehearsed are the plan.",
+            "structure": "RACE DAY — Half Marathon",
             "feel": "First third controlled (it should feel too easy), middle third rhythmic, final third everything you have left.",
-            "if_wrong": "Bad patch mid-race? They pass \u2014 ease 5 s/km for 2 minutes, take fuel, rebuild. Never surge to 'make up' time.",
+            "if_wrong": "Bad patch mid-race? They pass — ease 5 s/km for 2 minutes, take fuel, rebuild. Never surge to 'make up' time.",
             "fuel": "Race-day intake exactly as rehearsed on the long runs."
           },
           "purpose": "recovery",
@@ -1517,8 +1517,8 @@
           "user_notes": null
         }
       ],
-      "focus": "Race week \u2014 trust the training",
-      "intro": "Race week. The work is banked \u2014 nothing you do now makes you fitter, plenty can make you tired. Short, sharp, rested."
+      "focus": "Race week — trust the training",
+      "intro": "Race week. The work is banked — nothing you do now makes you fitter, plenty can make you tired. Short, sharp, rested."
     }
   ],
   "created_at": "2026-08-10",
@@ -1570,10 +1570,10 @@
   },
   "vdot": 49.806233428066335,
   "ftp": null,
-  "pace_source": "Stated recent 5K (20:00 \u2192 VDOT 49.8)",
+  "pace_source": "Stated recent 5K (20:00 → VDOT 49.8)",
   "rationale": "",
   "tips": [],
-  "athlete_summary": "VO2 Max: 52.4 \u00b7 Resting HR: 49 bpm \u00b7 Max HR: 195 bpm \u00b7 Weekly mileage: 15.3 km \u00b7 Training status: Recovery \u00b7 LT pace: 4:24/km \u00b7 LT HR: 163 bpm \u00b7 Endurance score: 6272.0 \u00b7 Recent runs: 31 activities, avg 6.3km @ 4:53/km \u00b7 Pace source: Stated recent 5K (20:00 \u2192 VDOT 49.8)",
+  "athlete_summary": "VO2 Max: 52.4 · Resting HR: 49 bpm · Max HR: 195 bpm · Weekly mileage: 15.3 km · Training status: Recovery · LT pace: 4:24/km · LT HR: 163 bpm · Endurance score: 6272.0 · Recent runs: 31 activities, avg 6.3km @ 4:53/km · Pace source: Stated recent 5K (20:00 → VDOT 49.8)",
   "accepted": true,
   "last_recalibration": null,
   "last_ai_review": null,
