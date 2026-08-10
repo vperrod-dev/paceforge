@@ -367,6 +367,18 @@ a{color:var(--emerald);text-decoration:none}
 .fx-m-label{font-size:.68rem;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
 .fx-m-val{font-size:1.25rem;font-weight:700;font-family:var(--font-m);margin-top:3px}
 .fx-m-sub{font-size:.72rem;color:var(--text-3);margin-top:2px}
+.fx-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.fx-tile{background:var(--card);border:1px solid var(--border-s);border-radius:var(--r-md);padding:12px 14px;cursor:pointer;transition:border-color .15s;min-height:44px}
+.fx-tile:hover,.fx-tile:focus-visible{border-color:var(--emerald);outline:none}
+.fx-t-name{font-size:.78rem;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.fx-t-val{font-family:var(--font-m);font-size:1.15rem;font-weight:700;margin:4px 0 1px}
+.fx-t-sub{font-size:.7rem;color:var(--text-3);line-height:1.35}
+.fx-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.fx-vitals{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.fx-vital{font-size:.74rem;background:var(--elevated);border-radius:99px;padding:3px 11px;color:var(--text-2);display:inline-flex;align-items:center;gap:6px;min-height:24px}
+.coach-strip{background:color-mix(in srgb,var(--emerald) 10%,transparent);border:1px solid color-mix(in srgb,var(--emerald) 30%,transparent);border-radius:var(--r-md);padding:10px 14px;font-size:.8rem;color:var(--emerald);cursor:pointer;line-height:1.4}
+.coach-strip svg{width:14px;height:14px;vertical-align:-2px;margin-right:4px}
+.feed-kind{font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:1px}
 .bm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
 .bm-field label{display:block;font-size:.74rem;color:var(--text-3);margin-bottom:4px}
 .act-analysis b{color:var(--text)}
@@ -1869,65 +1881,83 @@ async function renderCoach(page) {
     briefHtml = `<div class="card">
       <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Daily brief · ${escHtml(dailyBrief.date || '')}</div></div>
       <div style="font-size:.95rem;font-weight:700;line-height:1.45">${escHtml(dailyBrief.headline)}</div>
-      ${section('Your body today', dailyBrief.body_state)}
-      ${section("Today's session", dailyBrief.session)}
-      ${section('The last few days', dailyBrief.recent)}
-      ${(dailyBrief.pulses || []).map(p => `
-        <div style="margin-top:10px;padding:10px 12px;border-left:3px solid var(--sky);background:var(--elevated);border-radius:var(--r-sm)">
-          <div class="eyebrow" style="margin-bottom:4px">Day pulse · ${escHtml(formatTimeAgo(p.at))}</div>
-          <div style="font-size:.86rem;line-height:1.5;color:var(--text-2)">${escHtml(p.text)}</div>
-        </div>`).join('')}
+      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:.84rem;color:var(--emerald);padding:4px 0;min-height:24px">Read: your body · the session · the week</summary>
+        ${section('Your body today', dailyBrief.body_state)}
+        ${section("Today's session", dailyBrief.session)}
+        ${section('The last few days', dailyBrief.recent)}
+      </details>
     </div>`;
   }
 
-  let weeklyHtml = '';
-  if (weekly && (weekly.headline || weekly.content_md)) {
-    weeklyHtml = `<div class="card">
-      <div class="card-h"><div class="card-title"><span class="ico">${icons.fitness}</span>Week review</div>
-        ${weekly.compliance_pct != null ? `<span class="chip">${weekly.compliance_pct}% on plan</span>` : ''}</div>
-      ${weekly.headline ? `<div style="font-size:.95rem;font-weight:700;line-height:1.45;margin-bottom:6px">${escHtml(weekly.headline)}</div>` : ''}
-      ${(weekly.limiters || []).length ? `<div class="eyebrow" style="margin:10px 0 4px">Limiters</div>
-        <ul style="margin:0 0 0 18px;font-size:.85rem;color:var(--text-2)">${weekly.limiters.map(l => `<li style="margin-bottom:3px">${escHtml(typeof l === 'string' ? l : l.text || JSON.stringify(l))}</li>`).join('')}</ul>` : ''}
-      ${weekly.content_md ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:.85rem;color:var(--text-2);padding:6px 0">Full review</summary>
-        <div style="font-size:.87rem;line-height:1.6;color:var(--text-2)">${formatMarkdown(weekly.content_md)}</div></details>` : ''}
-    </div>`;
-  }
+  // Week review renders as a feed row; its full text opens in a modal.
+  const weeklyRow = (weekly && (weekly.headline || weekly.content_md)) ? `
+    <div class="feed-row" data-week-review style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--border-s);cursor:pointer;min-height:44px">
+      <div style="display:flex;justify-content:space-between;gap:10px">
+        <b style="font-size:.88rem"><span class="feed-kind" style="background:color-mix(in srgb,var(--amber) 18%,transparent);color:var(--amber)">Week</span>${escHtml(weekly.headline || 'Week review')}</b>
+        ${weekly.compliance_pct != null ? `<span style="font-size:.76rem;color:var(--text-3);white-space:nowrap">${weekly.compliance_pct}% on plan</span>` : ''}</div>
+      ${(weekly.limiters || []).length ? `<div style="font-size:.8rem;color:var(--text-2)">Limiters: ${weekly.limiters.slice(0, 3).map(l => escHtml(typeof l === 'string' ? l : l.text || '')).join(' · ')}</div>` : ''}
+    </div>` : '';
 
-  const rows = (analysesIdx || []).slice(0, 30).map(a => {
+  const pulseRows = (dailyBrief && dailyBrief.pulses || []).map(p => `
+    <div class="feed-row" style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--border-s)">
+      <div style="display:flex;justify-content:space-between;gap:10px">
+        <b style="font-size:.88rem"><span class="feed-kind" style="background:color-mix(in srgb,var(--sky) 18%,transparent);color:var(--sky)">Pulse</span></b>
+        <span style="font-size:.76rem;color:var(--text-3);white-space:nowrap">${escHtml(formatTimeAgo(p.at))}</span></div>
+      <div style="font-size:.8rem;color:var(--text-2);line-height:1.4">${escHtml(p.text)}</div>
+    </div>`).join('');
+
+  const anRow = a => {
     const act = actById[a.id] || null;
     const when = act ? String(act.start_time).slice(0, 10) : (a.id.startsWith('bike:') ? a.id.slice(5, 15) : '');
     const name = act ? (act.name || act.activity_type) : (a.id.startsWith('bike:') ? 'Bike ride' : a.id.startsWith('hyrox-') ? 'HYROX race review' : 'Activity ' + a.id);
     return `<div class="feed-row" data-an-id="${escHtml(a.id)}" style="display:flex;flex-direction:column;gap:2px;padding:12px 0;border-bottom:1px solid var(--border-s);cursor:pointer;min-height:44px">
-      <div style="display:flex;justify-content:space-between;gap:10px"><b style="font-size:.88rem">${escHtml(name)}</b><span style="font-size:.76rem;color:var(--text-3);white-space:nowrap">${when}</span></div>
+      <div style="display:flex;justify-content:space-between;gap:10px"><b style="font-size:.88rem"><span class="feed-kind" style="background:color-mix(in srgb,var(--violet) 18%,transparent);color:var(--violet)">Session</span>${escHtml(name)}</b><span style="font-size:.76rem;color:var(--text-3);white-space:nowrap">${when}</span></div>
       <div style="font-size:.8rem;color:var(--text-2);line-height:1.4">${escHtml(a.headline)}</div>
     </div>`;
-  }).join('');
-  const analysesHtml = `<div class="card">
-    <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>Session analyses</div>
-      <span style="font-size:.74rem;color:var(--text-3)">${(analysesIdx || []).length} written</span></div>
-    ${rows || `<div class="empty" style="border:none;padding:20px 0">Analyses appear here after each synced session.</div>`}
-  </div>`;
+  };
 
-  page.innerHTML = `<div class="fade-in"><div class="dash-grid">
-    ${briefHtml ? `<div class="span-7">${briefHtml}</div>` : ''}
-    <div class="span-5">${weeklyHtml}${fitness ? renderCoachTake(fitness) : ''}</div>
-    ${fitness ? `<div class="span-12">${renderInsightsPanel(fitness)}</div>` : ''}
-    <div class="span-12">${analysesHtml}</div>
-  </div></div>`;
+  let showAll = false;
+  function render() {
+    const shown = (analysesIdx || []).slice(0, showAll ? 500 : 5);
+    const feedCard = `<div class="card">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>Everything the coach wrote</div>
+        <span style="font-size:.74rem;color:var(--text-3)">${(analysesIdx || []).length} analyses</span></div>
+      ${pulseRows}${weeklyRow}
+      ${shown.map(anRow).join('') || `<div class="empty" style="border:none;padding:20px 0">Analyses appear here after each synced session.</div>`}
+      ${!showAll && (analysesIdx || []).length > 5 ? `<div style="text-align:center;padding-top:12px">
+        <button class="btn btn-ghost btn-sm" id="co-show-all">Show all ${(analysesIdx || []).length} analyses</button></div>` : ''}
+    </div>`;
 
-  on('co-ask', 'click', () => openCoachModal());
-  page.querySelectorAll('[data-an-id]').forEach(el => el.addEventListener('click', async () => {
-    const id = el.dataset.anId;
-    const act = actById[id];
-    if (act) { openActivity(act); return; }
-    // No activity object (hyrox reviews, pruned history): show the markdown inline.
-    try {
-      const md = await loadText('analyses/' + id + '.md');
-      openModal(`<div class="modal-h"><div class="modal-title">Coach analysis</div>
+    page.innerHTML = `<div class="fade-in"><div class="dash-grid">
+      ${briefHtml ? `<div class="span-7">${briefHtml}</div>` : ''}
+      <div class="span-5">${fitness ? renderCoachTake(fitness) : ''}</div>
+      ${fitness ? `<div class="span-12">${renderInsightsPanel(fitness)}</div>` : ''}
+      <div class="span-12">${feedCard}</div>
+    </div></div>`;
+
+    on('co-ask', 'click', () => openCoachModal());
+    on('co-show-all', 'click', () => { showAll = true; render(); });
+    page.querySelector('[data-week-review]')?.addEventListener('click', () => {
+      openModal(`<div class="modal-h"><div class="modal-title">Week review</div>
         <button class="modal-close" data-close>${icons.x}</button></div>
-        <div style="font-size:.88rem;line-height:1.6">${formatMarkdown(md)}</div>`, true);
-    } catch { toast('err', 'Analysis not found', ''); }
-  }));
+        ${(weekly.limiters || []).length ? `<div class="eyebrow" style="margin:0 0 4px">Limiters</div>
+          <ul style="margin:0 0 12px 18px;font-size:.85rem;color:var(--text-2)">${weekly.limiters.map(l => `<li style="margin-bottom:3px">${escHtml(typeof l === 'string' ? l : l.text || JSON.stringify(l))}</li>`).join('')}</ul>` : ''}
+        <div style="font-size:.88rem;line-height:1.6">${formatMarkdown(weekly.content_md || weekly.headline || '')}</div>`, true);
+    });
+    page.querySelectorAll('[data-an-id]').forEach(el => el.addEventListener('click', async () => {
+      const id = el.dataset.anId;
+      const act = actById[id];
+      if (act) { openActivity(act); return; }
+      // No activity object (hyrox reviews, pruned history): show the markdown inline.
+      try {
+        const md = await loadText('analyses/' + id + '.md');
+        openModal(`<div class="modal-h"><div class="modal-title">Coach analysis</div>
+          <button class="modal-close" data-close>${icons.x}</button></div>
+          <div style="font-size:.88rem;line-height:1.6">${formatMarkdown(md)}</div>`, true);
+      } catch { toast('err', 'Analysis not found', ''); }
+    }));
+  }
+  render();
 }
 
 async function renderFitness(page) {
@@ -1943,15 +1973,41 @@ async function renderFitness(page) {
     ['engine', 'Engine'], ['durability', 'Durability'], ['recovery', 'Recovery'],
     ['strength', 'Strength'], ['form', 'Form'], ['economy', 'Economy'], ['races', 'Races'], ['hyrox_p', 'HYROX'],
   ];
-  let activeSub = 'engine';
+  // null = the status board; a sub id = that domain's drill-in view.
+  let activeSub = null;
 
   function draw() {
+    if (activeSub) { drawDrillIn(); return; }
     page.innerHTML = `<div class="fade-in">
-      ${fitness ? renderInsightsPanel(fitness) : ''}
-      ${fitness ? renderCoachTake(fitness) : ''}
+      ${fitness ? fitnessVitals(fitness) : ''}
+      <div class="fx-board">${fitnessTiles(fitness, analytics).map(t => `
+        <div class="fx-tile" tabindex="0" role="button" aria-label="${t.name} details" data-sub="${t.sub}">
+          <div class="fx-t-name">${t.name}<span class="fx-dot" style="background:${_DOT[t.dot] || _DOT.x}"></span></div>
+          <div class="fx-t-val">${t.val}</div>
+          <div class="fx-t-sub">${t.subline}</div>
+        </div>`).join('')}
+      </div>
+      ${fitness && fitness.headline ? `<div class="coach-strip" role="button" tabindex="0">${icons.spark} Coach: &ldquo;${escHtml(fitness.headline)}&rdquo; — read on Coach &rarr;</div>` : ''}
+    </div>`;
+    page.querySelectorAll('.fx-tile').forEach(el => {
+      const open = () => { activeSub = el.dataset.sub; draw(); document.querySelector('.page')?.scrollTo({ top: 0 }); };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+    });
+    const strip = page.querySelector('.coach-strip');
+    if (strip) {
+      strip.addEventListener('click', () => goTab('coach'));
+      strip.addEventListener('keydown', e => { if (e.key === 'Enter') goTab('coach'); });
+    }
+  }
+
+  function drawDrillIn() {
+    page.innerHTML = `<div class="fade-in">
+      <button class="btn btn-ghost btn-sm" id="fx-back" style="margin-bottom:10px">&larr; Fitness</button>
       <div class="sub-tabs">${subTabs.map(([id,l]) => `<button class="sub-tab ${activeSub===id?'active':''}" data-sub="${id}">${l}</button>`).join('')}</div>
       <div id="fitness-content"></div>
     </div>`;
+    page.querySelector('#fx-back').addEventListener('click', () => { activeSub = null; draw(); });
     page.querySelectorAll('.sub-tab').forEach(b => b.addEventListener('click', () => {
       activeSub = b.dataset.sub;
       page.querySelectorAll('.sub-tab').forEach(x => x.classList.toggle('active', x.dataset.sub === activeSub));
@@ -1977,6 +2033,67 @@ async function renderFitness(page) {
     }
   }
   draw();
+}
+
+// ── Status board: vitals strip + one tile per domain ───────────────────────
+const _DOT = { g: 'var(--emerald)', a: 'var(--amber)', r: 'var(--rose)', x: 'var(--text-3)' };
+
+function fitnessVitals(f) {
+  const l = f.load || {};
+  const rd = l.readiness_composite || {}, iw = l.illness_watch || {},
+        pmc = l.ctl_atl_tsb || {}, acwr = l.acwr || {}, sleep = l.sleep || {};
+  const dot = c => `<span class="fx-dot" style="background:${_DOT[c]}"></span>`;
+  const chips = [];
+  if (rd.score != null) chips.push([rd.band === 'low' ? 'r' : rd.band === 'moderate' ? 'a' : 'g',
+    `Readiness ${Math.round(rd.score)}`]);
+  if (pmc.tsb != null) chips.push([pmc.tsb < -30 ? 'r' : 'g', `TSB ${Math.round(pmc.tsb)}`]);
+  if (acwr.acwr != null) chips.push([acwr.flag === 'high' ? 'r' : 'g', `Load ${acwr.acwr}×`]);
+  chips.push([iw.level === 'alert' ? 'r' : iw.level === 'watch' ? 'a' : 'g',
+    iw.level && iw.level !== 'none' ? `Illness ${iw.level}` : 'Illness clear']);
+  if (sleep.sleep_debt_hours != null) chips.push([sleep.sleep_debt_hours > 10 ? 'a' : 'g',
+    `Sleep debt ${sleep.sleep_debt_hours.toFixed(0)} h`]);
+  return `<div class="fx-vitals">${chips.map(([c, t]) => `<span class="fx-vital">${dot(c)}${t}</span>`).join('')}</div>`;
+}
+
+function fitnessTiles(f, analytics) {
+  const r = (f || {}).running || {}, l = (f || {}).load || {}, s = (f || {}).strength || {};
+  const evo2 = r.effective_vo2max || {}, ef = r.efficiency_factor || {}, dec = r.decoupling || {},
+        rd = l.readiness_composite || {}, sleep = l.sleep || {}, form = (f || {}).form || {},
+        sp = s.station_percentiles || {}, sv = s.set_volume || {}, prog = (f || {}).prognosis || {};
+  const efTrend = ef.trend_per_week == null ? '' : ef.trend_per_week < -0.0005 ? '↓' : ef.trend_per_week > 0.0005 ? '↑' : '→';
+  const gradeDot = g => ({ strong: 'g', good: 'g', moderate: 'a', developing: 'a', weak: 'r' })[g] || 'x';
+  const hms = sec => { if (sec == null) return '—'; const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60);
+    return h ? `${h}:${String(m).padStart(2, '0')}` : `${m} min`; };
+  const cad = form.cadence || {};
+  const weakest = (sp.weakest_3 || [])[0];
+  const tiles = [
+    { sub: 'engine', name: 'Engine', dot: efTrend === '↓' ? 'a' : 'g',
+      val: evo2.current != null ? evo2.current : '—',
+      subline: `eVO₂max · EF ${ef.current != null ? ef.current.toFixed(2) : '—'} ${efTrend}` },
+    { sub: 'durability', name: 'Durability', dot: gradeDot(dec.grade),
+      val: dec.average_pct != null ? dec.average_pct + '%' : '—',
+      subline: `decoupling · ${dec.grade || 'no steady runs yet'}` },
+    { sub: 'recovery', name: 'Recovery', dot: rd.band === 'low' ? 'r' : rd.band === 'moderate' ? 'a' : rd.score != null ? 'g' : 'x',
+      val: rd.score != null ? Math.round(rd.score) : '—',
+      subline: `${rd.band || 'readiness'}${sleep.sleep_debt_hours != null ? ` · sleep debt ${sleep.sleep_debt_hours.toFixed(0)} h` : ''}` },
+    { sub: 'strength', name: 'Strength', dot: sp.available ? 'a' : sv.available ? 'g' : 'x',
+      val: sv.available ? `${(sv.total_tonnage_kg / 1000).toFixed(1)} t` : sp.available ? `${(sp.weakest_3 || []).length} weak` : '—',
+      subline: sp.available ? (sp.weakest_3 || []).map(w => w.split('_')[0]).join(' · ') + ' vs field'
+        : 'benchmarks & gym volume' },
+    { sub: 'form', name: 'Form', dot: cad.current == null ? 'x' : cad.current < (cad.target_lo || 0) ? 'a' : 'g',
+      val: cad.current != null ? Math.round(cad.current) : '—',
+      subline: cad.current != null ? `cadence spm · target ${Math.round(cad.target_lo || 0)}–${Math.round(cad.target_hi || 0)}` : 'mechanics & consistency' },
+    { sub: 'economy', name: 'Economy', dot: efTrend === '↓' ? 'a' : ef.current != null ? 'g' : 'x',
+      val: ef.current != null ? ef.current.toFixed(2) : '—',
+      subline: 'speed per heartbeat' },
+    { sub: 'races', name: 'Races', dot: prog.available ? 'g' : 'x',
+      val: prog.available ? hms(prog.prognosis_time_sec) : '—',
+      subline: prog.available ? 'race prognosis · predictions' : 'predictions & goals' },
+    { sub: 'hyrox_p', name: 'HYROX', dot: sp.available ? 'a' : 'x',
+      val: weakest ? weakest.replace(/_/g, ' ').replace(/ \d+m$/, '') : '—',
+      subline: weakest ? 'weakest station · race analysis' : 'race analysis' },
+  ];
+  return tiles;
 }
 
 // ── Fitness 2.0 renderers (consume data/fitness.json) ──────────────────────
@@ -2138,22 +2255,26 @@ function renderCoachTake(f) {
   const rd = (f.coach_input && f.coach_input.readiness) || {};
   const band = rd.band || 'unknown';
   const bandColor = band === 'low' ? 'var(--rose)' : band === 'moderate' ? 'var(--amber)' : 'var(--emerald)';
+  // Compact: limiter names scan at a glance; evidence + fix expand per limiter.
   const limHtml = limiters.length ? limiters.map((l, i) => `
-    <div class="lim-row">
-      <div class="lim-rank">${i + 1}</div>
-      <div style="min-width:0">
-        <div class="lim-name">${escHtml(l.name)} <span class="lim-area">${escHtml(l.area)}</span></div>
+    <details class="lim-row" style="display:block">
+      <summary style="cursor:pointer;display:flex;gap:10px;align-items:baseline;min-height:32px">
+        <span class="lim-rank">${i + 1}</span>
+        <span class="lim-name" style="flex:1">${escHtml(l.name)} <span class="lim-area">${escHtml(l.area)}</span></span>
+      </summary>
+      <div style="margin:4px 0 6px 30px;min-width:0">
         <div class="lim-ev">${escHtml(l.evidence)}</div>
         <div class="lim-rec">${icons.spark} ${escHtml(l.recommendation)}</div>
       </div>
-    </div>`).join('') : `<div style="color:var(--text-3);font-size:.88rem">No clear limiter — keep building consistently.</div>`;
+    </details>`).join('') : `<div style="color:var(--text-3);font-size:.88rem">No clear limiter — keep building consistently.</div>`;
   return `<div class="card coach-take mb">
     <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Coach's Take</div>
       <span class="conn-status" style="background:${bandColor}22;color:${bandColor}"><span class="dotmark"></span>Readiness ${rd.score != null ? Math.round(rd.score) : '—'} · ${band}</span></div>
     <div class="coach-headline">${escHtml(f.headline || '')}</div>
-    <div class="eyebrow" style="margin:14px 0 8px">Your top limiters</div>
+    <div class="eyebrow" style="margin:14px 0 8px">Your top limiters — tap for the fix</div>
     ${limHtml}
-    ${week.length ? `<div class="eyebrow" style="margin:16px 0 8px">This week</div><ul class="week-list">${week.map(w => `<li>${escHtml(w.action)}</li>`).join('')}</ul>` : ''}
+    ${week.length ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:.84rem;color:var(--emerald);min-height:24px">This week's actions (${week.length})</summary>
+      <ul class="week-list" style="margin-top:8px">${week.map(w => `<li>${escHtml(w.action)}</li>`).join('')}</ul></details>` : ''}
     ${gaps.length ? `<div class="gap-note">${icons.info} Unlock more: ${gaps.map(g => escHtml(g)).join(', ')} — add them in the <b>Strength</b> tab.</div>` : ''}
   </div>`;
 }

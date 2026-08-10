@@ -19,4 +19,8 @@ Measured live at 390px (Playwright, Victor's data).
 
 ## Status
 
-AWAITING VICTOR: "go" (full direction A) vs "minimal fix" (dedupe + sticky pills only). No implementation yet.
+IMPLEMENTED (direction A, same evening — Victor: "go"). Measured after:
+- Fitness board 0.92 screens (was 2.8 before content), all 8 drill-ins working, dots from engine grades.
+- Coach 2.6 screens (was 6.9): brief collapsed, compact Coach's Take (tap-per-limiter), Today's call, single feed (pulses + week row → modal + 5 analyses + show-all).
+- Insights/Coach's Take no longer render on Fitness; coach strip links across.
+- nunoduarte instance updated via users.py.
