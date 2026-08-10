@@ -56,3 +56,16 @@ shape). Fixes are structural, not cosmetic.
 (pace-band gauge, repeat structure, silent recoveries), then optionally the
 CIQ field sideload (watch/README.md). Plan rebuild via the new intake form
 whenever ready — Sept 20 race has no plan scaffolding until then.
+
+## 2026-08-10 PM — opportunities batch (all shipped)
+- [x] Same-day rewrite (tired/sick/time buttons → engine rewrite → watch push)
+- [x] Proactive coach (HRV/RHR/HRR Telegram alerts, daily dedupe)
+- [x] Race prognosis (effective VO2max + shape, VDOT prior clamp) + Races card
+- [x] Coach proposals queue (pending-changes.json, Accept/Dismiss, validate-gated)
+- [x] MCP: get_activities / adjust_today / propose_plan_change
+- [x] Watch: Race field; Coach field LOAD % + DRIFT alert
+- [x] Consistency heatmap + streak (Form tab)
+- [x] plan.ics phone-calendar feed
+- Calibration open: watch LOAD % uses zone-weighted minutes vs server type-weight
+  estimate — skew possible, tune after first workouts. Telegram INBOUND commands
+  skipped (bot getUpdates single-consumer conflict) — portal buttons only.
