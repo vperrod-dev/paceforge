@@ -8,10 +8,15 @@ profile, and data fields can't paginate internally, so each gets its own
    pace-arc gauge + verdict + step stats + BIG heart rate colored by zone,
    with a bottom arc showing your position across your 5 HR zones.
 2. **PaceForge Form** (`form/build/PaceForgeForm-*.prg`) — the form screen:
-   cadence-arc gauge (teal 170–180 spm target), BIG cadence + BIG stride,
-   pace/HR footer.
+   cadence-arc gauge (band = the coach's live prescription via watch-targets),
+   BIG cadence + BIG stride, pace/HR footer.
+3. **PaceForge Class** (`classfield/build/PaceForgeClass-*.prg`) — for
+   cardio/HYROX classes, added to the **Cardio/HIIT profile** (the 2-field cap
+   is per profile, so this doesn't compete with Run's two): full-circle
+   HR-zone ring (active zone thick), BIG zone-colored HR, live time-in-zone
+   bars, elapsed, and the coach's `recover_to` ceiling when HR is above it.
 
-Sideload BOTH .prg files to `/GARMIN/APPS/`, then add each as the only field
+Sideload the .prg files you want to `/GARMIN/APPS/`, then add each as the only field
 on its own 1-field data screen. HR zones come from your Garmin user profile
 (Settings → User Profile → Heart Rate Zones → Running).
 

@@ -203,4 +203,7 @@ file in the same commit: `{"cadence_lo": <spm>, "cadence_hi": <spm>,
 "updated": "YYYY-MM-DD", "source": "<one-line why>"}`. Progress it gradually
 (~+3-5 spm per block) toward the eventual 175-180 range — never jump it.
 Stride length is derived on the watch (speed/cadence); coach guidance stays
-cadence-first.
+cadence-first. Optional key `recover_to` (bpm): the between-efforts recovery
+ceiling for classes — the Class field shows "RECOVER TO <n>" whenever live HR
+sits above it. Set it when you give class-intensity guidance (typically the
+athlete's Z2 top); omit it and the cue stays hidden.
