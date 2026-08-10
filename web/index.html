@@ -522,14 +522,23 @@ const USER_KEY = 'pf_user' + NS;
 // ═══════════════════════════════════════════════════════
 const cache = {};
 
+// Live files change server-side every few minutes (15-min light syncs,
+// intraday pulses) — caching them for the page's lifetime shows stale data.
+const NEVER_CACHE = new Set(['sync-status.json', 'daily-brief.json']);
+
 async function loadJSON(file) {
   const key = 'f:' + file;
-  if (cache[key]) return cache[key];
+  if (cache[key] && !NEVER_CACHE.has(file)) return cache[key];
   const res = await fetch('./data/' + file);
   if (!res.ok) throw new Error('Failed to load ' + file);
   const v = await res.json();
   cache[key] = v;
   return v;
+}
+
+// Drop every file cache entry — used when a sync lands so re-renders refetch.
+function clearFileCache() {
+  for (const k of Object.keys(cache)) if (k.startsWith('f:')) delete cache[k];
 }
 
 async function apiJson(path, opts = {}) {
@@ -577,7 +586,11 @@ function syncChipHtml(ss) {
     label = `Partial sync · ${formatTimeAgo(ts)}`;
     title = failed.length ? `Failed: ${failed.join(', ')}` : 'Some wellness data missing';
   }
-  if (ss.result === 'ok' && hours > 48) {
+  // Light syncs land every ~15 min during the day; overnight (23:00-06:45)
+  // there are no passes, so only flag staleness the schedule could have avoided.
+  const hr = new Date().getHours();
+  const staleAfter = (hr >= 8 && hr < 23) ? 2 : 10;
+  if (ss.result === 'ok' && hours > staleAfter) {
     cls = 'warn'; label = `Stale · synced ${formatTimeAgo(ts)}`; title = 'No recent sync run';
   }
   if (ss.result === 'failed') {
@@ -783,16 +796,31 @@ function exportPlan() { planStore.export(); }
 // ═══════════════════════════════════════════════════════
 // ── ACTION 1: Sync from Garmin (runner job: sync) ──
 async function syncFromGarmin(btn) {
-  withBusy(btn, 'Dispatching…', async () => {
+  withBusy(btn, 'Syncing…', async () => {
+    const baseline = await latestJobRunId('sync.yml');
     const res = await fetch(`${API}/repos/${REPO}/actions/workflows/sync.yml/dispatches`, {
       method: 'POST', headers: JSON_HDR,
     });
-    if (res.status === 204) {
-      toast('ok', 'Garmin sync started', 'The sync workflow is running. Data refreshes in a few minutes — reload then.');
+    if (res.status !== 204) throw new Error(await jobError(res));
+    // A real sync takes ~8s — wait for it and refresh in place, no reload.
+    const run = await waitForJobRun('sync.yml', baseline, 45000);
+    refreshAfterSync();
+    if (run && run.conclusion === 'success') {
+      toast('ok', 'Garmin synced', 'Fresh data loaded.');
+    } else if (run) {
+      toast('err', 'Sync failed', 'Check Settings → Garmin for details.');
     } else {
-      throw new Error(await jobError(res));
+      toast('warn', 'Sync still running', 'Taking longer than usual — the page will refresh itself when it lands.');
     }
   });
+}
+
+// Invalidate everything a completed sync can change, then re-render the tab.
+async function refreshAfterSync() {
+  clearCache('');
+  invalidateActivitiesCache();
+  await planStore.reset();
+  loadTab(state.tab);
 }
 
 // ── ACTION 2: Push a plan week to Garmin (runner job: push) ──
@@ -1480,6 +1508,11 @@ async function renderToday(page) {
         <div class="eyebrow" style="margin:12px 0 4px">Focus</div>
         <ul style="margin:0 0 0 18px;font-size:.87rem;color:var(--text-2)">
           ${dailyBrief.focus.map(f => `<li style="margin-bottom:4px">${escHtml(f)}</li>`).join('')}</ul>` : ''}
+      ${(dailyBrief.pulses || []).map(p => `
+        <div style="margin-top:12px;padding:10px 12px;border-left:3px solid var(--sky);background:var(--elevated);border-radius:var(--r-sm)">
+          <div class="eyebrow" style="margin-bottom:4px">Day pulse · ${escHtml(formatTimeAgo(p.at))}</div>
+          <div style="font-size:.87rem;line-height:1.55;color:var(--text-2)">${escHtml(p.text)}</div>
+        </div>`).join('')}
     </div>`;
   }
 
@@ -4292,7 +4325,7 @@ async function renderSettings(page) {
   </div></div>`;
 
   on('set-sync', 'click', e => syncFromGarmin(e.currentTarget));
-  on('set-sync-now', 'click', async e => { await syncFromGarmin(e.currentTarget); setTimeout(() => renderSettings(page), 2500); });
+  on('set-sync-now', 'click', e => syncFromGarmin(e.currentTarget));  // honest wait + refresh inside
   on('set-logout', 'click', async () => {
     await fetch('api/auth/logout', { method: 'POST', headers: JSON_HDR }).catch(() => {});
     location.reload();
@@ -4445,6 +4478,31 @@ function formatTimeAgo(iso) {
 try { sessionStorage.removeItem('pf_gh_token' + NS); } catch {}   // pre-runner PAT, no longer used
 try { const u = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); if (u && u.name) state.user = u; } catch {}
 render();
+
+// ── Auto-refresh: the server syncs every ~15 min on its own now ──
+// Re-render when a newer sync has landed; otherwise just keep the chip honest.
+let _lastSyncSeen = '';
+async function checkForFreshSync(rerender) {
+  const ss = await loadSyncStatus();
+  if (!ss) return;
+  const ts = ss.last_success || ss.last_attempt || '';
+  if (!_lastSyncSeen) { _lastSyncSeen = ts; return; }
+  // Never yank the page out from under an open modal or a field being typed in.
+  const busy = document.getElementById('modal-overlay')
+    || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+  if (ts !== _lastSyncSeen) {
+    _lastSyncSeen = ts;
+    if (rerender && !busy) await refreshAfterSync();
+  } else {
+    const chip = document.getElementById('sync-chip');
+    if (chip) chip.outerHTML = syncChipHtml(ss);
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) checkForFreshSync(true);
+});
+setInterval(() => { if (!document.hidden) checkForFreshSync(true); }, 90000);
+checkForFreshSync(false);
 // Name the athlete this instance belongs to, before Settings is ever opened.
 profileMeta().then(p => {
   if (p.name === state.user.name && p.email === state.user.email) return;

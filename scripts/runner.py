@@ -474,27 +474,114 @@ def reconcile_garmin(run: Run) -> None:
 
 # ── jobs ──
 
+_COOLDOWN_BASE_MIN = 15
+_COOLDOWN_MAX_MIN = 120
+
+
+def _cooldown_path() -> Path:
+    return STATE_DIR / "sync-cooldown.json"
+
+
+def _cooldown_read() -> dict:
+    try:
+        return json.loads(_cooldown_path().read_text())
+    except Exception:
+        return {"level": 0, "until": ""}
+
+
+def _cooldown_write(level: int) -> None:
+    until = ""
+    if level > 0:
+        mins = min(_COOLDOWN_BASE_MIN * (2 ** (level - 1)), _COOLDOWN_MAX_MIN)
+        until = (datetime.now(UTC) + timedelta(minutes=mins)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _cooldown_path().write_text(json.dumps({"level": level, "until": until}))
+
+
+def _sync_rate_limited() -> bool:
+    """True when the last sync saw a Garmin 429 anywhere in its endpoint map."""
+    try:
+        st = json.loads((REPO_DIR / "data" / "sync-status.json").read_text())
+    except Exception:
+        return False
+    return "429" in json.dumps(st.get("endpoints", {}))
+
+
+def _data_fingerprint() -> str:
+    h = hashlib.sha256()
+    for name in ("activities.json", "history.jsonl", "profile.json"):
+        p = REPO_DIR / "data" / name
+        if p.exists():
+            h.update(p.read_bytes())
+    return h.hexdigest()
+
+
 def job_sync(run: Run, inputs: dict) -> None:
+    light = str(inputs.get("light", "")).lower() == "true"
+    if light:
+        cd = _cooldown_read()
+        if cd.get("until") and cd["until"] > now():
+            run.step("Skipped — rate-limit cooldown")
+            run.log(f"cooldown until {cd['until']} (level {cd.get('level')})")
+            return
+    before = _data_fingerprint() if light else None
     run.step("Sync from Garmin")
-    rc = sh(run, pf("sync"), check=False)
+    cmd = pf("sync", "--lookback-days", "7", "--details", "5") if light else pf("sync")
+    # Data reads ride WARP too: raised frequency must burn the proxy's IP
+    # budget, not the VM's (login already does; _auto_login inherits this).
+    proxy = {k: GARMIN_PROXY for k in _GarminProxy.KEYS} if GARMIN_PROXY else None
+    rc = sh(run, cmd, check=False, env=proxy)
+    # Adaptive backoff: any 429 doubles the cooldown (15→30→60→120 min),
+    # a clean pass resets it. This finds Garmin's real tolerance by itself.
+    if _sync_rate_limited():
+        _cooldown_write(min(_cooldown_read().get("level", 0) + 1, 4))
+    else:
+        _cooldown_write(0)
+    if light and rc == 0 and _data_fingerprint() == before:
+        run.step("No new data — light pass done")
+        commit_push(run, ["data/sync-status.json"], "data: light Garmin sync (no change)")
+        _maybe_day_pulse()
+        return
     run.step("Commit data if changed")   # always — sync-status.json honesty
     commit_push(run, ["data/"], "data: daily Garmin sync")
     publish(run)
     # Brief only on the morning pass — the midday/evening syncs exist to match +
     # analyse the day's run, not to ping the phone three times.
-    if datetime.now(ZoneInfo("Europe/Dublin")).hour < 10:
+    if not light and datetime.now(ZoneInfo("Europe/Dublin")).hour < 10:
         run.step("Morning brief → Telegram")
         p = subprocess.run(pf("brief", "--telegram"), cwd=REPO_DIR, capture_output=True,
                            text=True, timeout=300)
         if p.returncode == 0:
             telegram(p.stdout.strip(), html=True, title="🏃 PaceForge morning brief")
     if rc != 0:
+        if light:
+            raise RuntimeError("light sync failed")  # no Telegram spam from 64 passes/day
         telegram("PaceForge Garmin sync FAILED — check data/sync-status.json. "
                  "If the token expired (~yearly), run `paceforge login` on the VM.")
         raise RuntimeError("paceforge sync failed")
     dispatch("analyze", {})   # analyse the day's activities right after a sync
-    if datetime.now(ZoneInfo("Europe/Dublin")).hour < 10:
+    if not light and datetime.now(ZoneInfo("Europe/Dublin")).hour < 10:
         dispatch("daily", {})  # coach's morning read for the landing page
+    if light:
+        _maybe_day_pulse()
+
+
+_PULSE_HOURS = (11, 15, 19)  # Dublin — late morning / afternoon / evening
+
+
+def _maybe_day_pulse() -> None:
+    """Dispatch a day-pulse in the pulse hours, once per slot, only from light passes."""
+    dublin = datetime.now(ZoneInfo("Europe/Dublin"))
+    if dublin.hour not in _PULSE_HOURS:
+        return
+    try:
+        brief = json.loads((REPO_DIR / "data" / "daily-brief.json").read_text())
+    except Exception:
+        return
+    today = dublin.strftime("%Y-%m-%d")
+    slot = f"{today}T{dublin.hour:02d}"
+    done = {p.get("slot") for p in brief.get("pulses", [])}
+    if brief.get("date") == today and slot not in done:
+        dispatch("day-pulse", {"slot": slot})
 
 
 def job_daily(run: Run, inputs: dict) -> None:
@@ -505,6 +592,106 @@ def job_daily(run: Run, inputs: dict) -> None:
         "it and push to master."
     ), tools="Bash(git:*),Read,Write,Glob,Grep,TodoWrite")
     publish(run)
+
+
+def _pulse_metrics() -> dict:
+    """Compact intraday snapshot for the day-pulse prompt."""
+    out: dict = {}
+    try:
+        prof = json.loads((REPO_DIR / "data" / "profile.json").read_text())
+        for k in ("body_battery", "stress_avg", "resting_hr", "sleep_score",
+                  "sleep_duration_hours", "hrv_status", "hrv_last_night",
+                  "training_readiness", "steps"):
+            if prof.get(k) is not None:
+                out[k] = prof[k]
+    except Exception:
+        pass
+    try:
+        fit = json.loads((REPO_DIR / "data" / "fitness.json").read_text())
+        rc = (fit.get("load") or {}).get("readiness_composite") or {}
+        out["readiness"] = {k: rc.get(k) for k in ("score", "band") if k in rc}
+    except Exception:
+        pass
+    try:
+        acts = json.loads((REPO_DIR / "data" / "activities.json").read_text())
+        today = datetime.now(ZoneInfo("Europe/Dublin")).strftime("%Y-%m-%d")
+        out["done_today"] = [
+            {"name": a.get("name"), "type": a.get("type"),
+             "km": a.get("distance_km"), "min": a.get("duration_min")}
+            for a in acts if str(a.get("start_time", "")).startswith(today)
+        ][:5]
+    except Exception:
+        pass
+    return out
+
+
+def job_day_pulse(run: Run, inputs: dict) -> None:
+    """Short intraday coach read (Hermes) appended to daily-brief.json pulses[]."""
+    slot = str(inputs.get("slot") or "")
+    brief_path = REPO_DIR / "data" / "daily-brief.json"
+    try:
+        brief = json.loads(brief_path.read_text())
+    except Exception:
+        run.log("no daily-brief.json — skipping pulse")
+        return
+    if any(p.get("slot") == slot for p in brief.get("pulses", [])):
+        run.log(f"slot {slot} already pulsed")
+        return
+    metrics = _pulse_metrics()
+    run.step("Generate pulse")
+    hour = int(slot[-2:]) if slot[-2:].isdigit() else 12
+    part = "late morning" if hour < 13 else ("afternoon" if hour < 18 else "evening")
+    prompt = (
+        f"You are the athlete's running coach doing a quick {part} check-in. "
+        f"This morning's brief said: {json.dumps({k: brief.get(k) for k in ('headline', 'session') if brief.get(k)})}. "
+        f"Current wearable metrics: {json.dumps(metrics)}. "
+        "Earlier pulses today: "
+        f"{json.dumps([{'slot': p['slot'], 'text': p['text']} for p in brief.get('pulses', [])]) or 'none'}. "
+        "Write 2-4 short sentences on how the day is trending — energy/body battery "
+        "trajectory, stress, whether the planned session still fits, and one concrete "
+        "tip for the rest of the day. Plain text, no markdown, no preamble, "
+        "second person ('your')."
+    )
+    text = _hermes_pulse(run, prompt)
+    if not text:
+        run.log("pulse generation failed — skipping (next slot retries)")
+        return
+    brief.setdefault("pulses", []).append({
+        "slot": slot, "at": now(), "source": "hermes", "text": text.strip()[:600],
+        "metrics": {k: metrics.get(k) for k in ("body_battery", "stress_avg",
+                                                "training_readiness") if k in metrics},
+    })
+    with _WRITE_LOCK:
+        _raw_write(brief_path, json.dumps(brief, indent=1))
+    run.step("Commit pulse")
+    commit_push(run, ["data/daily-brief.json"], f"data: day-pulse {slot}")
+    publish(run)
+
+
+def _hermes_pulse(run: Run, prompt: str) -> str:
+    """Ask the local hermes-agent gateway (Nous inference); claude CLI fallback."""
+    url = os.environ.get("HERMES_API_URL", "http://127.0.0.1:8642")
+    token = os.environ.get("HERMES_API_TOKEN", "")
+    if token:
+        try:
+            req = urllib.request.Request(
+                f"{url}/v1/chat/completions",
+                data=json.dumps({"model": "hermes-agent", "max_tokens": 400,
+                                 "messages": [{"role": "user", "content": prompt}]}).encode(),
+                headers={"Authorization": f"Bearer {token}",
+                         "Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                out = json.loads(resp.read())
+            return out["choices"][0]["message"]["content"]
+        except Exception as e:
+            run.log(f"hermes gateway failed ({e}) — falling back to claude CLI")
+    try:
+        p = subprocess.run([CLAUDE_BIN, "-p", prompt], capture_output=True, text=True,
+                           timeout=300, cwd=REPO_DIR)
+        return p.stdout.strip() if p.returncode == 0 else ""
+    except Exception as e:
+        run.log(f"claude fallback failed: {e}")
+        return ""
 
 
 def job_analyze(run: Run, inputs: dict) -> None:
@@ -788,6 +975,7 @@ JOBS = {
     "sync": job_sync,
     "analyze": job_analyze,
     "daily": job_daily,
+    "day-pulse": job_day_pulse,
     "plan": job_plan,
     "coach": job_coach,
     "push": job_push,
@@ -811,6 +999,13 @@ JOBS = {
 
 def dispatch(job: str, inputs: dict) -> int:
     fn = JOBS[job]
+    # Coalesce: a queued run of the same job will already see the latest state
+    # when it grabs JOB_LOCK — spawning another just multiplies Garmin calls
+    # (five sync clicks used to queue five full syncs).
+    with RUNS_LOCK:
+        for rec in reversed(RUNS):
+            if rec["name"] == job and rec["status"] == "queued":
+                return rec["id"]
     run = Run(job)
 
     def worker() -> None:

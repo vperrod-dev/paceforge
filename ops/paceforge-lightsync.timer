@@ -1,0 +1,15 @@
+# Frequent light syncs so the portal is never stale during the day (Victor
+# 2026-08-10: "as many times as garmin allows"). Every 15 min 07:00-22:45
+# Dublin; the runner's adaptive 429 cooldown (sync-cooldown.json, doubles
+# 15→30→60→120 min on rate limits) is what actually governs the effective
+# cadence — the timer just offers the slots. Full passes stay on
+# paceforge-sync.timer (3×/day, morning brief + coach reads).
+[Unit]
+Description=PaceForge light Garmin sync (every 15 min, 07:00-23:00 Dublin)
+
+[Timer]
+OnCalendar=*-*-* 07..22:00/15:00 Europe/Dublin
+Persistent=false
+
+[Install]
+WantedBy=timers.target

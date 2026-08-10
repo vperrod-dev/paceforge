@@ -1,0 +1,13 @@
+# Per-instance light sync. Short random delay only — instances' data reads now
+# ride WARP (one shared egress IP) and the per-instance cooldown state backs
+# off independently on 429s.
+[Unit]
+Description=PaceForge light Garmin sync for %i (every 15 min, 07:00-23:00 Dublin)
+
+[Timer]
+OnCalendar=*-*-* 07..22:00/15:00 Europe/Dublin
+RandomizedDelaySec=300
+Persistent=false
+
+[Install]
+WantedBy=timers.target
