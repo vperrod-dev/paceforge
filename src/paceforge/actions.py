@@ -21,7 +21,7 @@ import os
 import sys
 import tarfile
 import time
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from paceforge import store
@@ -497,14 +497,18 @@ def _brief_telegram(day: date) -> str:
 
 
 def _match_plan() -> int:
-    """Re-match stored activities to the plan and annotate plan-vs-actual compliance."""
+    """Re-match stored activities to the plan and annotate plan-vs-actual compliance.
+    Also links completed activities to first-class calendar items (classes)."""
     from paceforge.engine.compliance import annotate_pace, annotate_plan
     from paceforge.engine.matching import match_plan_to_activities
 
+    activities = store.load_activities()
+    items = store.load_calendar()
+    if items and match_calendar_items(items, activities):
+        store.save_calendar(items)
     plan = store.load_plan()
     if not plan:
         return 0
-    activities = store.load_activities()
     changed = match_plan_to_activities(plan, activities, rpe_map=store.rpe_by_activity())
     annotate_plan(plan, activities)
     profile = store.load_profile()
@@ -1075,17 +1079,17 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
     scheduled workout the plan doesn't own is fair game.
     """
     plan = store.load_plan()
-    if plan is None or not plan.weeks:
-        raise RuntimeError("No plan at data/plan.json.")
-    if not plan.accepted:
+    if plan is not None and not plan.accepted:
         raise RuntimeError("Plan not accepted — refusing to reconcile.")
     client = client or garmin_connect()
+    cal_items = store.load_calendar()
 
     # (a) Completed past workouts no longer need their scheduled Garmin copy.
     today = date.today()
     stale_deleted = 0
     delete_failed = 0
-    for wk in plan.weeks:
+    plan_weeks = plan.weeks if plan else []
+    for wk in plan_weeks:
         for w in wk.workouts:
             if (w.garmin_workout_id and w.completed
                     and w.scheduled_date and w.scheduled_date < today):
@@ -1099,8 +1103,8 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
                                    w.garmin_workout_id, exc_info=True)
                     delete_failed += 1
 
-    # (b) Push/refresh the upcoming window.
-    weeks = _upcoming_weeks(plan)[:3]  # current + next 2
+    # (b) Push/refresh the upcoming window: plan weeks + calendar items (21d).
+    weeks = _upcoming_weeks(plan)[:3] if plan else []  # current + next 2
     pushed = 0
     failed: list[dict] = []
     for wk in weeks:
@@ -1109,10 +1113,21 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
                                        pace_bands=plan.pace_bands)
         pushed += len(result["pushed"])
         failed += result["failed"]
+    upcoming_items = [i for i in cal_items
+                      if today <= i.date <= today + timedelta(days=21)]
+    if upcoming_items:
+        bridged = [(_item_to_workout(i), i) for i in upcoming_items]
+        result = client.push_plan_week([w for w, _ in bridged])
+        pushed += len(result["pushed"])
+        failed += result["failed"]
+        for w, i in bridged:
+            i.garmin_workout_id = w.garmin_workout_id
 
-    # (c) Orphans: anything scheduled >= today that the plan doesn't own now.
-    owned = {int(w.garmin_workout_id) for wk in plan.weeks for w in wk.workouts
+    # (c) Orphans: anything scheduled >= today that neither the plan nor the
+    # calendar owns now.
+    owned = {int(w.garmin_workout_id) for wk in plan_weeks for w in wk.workouts
              if w.garmin_workout_id}
+    owned |= {int(i.garmin_workout_id) for i in cal_items if i.garmin_workout_id}
     orphans_deleted = 0
     seen: set[int] = set()
     for s in client.get_scheduled_workouts(days_ahead=400):
@@ -1130,7 +1145,9 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
             logger.warning("Reconcile: orphan delete failed for Garmin id %s", wid, exc_info=True)
             delete_failed += 1
 
-    store.save_plan(plan)  # persist garmin_workout_id changes
+    if plan:
+        store.save_plan(plan)  # persist garmin_workout_id changes
+    store.save_calendar(cal_items)
     return {"weeks": [wk.week_number for wk in weeks], "pushed": pushed,
             "stale_deleted": stale_deleted, "orphans_deleted": orphans_deleted,
             "delete_failed": delete_failed, "failed": failed}
@@ -1231,9 +1248,15 @@ def calendar_edit(
     and re-pushes it (deleting the old Garmin entry by id); ``action="delete"``
     removes it from the plan and from the Garmin calendar. Persists the plan.
     """
+    # The id may name a plan workout OR a first-class calendar item.
+    items = store.load_calendar()
+    item = next((i for i in items if i.item_id == session_id), None)
+    if item is not None:
+        return _calendar_edit_item(items, item, action, new_date, client)
+
     plan = store.load_plan()
     if plan is None:
-        raise RuntimeError("No plan at data/plan.json.")
+        raise RuntimeError(f"No session {session_id} — no plan and no such calendar item.")
 
     found: tuple[object, Workout] | None = None
     for week in plan.weeks:
@@ -1244,7 +1267,7 @@ def calendar_edit(
         if found:
             break
     if found is None:
-        raise RuntimeError(f"No session {session_id} in the plan.")
+        raise RuntimeError(f"No session {session_id} in the plan or calendar.")
     week, workout = found
 
     client = client or garmin_connect()
@@ -1279,6 +1302,33 @@ def calendar_edit(
     return {"action": action, "session_id": session_id, "validation_issues": issues}
 
 
+def _calendar_edit_item(items: list, item, action: str, new_date: str | None,
+                        client: GarminClient | None) -> dict:
+    """Reschedule/delete a first-class calendar item + mirror it on Garmin."""
+    client = client or garmin_connect()
+    if action == "delete":
+        if item.garmin_workout_id:
+            try:
+                client.delete_workout(item.garmin_workout_id)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Garmin refused to delete workout {item.garmin_workout_id} — "
+                    "item kept; retry when Garmin is reachable."
+                ) from e
+        items.remove(item)
+    elif action == "reschedule":
+        if not new_date:
+            raise ValueError("reschedule needs new_date (YYYY-MM-DD).")
+        item.date = date.fromisoformat(new_date)
+        w = _item_to_workout(item)
+        client.push_plan_week([w])
+        item.garmin_workout_id = w.garmin_workout_id
+    else:
+        raise ValueError(f"Unknown calendar action {action!r}.")
+    store.save_calendar(items)
+    return {"action": action, "session_id": item.item_id, "validation_issues": []}
+
+
 _EXTRA_SESSION_TYPE = {"hyrox": WorkoutType.HYROX_MIXED}
 _MAX_REPEAT_WEEKS = 52
 # A class is a class: anything outside this is a typo or a bad form post, and a
@@ -1287,66 +1337,91 @@ _MIN_SESSION_MINUTES = 5
 _MAX_SESSION_MINUTES = 480
 
 
-def _week_for_date(plan: TrainingPlan, d: date) -> TrainingWeek:
-    """The week that already covers ``d`` — the last week whose first scheduled
-    workout starts on or before it — falling back to week 1."""
-    weeks_with_dates = [w for w in plan.weeks if w.workouts]
-    return max(
-        (w for w in weeks_with_dates
-         if min(wo.scheduled_date for wo in w.workouts if wo.scheduled_date) <= d),
-        key=lambda w: w.week_number,
-        default=(weeks_with_dates[0] if weeks_with_dates else plan.weeks[0]),
+# Garmin activity-type families for matching a calendar item to a completed
+# activity by date. Generic sports (Cardio/other) accept any non-running type.
+_SPORT_ACTIVITY_TYPES = {
+    "bike": {"cycling", "road_biking", "indoor_cycling", "virtual_ride", "mountain_biking",
+             "gravel_cycling", "cycling_indoor"},
+    "swim": {"lap_swimming", "open_water_swimming", "swimming"},
+}
+_RUNNING_TYPES = {"running", "treadmill_running", "trail_running", "track_running",
+                  "indoor_running", "virtual_run"}
+
+
+def match_calendar_items(items: list, activities: list[dict]) -> int:
+    """Link completed Garmin activities to scheduled calendar items (same date,
+    compatible sport). Never steals an activity already claimed by another item.
+    Returns how many items changed."""
+    claimed = {aid for i in items for aid in i.matched_activity_ids}
+    changed = 0
+    for item in items:
+        if item.completed:
+            continue
+        fam = _SPORT_ACTIVITY_TYPES.get(item.sport.strip().lower())
+        for a in activities:
+            get = (lambda k, _a=a: _a.get(k)) if isinstance(a, dict) else                   (lambda k, _a=a: getattr(_a, k, None))
+            aid = str(get("activity_id") or "")
+            when = str(get("start_time") or "")[:10]
+            atype = str(get("activity_type") or "").lower()
+            if not aid or aid in claimed or when != item.date.isoformat():
+                continue
+            if fam is not None:
+                if atype not in fam:
+                    continue
+            elif atype in _RUNNING_TYPES:
+                continue   # generic classes never claim runs — those belong to the plan
+            item.matched_activity_ids.append(aid)
+            item.completed = True
+            claimed.add(aid)
+            changed += 1
+            break
+    return changed
+
+
+def _item_to_workout(item) -> Workout:
+    """Bridge a ScheduledItem to the Workout shape the Garmin push code speaks."""
+    workout_type = _EXTRA_SESSION_TYPE.get(item.sport.strip().lower(),
+                                           WorkoutType.CROSS_TRAINING)
+    w = Workout(
+        name=item.title or f"{item.sport.strip().title()} Class",
+        workout_type=workout_type,
+        scheduled_date=item.date,
+        estimated_duration_seconds=float(item.duration_min) * 60,
+        estimated_distance_meters=(item.distance_km or 0) * 1000 or None,
+        notes=item.notes,
     )
+    w.garmin_workout_id = item.garmin_workout_id
+    return w
 
 
 def add_session(session_date: str, sport: str, minutes: int, name: str = "",
                 repeat_weeks: int = 1) -> dict:
-    """Schedule a class/session (e.g. a HYROX or cardio class) onto the plan for a
-    given date, as a real Workout — not a side-file note — so the daily/weekly coach
-    sees it and the Garmin matcher links the completed activity to it automatically.
+    """Schedule a class/session as a first-class calendar item (data/calendar.json).
 
-    ``sport`` is the portal's free-text label (Cardio/HYROX/Swim/Bike/...); anything
-    but "hyrox" (case-insensitive) becomes a generic cross_training slot.
-    ``repeat_weeks`` schedules the same class weekly for that many weeks (1 = once).
+    2026-08-10 decoupling: this no longer creates or touches any TrainingPlan —
+    the calendar is the athlete's whole week; the running plan merely contributes
+    to the same view. ``repeat_weeks`` schedules the item weekly (1 = once).
     """
     from datetime import timedelta
 
-    from paceforge.engine.matching import match_plan_to_activities
-
-    plan = store.load_plan()
-    if plan is None:
-        # Cardio/HYROX class scheduling must work with no running plan at all —
-        # a bare container plan holds them (still a real Workout the matcher and
-        # daily/weekly coach read), never require athletes to build a periodized
-        # running block just to put a class on the calendar.
-        plan = TrainingPlan(
-            name="Cardio Schedule", goal_type="CUSTOM",
-            target_date=date.today() + timedelta(days=365), total_weeks=1, accepted=True,
-            weeks=[TrainingWeek(week_number=1, workouts=[])],
-        )
+    from paceforge.models.calendar import ScheduledItem
 
     start = date.fromisoformat(session_date)
-    workout_type = _EXTRA_SESSION_TYPE.get(sport.strip().lower(), WorkoutType.CROSS_TRAINING)
-    workout_name = name.strip() or f"{sport.strip().title()} Class"
+    title = (name.strip() or f"{sport.strip().title()} Class")[:120]  # Garmin name cap
     count = min(max(int(repeat_weeks), 1), _MAX_REPEAT_WEEKS)
     duration = min(max(int(minutes), _MIN_SESSION_MINUTES), _MAX_SESSION_MINUTES)
 
-    session_ids = []
-    for i in range(count):
-        d = start + timedelta(weeks=i)
-        workout = Workout(
-            name=workout_name,
-            workout_type=workout_type,
-            scheduled_date=d,
-            estimated_duration_seconds=float(duration) * 60,
-        )
-        _week_for_date(plan, d).workouts.append(workout)
-        session_ids.append(workout.session_id)
-
-    match_plan_to_activities(plan, store.load_activities(), rpe_map=store.rpe_by_activity())
-    store.save_plan(plan)
-    return {"session_ids": session_ids, "scheduled_date": session_date,
-            "repeat_weeks": count, "workout_type": str(workout_type)}
+    items = store.load_calendar()
+    new_items = [
+        ScheduledItem(date=start + timedelta(weeks=i), sport=sport.strip() or "Cardio",
+                      title=title, duration_min=duration)
+        for i in range(count)
+    ]
+    items.extend(new_items)
+    match_calendar_items(items, store.load_activities())
+    store.save_calendar(items)
+    return {"session_ids": [i.item_id for i in new_items], "scheduled_date": session_date,
+            "repeat_weeks": count, "sport": sport}
 
 
 def adapt(dry_run: bool = False) -> dict:

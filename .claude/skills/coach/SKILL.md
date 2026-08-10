@@ -184,3 +184,12 @@ block theme. Write `data/daily-brief.json`:
 Voice: direct, specific, numbers over adjectives, ≤120 words per section. The deterministic
 "Today's call" already gives the verdict — the brief adds the WHY and the week's narrative
 arc. Commit + push the file.
+
+
+## Calendar items (2026-08-10)
+
+Non-running scheduled sessions (classes, rides, swims) live in `data/calendar.json`
+as first-class items — NOT in the plan. When reviewing a day or week, read it
+alongside the plan: `[{item_id, date, sport, title, duration_min, completed,
+matched_activity_ids}]`. A completed item's activity appears in
+`data/activities.json` as usual.

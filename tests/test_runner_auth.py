@@ -135,19 +135,19 @@ def test_oversized_login_body_is_rejected_not_buffered(app):
     assert code == 401
 
 
-def test_extra_activities_get_without_session_is_401(app):
-    code, _, _ = _req(app.public + "/api/extra_activities")
+def test_runs_get_without_session_is_401(app):
+    code, _, _ = _req(app.public + "/api/runs")
     assert code == 401
 
 
-def test_extra_activities_post_without_session_is_401(app):
-    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": [{"name": "x"}]})
+def test_dispatch_post_without_session_is_401(app):
+    code, _, _ = _req(app.public + "/api/gh/repos/o/r/actions/workflows/nope.yml/dispatches", "POST", {})
     assert code == 401
 
 
-def test_extra_activities_get_with_session_still_works(app):
+def test_runs_get_with_session_still_works(app):
     cookie = _session_cookie(app)
-    code, _, _ = _req(app.public + "/api/extra_activities", headers={"Cookie": cookie})
+    code, _, _ = _req(app.public + "/api/runs", headers={"Cookie": cookie})
     assert code == 200
 
 
@@ -291,31 +291,28 @@ def test_state_changing_post_with_cross_site_origin_is_rejected(app):
     # Rejected by the origin check before it ever reaches the write, so no need
     # to redirect REPO_DIR away from this live checkout's data/ dir.
     cookie = _session_cookie(app)
-    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": []},
+    code, _, _ = _req(app.public + "/api/gh/repos/o/r/actions/workflows/nope.yml/dispatches", "POST", {},
                       headers={"Cookie": cookie, "Origin": "https://evil.example.com"})
     assert code == 403
 
 
 def test_state_changing_post_with_no_origin_or_referer_is_rejected(app):
     cookie = _session_cookie(app)
-    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": []},
+    code, _, _ = _req(app.public + "/api/gh/repos/o/r/actions/workflows/nope.yml/dispatches", "POST", {},
                       headers={"Cookie": cookie})
     assert code == 403
 
 
-def test_state_changing_post_with_matching_origin_is_accepted(app, monkeypatch, tmp_path):
-    monkeypatch.setattr(runner, "REPO_DIR", tmp_path)
-    (tmp_path / "data").mkdir()
+def test_state_changing_post_with_matching_origin_is_accepted(app):
     cookie = _session_cookie(app)
-    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": []},
+    # Unknown job → 404: proves the origin check passed (a blocked origin is 403).
+    code, _, _ = _req(app.public + "/api/gh/repos/o/r/actions/workflows/nope.yml/dispatches", "POST", {},
                       headers={"Cookie": cookie, "Origin": app.public})
-    assert code == 200
+    assert code == 404
 
 
-def test_state_changing_post_with_matching_referer_is_accepted(app, monkeypatch, tmp_path):
-    monkeypatch.setattr(runner, "REPO_DIR", tmp_path)
-    (tmp_path / "data").mkdir()
+def test_state_changing_post_with_matching_referer_is_accepted(app):
     cookie = _session_cookie(app)
-    code, _, _ = _req(app.public + "/api/extra_activities", "POST", {"items": []},
+    code, _, _ = _req(app.public + "/api/gh/repos/o/r/actions/workflows/nope.yml/dispatches", "POST", {},
                       headers={"Cookie": cookie, "Referer": app.public + "/"})
-    assert code == 200
+    assert code == 404

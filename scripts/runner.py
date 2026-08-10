@@ -839,8 +839,9 @@ def job_calendar_edit(run: Run, inputs: dict) -> None:
     if inputs.get("new_date"):
         cmd += ["--new-date", str(inputs["new_date"])]
     sh(run, cmd)
-    run.step("Commit updated plan")
-    commit_push(run, ["data/plan.json"], f"calendar: {action} session {sid}")
+    run.step("Commit updated calendar")
+    commit_push(run, ["data/plan.json", "data/calendar.json"],
+                f"calendar: {action} session {sid}")
     publish(run)
     reconcile_garmin(run)
 
@@ -873,12 +874,13 @@ def job_add_session(run: Run, inputs: dict) -> None:
         minutes=int(inputs.get("minutes") or 45), name=str(inputs.get("name") or ""),
         repeat_weeks=weeks,
     )
-    run.step("Commit updated plan")
+    run.step("Commit updated calendar")
     msg = f"calendar: schedule {inputs.get('sport') or 'Cardio'} session {inputs['date']}"
     if weeks > 1:
         msg += f" (x{weeks} weekly)"
-    commit_push(run, ["data/plan.json"], msg)
+    commit_push(run, ["data/calendar.json"], msg)
     publish(run)
+    reconcile_garmin(run)   # new items reach the watch without waiting for 06:20
 
 
 def job_garmin_delete(run: Run, inputs: dict) -> None:
@@ -1226,13 +1228,6 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, LOGIN_HTML.encode(), "text/html; charset=utf-8")
         if path == "/" or path == "/index.html":
             return self._static(REPO_DIR / "web" / "index.html")
-        if path == "/extra_activities":
-            f = REPO_DIR / "data" / "extra_activities.json"
-            try:
-                data = json.loads(f.read_text() or "[]")
-            except Exception:
-                data = []
-            return self._send(200, data)
         if path.startswith("/data/"):
             return self._static(REPO_DIR / path.lstrip("/"), root="data")
         if path == "/garmin/status":
@@ -1314,15 +1309,6 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(401, {"message": "sign in first"})
         if not self._origin_ok():
             return self._send(403, {"message": "bad origin"})
-        if path == "/extra_activities":
-            b = self._body() or {}
-            items = b.get("items") if isinstance(b, dict) else None
-            if not isinstance(items, list):
-                return self._send(400, {"message": "items list required"})
-            from paceforge import store as _store
-            f = REPO_DIR / "data" / "extra_activities.json"
-            _store._write(f, json.dumps(items, ensure_ascii=True))
-            return self._send(200, {"ok": True, "count": len(items)})
         if path == "/garmin/login":
             b = self._body()
             email = str(b.get("email") or os.environ.get("PACEFORGE_GARMIN_EMAIL") or "")

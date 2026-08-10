@@ -341,6 +341,23 @@ def save_events(events: list[dict]) -> None:
     _write(_path("events.json"), json.dumps(events, indent=2, default=str))
 
 
+def load_calendar() -> list:
+    """First-class scheduled items (classes/rides/swims) — data/calendar.json."""
+    from paceforge.models.calendar import ScheduledItem
+    p = _path("calendar.json")
+    if not p.exists():
+        return []
+    try:
+        return [ScheduledItem.model_validate(i) for i in json.loads(p.read_text()) or []]
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def save_calendar(items: list) -> None:
+    _write(_path("calendar.json"),
+           json.dumps([i.model_dump(mode="json") for i in items], indent=1, default=str))
+
+
 def load_history() -> list[dict]:
     """All stored daily wellness snapshots, oldest first."""
     p = _path("history.jsonl")

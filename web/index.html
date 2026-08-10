@@ -524,7 +524,7 @@ const cache = {};
 
 // Live files change server-side every few minutes (15-min light syncs,
 // intraday pulses) — caching them for the page's lifetime shows stale data.
-const NEVER_CACHE = new Set(['sync-status.json', 'daily-brief.json']);
+const NEVER_CACHE = new Set(['sync-status.json', 'daily-brief.json', 'calendar.json']);
 
 async function loadJSON(file) {
   const key = 'f:' + file;
@@ -2833,13 +2833,12 @@ async function renderCalendar(page) {
   let viewMonth = reopenD ? reopenD.getMonth() : now.getMonth();
   const calEntries = {};
 
-  const [plan, activities, events, extrasJson] = await Promise.all([
+  const [plan, activities, events, calItems] = await Promise.all([
     planStore.get().catch(() => null),
     cached('activities', () => apiJson('/activities').catch(() => [])),
     loadJSON('events.json').catch(() => []),
-    loadJSON('extra_activities.json').catch(() => []),
+    loadJSON('calendar.json').catch(() => []),   // first-class items — no plan required
   ]);
-  window.__extraActivities = Array.isArray(extrasJson) ? extrasJson : [];
 
   for (const ev of events || []) {
     if (!ev.date) continue;
@@ -2858,16 +2857,38 @@ async function renderCalendar(page) {
   if (plan && plan.weeks) {
     for (const w of plan.weeks) for (const wo of (w.workouts || [])) (wo.matched_activity_ids || []).forEach(id => matchedIds.add(id));
   }
+  for (const it of calItems || []) (it.matched_activity_ids || []).forEach(id => matchedIds.add(String(id)));
+
+  const todayISOc = new Date().toISOString().slice(0, 10);
+  for (const it of calItems || []) {
+    if (!it.date) continue;
+    if (!it.completed && it.date < todayISOc) continue;   // past unmatched = noise
+    (calEntries[it.date] ||= []).push({
+      type: 'cal-item', item: it,
+      title: (it.completed ? '✓ ' : '○ ') + (it.title || it.sport),
+      sub: [it.sport, it.duration_min ? `~${it.duration_min} min` : ''].filter(Boolean).join(' · '),
+      color: 'var(--violet)',
+      activity: null,   // filled below once actById exists
+    });
+  }
 
   for (const act of activities || []) {
     const d = (act.start_time || '').slice(0, 10);
-    if (!d || matchedIds.has(act.activity_id)) continue;
+    if (!d || matchedIds.has(act.activity_id) || matchedIds.has(String(act.activity_id))) continue;
     const distKm = act.distance_meters ? (act.distance_meters/1000).toFixed(1) : null;
     const isRun = (act.activity_type || '').toLowerCase().includes('run');
     let sub = '';
     if (isRun && distKm && act.duration_seconds) sub = `${distKm} km · ${formatPace(act.duration_seconds/(act.distance_meters/1000))}/km`;
     else if (distKm) sub = `${distKm} km`;
     (calEntries[d] ||= []).push({ type:'activity', title: act.name || act.activity_type || 'Activity', sub, color: isRun ? 'var(--emerald)' : 'var(--violet)', activity: act });
+  }
+
+  for (const dayList of Object.values(calEntries)) {
+    for (const e of dayList) {
+      if (e.type === 'cal-item' && e.item && (e.item.matched_activity_ids || []).length) {
+        e.activity = actById[e.item.matched_activity_ids[0]] || actById[String(e.item.matched_activity_ids[0])] || null;
+      }
+    }
   }
 
   const todayISO = new Date().toISOString().slice(0, 10);
@@ -2928,48 +2949,36 @@ async function renderCalendar(page) {
     </div></div>`;
   }
 
+  const addFormHtml = (ds, mt) => `<div id="extra-form-wrap"><button class="btn btn-ghost btn-block" onclick="showExtraForm()" id="extra-show" style="margin-${mt}:10px">+ Add activity</button>
+        <div id="extra-form" style="display:none;padding:14px 0 0">
+          <div class="field"><label>Sport</label><input id="ex-sport" list="ex-sport-list" value="Cardio"><datalist id="ex-sport-list"><option>Cardio</option><option>HYROX</option><option>Swim</option><option>Bike</option><option>Gym</option><option>Yoga</option></datalist></div>
+          <div class="field"><label>Date</label><input id="ex-date" type="date" value="${ds}"></div>
+          <div class="field"><label>Minutes</label><input id="ex-min" type="number" min="1" value="45"></div>
+          <div class="field"><label>Name</label><input id="ex-name" placeholder="Training center session"></div>
+          <div class="field"><label>Repeat weekly</label><input id="ex-repeat" type="number" min="1" max="52" value="1"><div class="hint">Weeks to schedule (1 = just this one).</div></div>
+          <button class="btn btn-ghost" onclick="hideExtraForm()" id="extra-cancel">Cancel</button>
+          <button class="btn btn-primary" onclick="saveExtra()" id="extra-save">Save session</button>
+        </div></div>`;
+
   // Render the selected day's entry list into the side panel; clicking an entry swaps
   // the panel for that activity/workout's full detail (inline — no popup).
   function showDay(ds) {
     const details = document.getElementById('cal-details');
     const entries = calEntries[ds] || [];
     const dateLabel = new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
-    let extrasHtml = '';
-    (window.__extraActivities || []).forEach((ex, xi) => {
-      if (ex.date !== ds) return;
-      extrasHtml += `<div class="act-item" onclick="openExtra(${xi}, '${ds}')" style="cursor:pointer;border:1px solid var(--border-s);border-radius:10px;padding:10px 12px"><div class="act-bar" style="background:var(--violet)"></div>
-        <div class="act-info"><div class="act-name">${escHtml(ex.name || ex.sport || 'Cardio')}</div><div class="act-meta">${escHtml(ex.sport || 'Cardio')}${ex.minutes ? ' · ' + escHtml(String(ex.minutes)) + 'min' : ''}</div></div></div>`;
-    });
-    if (!entries.length && !extrasHtml) {
-      details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div><div class="empty" style="border:none;padding:24px 0">Nothing scheduled.</div>` + `<div id="extra-form-wrap"><button class="btn btn-ghost btn-block" onclick="showExtraForm()" id="extra-show" style="margin-bottom:10px">+ Add cardio session</button>
-        <div id="extra-form" style="display:none;padding:14px 0 0">
-          <div class="field"><label>Sport</label><select id="ex-sport"><option>Cardio</option><option>HYROX</option><option>Swim</option><option>Bike</option></select></div>
-          <div class="field"><label>Date</label><input id="ex-date" type="date" value="${ds}"></div>
-          <div class="field"><label>Minutes</label><input id="ex-min" type="number" min="1" value="45"></div>
-          <div class="field"><label>Name</label><input id="ex-name" placeholder="Training center session"></div>
-          <div class="field"><label>Repeat weekly</label><input id="ex-repeat" type="number" min="1" max="52" value="1"><div class="hint">Weeks to schedule (1 = just this one).</div></div>
-          <button class="btn btn-ghost" onclick="hideExtraForm()" id="extra-cancel">Cancel</button>
-          <button class="btn btn-primary" onclick="saveExtra()" id="extra-save">Save session</button>
-        </div></div>`;
-      
+    if (!entries.length) {
+      details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div><div class="empty" style="border:none;padding:24px 0">Nothing scheduled.</div>` + addFormHtml(ds, 'bottom');
       return;
     }
     details.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${dateLabel}</div></div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">` + entries.map((e, i) => `
       <div class="act-item" data-cal-idx="${i}" style="border:1px solid var(--border-s);border-radius:10px;padding:10px 12px"><div class="act-bar" style="background:${e.color}"></div>
-        <div class="act-info"><div class="act-name">${escHtml(e.title)}</div>${e.sub ? `<div class="act-meta">${escHtml(e.sub)}</div>` : ''}</div></div>`).join('') + extrasHtml + `</div>` + `<div id="extra-form-wrap"><button class="btn btn-ghost btn-block" onclick="showExtraForm()" id="extra-show" style="margin-top:10px">+ Add cardio session</button>
-        <div id="extra-form" style="display:none;padding:14px 0 0">
-          <div class="field"><label>Sport</label><select id="ex-sport"><option>Cardio</option><option>HYROX</option><option>Swim</option><option>Bike</option></select></div>
-          <div class="field"><label>Date</label><input id="ex-date" type="date" value="${ds}"></div>
-          <div class="field"><label>Minutes</label><input id="ex-min" type="number" min="1" value="45"></div>
-          <div class="field"><label>Name</label><input id="ex-name" placeholder="Training center session"></div>
-          <div class="field"><label>Repeat weekly</label><input id="ex-repeat" type="number" min="1" max="52" value="1"><div class="hint">Weeks to schedule (1 = just this one).</div></div>
-          <button class="btn btn-ghost" onclick="hideExtraForm()" id="extra-cancel">Cancel</button>
-          <button class="btn btn-primary" onclick="saveExtra()" id="extra-save">Save session</button>
-        </div></div>`;
+        <div class="act-info"><div class="act-name">${escHtml(e.title)}</div>${e.sub ? `<div class="act-meta">${escHtml(e.sub)}</div>` : ''}</div></div>`).join('') + `</div>` + addFormHtml(ds, 'top');
         details.querySelectorAll('[data-cal-idx]').forEach(c => c.addEventListener('click', () => {
           const e = entries[+c.dataset.calIdx];
           if (e.type === 'activity' && e.activity) renderActivityDetail(details, e.activity, { onBack: () => showDay(ds) });
+          else if (e.type === 'cal-item' && e.activity) renderActivityDetail(details, e.activity, { onBack: () => showDay(ds) });
+          else if (e.type === 'cal-item' && e.item) renderCalItemDetail(details, e.item, ds);
           else if (e.type === 'planned' && e.wo) renderWorkoutDetail(details, e.wo, { onBack: () => showDay(ds) });
         }));
     }
@@ -3000,6 +3009,27 @@ async function loadText(file) {
   const res = await fetch('./data/' + file);
   if (!res.ok) throw new Error('not found');
   return res.text();
+}
+
+// Scheduled calendar-item detail: reschedule or remove (calendar-edit handles items).
+function renderCalItemDetail(container, item, ds) {
+  container.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${escHtml(item.title || item.sport)}</div>
+      <button class="btn-icon" id="ci-back" aria-label="Back">‹</button></div>
+    <div style="font-size:.85rem;color:var(--text-2);margin-bottom:12px">${escHtml(item.sport)} · ~${item.duration_min} min · ${escHtml(String(item.date))}${item.garmin_workout_id ? ' · on Garmin' : ''}</div>
+    ${item.notes ? `<div style="font-size:.85rem;color:var(--text-2);margin-bottom:12px">${escHtml(item.notes)}</div>` : ''}
+    <div class="field"><label>Move to</label><input type="date" id="ci-date" value="${item.date}"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-outline" id="ci-move">Reschedule</button>
+      <button class="btn btn-outline" id="ci-del" style="color:var(--rose)">Remove</button>
+    </div>`;
+  on('ci-back', 'click', () => renderCalendar(document.getElementById('page-content')) );
+  on('ci-move', 'click', () => {
+    const nd = val('ci-date');
+    if (nd && nd !== String(item.date)) calendarSyncSession(item.item_id, 'reschedule', nd);
+  });
+  on('ci-del', 'click', () => {
+    if (confirm('Remove this session (and its Garmin calendar entry)?')) calendarSyncSession(item.item_id, 'delete');
+  });
 }
 
 window.showExtraForm = function() {
@@ -3070,36 +3100,8 @@ window.saveExtra = async function() {
   toast('ok', 'Session scheduled', 'On the calendar now.');
   goTab('calendar');
 };
-window.openExtra = function(xi, ds) {
-  const ex = (window.__extraActivities || [])[xi];
-  const details = document.getElementById('cal-details');
-  if (!ex || !details) return;
-  renderWorkoutDetail(details, {
-    name: ex.name || ex.sport || 'Cardio',
-    workout_type: String(ex.sport || 'cardio').toLowerCase(),
-    estimated_duration_seconds: (ex.minutes || 0) * 60,
-    steps: [],
-    notes: ex.notes || ''
-  }, { onBack: () => backToDay(ds) });
-  details.querySelector('.fade-in')?.insertAdjacentHTML('beforeend',
-    `<div style="margin-top:16px"><button class="btn btn-ghost" style="color:var(--rose)" onclick="delExtra(${xi})">Delete session</button></div>`);
-};
 window.backToDay = function(ds) {
   document.querySelector(`.cal-day[data-date="${ds}"]`)?.click();
-};
-window.delExtra = async function(xi) {
-  const extras = Array.isArray(window.__extraActivities) ? [...window.__extraActivities] : [];
-  if (!extras[xi]) return;
-  extras.splice(xi, 1);
-  try {
-    const r = await fetch('api/extra_activities', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: extras })
-    });
-    if (!r.ok) throw new Error('delete failed: ' + r.status);
-    window.__extraActivities = extras;
-    location.reload();
-  } catch (e) { toast('err', 'Not deleted', e.message); }
 };
 function formatMarkdown(md) {
   return escHtml(md)
