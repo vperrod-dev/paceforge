@@ -3033,7 +3033,92 @@ async function renderCalendar(page) {
     }
     
 
+  // ── Phone: agenda list, not a dot grid. A month of day rows with the real
+  // session names inline; tap an entry for its detail (bottom sheet), tap +
+  // to schedule on that day. Desktop keeps the month grid + side panel.
+  function drawAgenda() {
+    const first = new Date(viewYear, viewMonth, 1);
+    const last = new Date(viewYear, viewMonth + 1, 0);
+    const monthName = first.toLocaleString('default', { month: 'long', year: 'numeric' });
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let rows = '';
+    for (let d = 1; d <= last.getDate(); d++) {
+      const ds = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const dt = new Date(viewYear, viewMonth, d);
+      const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dt.getDay()];
+      const entries = calEntries[ds] || [];
+      const isToday = ds === todayStr;
+      const past = ds < todayStr;
+      const chips = entries.map((e, i) => {
+        const ring = e.cmStatus ? `box-shadow:inset 0 0 0 2px ${CM_BANDS[e.cmStatus].color};` : '';
+        return `<div data-ag="${ds}:${i}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--elevated);border:1px solid var(--border-s);${ring}cursor:pointer;min-height:44px">
+          <div style="width:4px;align-self:stretch;border-radius:2px;background:${e.color}"></div>
+          <div style="min-width:0;flex:1">
+            <div style="font-size:.88rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(e.title)}</div>
+            ${e.sub ? `<div style="font-size:.76rem;color:var(--text-3)">${escHtml(e.sub)}</div>` : ''}
+          </div>
+          <span style="color:var(--text-3)">›</span>
+        </div>`;
+      }).join('');
+      if (!entries.length && past && !isToday) continue;   // past empty days are noise
+      rows += `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-s);${isToday ? 'background:color-mix(in srgb, var(--emerald) 5%, transparent);margin:0 -8px;padding:8px;border-radius:10px;' : ''}" ${isToday ? 'id="ag-today"' : ''}>
+        <div style="flex:0 0 44px;text-align:center;padding-top:8px">
+          <div style="font-size:.68rem;color:${isToday ? 'var(--emerald)' : 'var(--text-3)'};text-transform:uppercase;font-weight:700">${wd}</div>
+          <div style="font-size:1.15rem;font-weight:800;color:${isToday ? 'var(--emerald)' : past ? 'var(--text-3)' : 'var(--text)'}">${d}</div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          ${chips || `<div style="font-size:.78rem;color:var(--text-3);padding:12px 0">—</div>`}
+          ${!past || isToday ? `<button data-ag-add="${ds}" style="align-self:flex-start;background:none;border:none;color:var(--text-3);font-size:.76rem;cursor:pointer;padding:4px 0;min-height:32px">+ add</button>` : ''}
+        </div>
+      </div>`;
+    }
+    return `<div class="fade-in">
+      <div class="card" style="padding:14px">
+        <div class="card-h" style="margin-bottom:6px"><div class="card-title">${monthName}</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-icon" id="cal-prev" aria-label="Previous month">‹</button>
+            <button class="btn-icon" id="cal-today" aria-label="This month" style="width:auto;padding:0 10px;font-size:.78rem">Today</button>
+            <button class="btn-icon" id="cal-next" aria-label="Next month">›</button>
+          </div></div>
+        ${rows}
+      </div></div>`;
+  }
+
+  function sheetForEntry(e, ds) {
+    openModal(`<div class="modal-h"><div class="modal-title">${escHtml(new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }))}</div>
+      <button class="modal-close" data-close>${icons.x}</button></div><div id="cal-sheet"></div>`, true);
+    const box = document.getElementById('cal-sheet');
+    if (e.type === 'activity' && e.activity) renderActivityDetail(box, e.activity, { onBack: closeModal });
+    else if (e.type === 'cal-item' && e.activity) renderActivityDetail(box, e.activity, { onBack: closeModal });
+    else if (e.type === 'cal-item' && e.item) renderCalItemDetail(box, e.item, ds, { onBack: closeModal });
+    else if (e.type === 'planned' && e.wo) renderWorkoutDetail(box, e.wo, { onBack: closeModal });
+    else closeModal();
+  }
+
+  function sheetForAdd(ds) {
+    openModal(`<div class="modal-h"><div class="modal-title">Add activity</div>
+      <button class="modal-close" data-close>${icons.x}</button></div>${addFormHtml(ds, 'bottom')}`, true);
+    showExtraForm();
+  }
+
+  function reDrawAgenda() {
+    page.innerHTML = drawAgenda();
+    on('cal-prev', 'click', () => { viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } reDrawAgenda(); });
+    on('cal-next', 'click', () => { viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } reDrawAgenda(); });
+    on('cal-today', 'click', () => { const n = new Date(); viewMonth = n.getMonth(); viewYear = n.getFullYear(); reDrawAgenda(); });
+    page.querySelectorAll('[data-ag]').forEach(el => el.addEventListener('click', () => {
+      const [ds, i] = el.dataset.ag.split(':');
+      const e = (calEntries[ds] || [])[Number(i)];
+      if (e) sheetForEntry(e, ds);
+    }));
+    page.querySelectorAll('[data-ag-add]').forEach(el => el.addEventListener('click', ev => {
+      ev.stopPropagation(); sheetForAdd(el.dataset.agAdd);
+    }));
+    document.getElementById('ag-today')?.scrollIntoView({ block: 'center' });
+  }
+
   function reDraw() {
+    if (window.matchMedia('(max-width:1023px)').matches) { reDrawAgenda(); return; }
     page.innerHTML = drawMonth();
     page.querySelectorAll('.cal-day[data-date]').forEach(el => el.addEventListener('click', () => {
       page.querySelectorAll('.cal-day.selected').forEach(s => s.classList.remove('selected'));
@@ -3061,7 +3146,7 @@ async function loadText(file) {
 }
 
 // Scheduled calendar-item detail: reschedule or remove (calendar-edit handles items).
-function renderCalItemDetail(container, item, ds) {
+function renderCalItemDetail(container, item, ds, opts) {
   container.innerHTML = `<div class="card-h"><div class="card-title" style="font-size:.95rem">${escHtml(item.title || item.sport)}</div>
       <button class="btn-icon" id="ci-back" aria-label="Back">‹</button></div>
     <div style="font-size:.85rem;color:var(--text-2);margin-bottom:12px">${escHtml(item.sport)} · ~${item.duration_min} min · ${escHtml(String(item.date))}${item.garmin_workout_id ? ' · on Garmin' : ''}</div>
@@ -3071,7 +3156,7 @@ function renderCalItemDetail(container, item, ds) {
       <button class="btn btn-outline" id="ci-move">Reschedule</button>
       <button class="btn btn-outline" id="ci-del" style="color:var(--rose)">Remove</button>
     </div>`;
-  on('ci-back', 'click', () => renderCalendar(document.getElementById('page-content')) );
+  on('ci-back', 'click', () => (opts && opts.onBack) ? opts.onBack() : renderCalendar(document.getElementById('page-content')));
   on('ci-move', 'click', () => {
     const nd = val('ci-date');
     if (nd && nd !== String(item.date)) calendarSyncSession(item.item_id, 'reschedule', nd);
@@ -3147,6 +3232,7 @@ window.saveExtra = async function() {
   await planStore.reset();
   window.__reopenCalDate = date;
   toast('ok', 'Session scheduled', 'On the calendar now.');
+  closeModal();   // bottom-sheet add form (agenda view)
   goTab('calendar');
 };
 window.backToDay = function(ds) {

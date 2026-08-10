@@ -13,68 +13,19 @@
       "workouts": [
         {
           "session_id": "3bb62824",
-          "workout_type": "hills",
+          "workout_type": "easy_run",
           "sport": "run",
-          "name": "5 x 60s Hill Reps",
-          "description": "Hill repetitions build strength, power, and running economy. Effort should be hard but controlled.",
+          "name": "7km Easy Run",
+          "description": "Relaxed aerobic run at conversational pace. Builds base fitness.",
           "scheduled_date": "2026-08-10",
-          "estimated_duration_seconds": 1950.0,
+          "estimated_duration_seconds": 2036.7818300176784,
           "estimated_distance_meters": 7000.0,
           "steps": [
             {
-              "step_type": "warmup",
-              "description": "10 min easy jog at conversational pace",
-              "duration_seconds": 600.0,
-              "distance_meters": null,
-              "target_type": "pace",
-              "target_low": 290.96883285966834,
-              "target_high": 319.77506628773466,
-              "repeat_count": null,
-              "steps": null,
-              "pace_key": "easy"
-            },
-            {
-              "step_type": "interval",
-              "description": "5 x 60s hill reps",
+              "step_type": "active",
+              "description": "7.0 km easy",
               "duration_seconds": null,
-              "distance_meters": null,
-              "target_type": "open",
-              "target_low": null,
-              "target_high": null,
-              "repeat_count": 5,
-              "steps": [
-                {
-                  "step_type": "interval",
-                  "description": "60s hard uphill effort",
-                  "duration_seconds": 60.0,
-                  "distance_meters": null,
-                  "target_type": "open",
-                  "target_low": null,
-                  "target_high": null,
-                  "repeat_count": null,
-                  "steps": null,
-                  "pace_key": null
-                },
-                {
-                  "step_type": "recovery",
-                  "description": "90s walking rest",
-                  "duration_seconds": 90.0,
-                  "distance_meters": null,
-                  "target_type": "pace",
-                  "target_low": 290.96883285966834,
-                  "target_high": 319.77506628773466,
-                  "repeat_count": null,
-                  "steps": null,
-                  "pace_key": "easy"
-                }
-              ],
-              "pace_key": null
-            },
-            {
-              "step_type": "cooldown",
-              "description": "10 min easy jog to finish",
-              "duration_seconds": 600.0,
-              "distance_meters": null,
+              "distance_meters": 7000.0,
               "target_type": "pace",
               "target_low": 290.96883285966834,
               "target_high": 319.77506628773466,
@@ -83,17 +34,16 @@
               "pace_key": "easy"
             }
           ],
-          "notes": "",
+          "notes": "Readiness has been sliding all week (80 to 11 over the last six days, sleep only 40 last night) and today's status reads Recovery \u2014 this is a real fatigue signal, not noise. You already ran an easy 5K this morning instead of the planned hill reps, which was the right call; this entry now matches what actually happened. The hill work isn't lost, just postponed until readiness rebounds.",
           "briefing": {
-            "purpose": "Strength, power and economy \u2014 uphill running loads the posterior chain at low impact and forces a strong knee drive. Right now this is groundwork \u2014 economy and resilience for the harder blocks ahead.",
-            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 5\u00d7 (60s hard uphill effort / 90s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
-            "feel": "Hard but controlled, RPE 8 \u2014 effort-based, forget pace on a gradient.",
-            "if_wrong": "Calves or achilles complaining? Shorten the reps and stay tall \u2014 lean from the ankles, not the waist.",
-            "cue": "Drive the knee, push the ground away, arms compact \u2014 and walk the first 20m of each descent before jogging.",
-            "venue": "Find a steady 4-6% gradient that takes 45-75s to climb; grass or trail saves the calves."
+            "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
+            "structure": "7.0 km easy @ 4:50-5:19/km",
+            "feel": "Conversational, RPE 3-4. You should finish feeling like you could do it again.",
+            "if_wrong": "If pace drifts above the window to hold a conversation, let it \u2014 easy means effort, not a number. Heart rate above ~75% max: slow down.",
+            "cue": "Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) \u2014 quicker, shorter steps, no overstriding."
           },
-          "purpose": "running_economy",
-          "cadence_target": 170,
+          "purpose": "aerobic_base",
+          "cadence_target": null,
           "completed": false,
           "matched_activity_ids": [],
           "manual_activity_ids": [],
@@ -101,7 +51,7 @@
           "completion_analysis": null,
           "completion_metrics": null,
           "garmin_workout_id": null,
-          "variant_key": "q1:hills:0",
+          "variant_key": null,
           "user_rpe": null,
           "user_notes": null
         },
@@ -218,7 +168,7 @@
           "user_notes": null
         }
       ],
-      "focus": "5 x 60s Hill Reps + 4km Tempo Run",
+      "focus": "4km Tempo Run",
       "intro": "Base week 1 of 2: laying aerobic foundation and durable form \u2014 economy work now makes every later phase cheaper."
     },
     {
