@@ -132,7 +132,17 @@ after each sync:
   runs the whole flow with no hardware. Plan & build log: `tasks/bike-section-plan-2026-07-13.md`. (Settings → Upcoming events); they show as a
   countdown on Today and on the Calendar, and the coach rebalances your plan around
   them (taper into races, build between them) gated by your health metrics.
-- **Fitness** — the full assessment (below).
+- **Coach** — everything the coach writes, as a briefing: the daily brief (headline first,
+  full read collapsed underneath), a compact **Coach's Take** (top-3 limiters — tap one for
+  the evidence and the fix), the deterministic **"Today's call"** rule panel, then one
+  chronological feed of day pulses, the week review (opens in full) and per-session
+  analyses (newest five, expand for all).
+- **Fitness** — opens as a one-screen **status board**: a vitals strip (readiness, TSB,
+  ACWR, illness watch, sleep debt) and eight domain tiles (Engine, Durability, Recovery,
+  Strength, Form, Economy, Races, HYROX), each with a status dot derived from the engine's
+  own grades, a headline number and a one-line verdict — where the problem is, before any
+  scrolling. Tapping a tile drills into that domain's full assessment (below), with the
+  domain pills for lateral moves.
 - **Settings** — Garmin sync health (last successful sync, failed endpoints, token
   age with an expiry warning), strength benchmarks, and events.
 - Edit the plan, trigger a Sync / Push-to-Garmin, rate a session's effort (RPE 1–10),
@@ -148,13 +158,13 @@ after each sync:
 
 Deterministic engines (`paceforge/engine/`) compute a complete athlete assessment from the
 Garmin time-series, then a **limiter-ranking** engine turns it into prioritised, readiness-gated
-guidance the coach writes up. The Fitness page leads with **"Today's call"** — a rule engine
+guidance the coach writes up. The Coach page carries **"Today's call"** — a rule engine
 (`engine/insights.py`) over the day's metrics with published thresholds (Friel TSB bands, ACWR
 injury risk, Foster monotony, HRV normal-range, sleep debt → a concrete bedtime shift, Body
 Battery cutoffs, 80/20 distribution): one verdict, one action, and the evidence for every
-finding, stamped with data freshness (anything older than 36 h greys out). Below it,
-**Coach's Take** — your top-3 limiters, each with the metric evidence and a concrete
-"this week" action.
+finding, stamped with data freshness (anything older than 36 h greys out) — alongside
+**Coach's Take**, your top-3 limiters with the metric evidence and a concrete "this week"
+action. The Fitness status board summarises each domain below into its tile.
 
 - **Engine** (`engine/durability.py`): Critical Speed / D′ (+ Critical Power / W′), efficiency-factor
   trend, vVO2max, aerobic decoupling, compromised-run fade, HR-recovery, 80/20 intensity distribution,
@@ -165,9 +175,11 @@ finding, stamped with data freshness (anything older than 36 h greys out). Below
   per-duration fatigue cost — your compromised-running capacity, quantified. Hot-day paces are
   conditions-adjusted before comparison (`engine/enviro.py`).
 - **Load & recovery** (`engine/load.py`): TRIMP load, CTL/ATL/TSB (fitness-fatigue-form), ACWR,
-  monotony/strain, injury-spike guardrail, HRV baseline/CV, sleep debt/architecture, an overtraining
-  early-warning composite, an **illness watch** (overnight respiration + SpO2 vs baseline, corroborated
-  by RHR/HRV), and a daily readiness score — alongside Garmin's native status and running tolerance. Sessions
+  monotony/strain, injury-spike guardrail, HRV baseline/CV, sleep debt/architecture (with a
+  14-night sleep-stage history, restless moments, overnight Body Battery recharge and sleep
+  stress), an overtraining early-warning composite, an **illness watch** (overnight respiration,
+  SpO2 and **skin-temperature deviation** vs baseline, corroborated by RHR/HRV), and a daily
+  readiness score — alongside Garmin's native status and running tolerance. Sessions
   without heart-rate data (gym strength, station work) count too, via your **session RPE** rating
   (Foster sRPE, pooled into the same load series).
 - **Matching** (`engine/matching.py`): links completed activities to scheduled sessions —
@@ -180,7 +192,10 @@ finding, stamped with data freshness (anything older than 36 h greys out). Below
   the badges, chips and calendar rings across the dashboard.
 - **Strength / HYROX** (`engine/strength.py`, `hyrox/benchmarks.py`): station percentiles vs **your
   own cohort** (gender/division/age-group), in-race run fade, hybrid (run-vs-strength) balance —
-  unlocked by a few one-time benchmarks entered on the Strength tab.
+  unlocked by a few one-time benchmarks entered on the Strength tab — plus **real gym volume**
+  (sets × reps × weight → 28-day tonnage and per-exercise totals) whenever a watch-recorded
+  strength session carries exercise sets (record gym work with the watch's Strength activity
+  profile; HR-only proxies stay flagged low-confidence).
 
 Activity-derived metrics work from existing data immediately; wellness trends fill in over ~6 weeks as
 `data/history.jsonl` accumulates a daily snapshot.
