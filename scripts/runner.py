@@ -1232,6 +1232,42 @@ class Handler(BaseHTTPRequestHandler):
             return self._static(REPO_DIR / "web" / path.lstrip("/"))
         # Watch data field (Connect IQ makeWebRequest, no cookies): tokened,
         # read-only, serves ONLY the cadence-target JSON — nothing sensitive.
+        # Watch widget: today's session + coach headline (tokened, low-sensitivity)
+        if path == "/watch-brief":
+            tok = os.environ.get("PF_WATCH_TOKEN", "")
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            if not tok or q.get("k", [""])[0] != tok:
+                return self._send(401, {"message": "bad token"})
+            out = {"date": datetime.now(ZoneInfo("Europe/Dublin")).strftime("%Y-%m-%d"),
+                   "headline": "", "session": "", "detail": ""}
+            try:
+                brief = json.loads((REPO_DIR / "data" / "daily-brief.json").read_text())
+                if brief.get("date") == out["date"]:
+                    out["headline"] = str(brief.get("headline") or "")[:120]
+            except Exception:
+                pass
+            try:
+                plan = json.loads((REPO_DIR / "data" / "plan.json").read_text())
+                for wk in plan.get("weeks", []):
+                    for wo in wk.get("workouts", []):
+                        if (wo.get("scheduled_date") == out["date"]
+                                and wo.get("workout_type") != "rest"):
+                            out["session"] = str(wo.get("name") or "")[:60]
+                            km = (wo.get("estimated_distance_meters") or 0) / 1000
+                            out["detail"] = (f"{km:.1f} km" if km else "")
+                            break
+            except Exception:
+                pass
+            if not out["session"]:
+                try:
+                    cal = json.loads((REPO_DIR / "data" / "calendar.json").read_text())
+                    it = next((i for i in cal if str(i.get("date")) == out["date"]), None)
+                    if it:
+                        out["session"] = str(it.get("title") or it.get("sport") or "")[:60]
+                        out["detail"] = f"~{it.get('duration_min', 45)} min"
+                except Exception:
+                    pass
+            return self._send(200, out)
         if path == "/watch-targets":
             tok = os.environ.get("PF_WATCH_TOKEN", "")
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)

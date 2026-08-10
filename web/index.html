@@ -1871,7 +1871,7 @@ async function renderFitness(page) {
   }
   const subTabs = [
     ['engine', 'Engine'], ['durability', 'Durability'], ['recovery', 'Recovery'],
-    ['strength', 'Strength'], ['economy', 'Economy'], ['races', 'Races'], ['hyrox_p', 'HYROX'],
+    ['strength', 'Strength'], ['form', 'Form'], ['economy', 'Economy'], ['races', 'Races'], ['hyrox_p', 'HYROX'],
   ];
   let activeSub = 'engine';
 
@@ -1898,6 +1898,7 @@ async function renderFitness(page) {
       case 'durability': el.innerHTML = fitness ? renderDurability(fitness) : emptyState('No data', ''); break;
       case 'recovery': el.innerHTML = fitness ? renderRecovery(fitness) : emptyState('No data', ''); break;
       case 'strength': el.innerHTML = fitness ? renderStrength(fitness) : emptyState('No data', ''); bindBenchmarkForm(el, draw); break;
+      case 'form': el.className = ''; el.innerHTML = fitness ? renderForm(fitness) : emptyState('No data', ''); break;
       case 'economy': el.className = 'grid cols-auto'; el.innerHTML = renderEconomy(analytics); break;
       case 'races': el.className = 'grid cols-auto'; el.innerHTML = renderRaces(analytics); break;
       case 'hyrox_p': el.className = 'grid cols-auto'; el.innerHTML =
@@ -1958,6 +1959,52 @@ function renderInsightsPanel(f) {
     </div>
     ${items}
     ${ins.stale ? `<div class="hint" style="margin-top:8px">Data is more than 36 h old — colours may not reflect this morning. Sync first.</div>` : ''}
+  </div>`;
+}
+
+// ── Form: cadence vs coach target, recovery HR, contact/vertical trends ──
+function renderForm(f) {
+  const fm = f.form || {};
+  if (!fm.available) return emptyState('No form data yet', 'Sync a few runs first.', icons.run);
+  const cad = fm.cadence || {}, rec = fm.recovery_hr || {}, gct = fm.gct_ms || {}, vr = fm.vert_ratio || {};
+  const cadSeries = (fm.series || []).map(r => r.cadence);
+  const cadColor = cad.current == null ? 'var(--text-2)'
+    : cad.current >= cad.target_lo ? 'var(--emerald)'
+    : cad.current >= cad.target_lo - 8 ? 'var(--amber)' : 'var(--rose)';
+  const trendTxt = (t, unit, goodUp) => t == null ? '' :
+    `<span style="color:${t === 0 ? 'var(--text-3)' : (t > 0) === goodUp ? 'var(--emerald)' : 'var(--rose)'}">${t > 0 ? '+' : ''}${t}${unit} / 4wk</span>`;
+  const recSeries = (rec.series || []).map(s => s.hrr60_best);
+  return `<div class="dash-grid">
+    <div class="span-12"><div class="card">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>Cadence — the project</div>
+        <span class="chip">coach target ${cad.target_lo}–${cad.target_hi} spm</span></div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+        <span style="font-family:var(--font-m);font-weight:800;font-size:2.2rem;color:${cadColor}">${cad.current ?? '—'}</span>
+        <span style="color:var(--text-3);font-size:.85rem">spm, last 3 runs</span>
+        ${trendTxt(cad.trend_28d, ' spm', true)}
+      </div>
+      ${miniChart(cadSeries, { color: cadColor, band: [cad.target_lo, cad.target_hi], height: 150, fmt: v => Math.round(v) })}
+      <div class="hint" style="margin-top:6px">Teal band = the coach's current prescription (also live on your watch). Quicker, shorter steps — the band moves up as you consolidate.</div>
+    </div></div>
+    <div class="span-6"><div class="card" style="height:100%">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.heart}</span>Recovery HR</div></div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:8px">
+        <span style="font-family:var(--font-m);font-weight:800;font-size:2rem;color:var(--sky)">${rec.current_best_avg ?? '—'}</span>
+        <span style="color:var(--text-3);font-size:.85rem">bpm drop in 60s after efforts</span>
+        ${trendTxt(rec.trend_28d, '', true)}
+      </div>
+      ${miniChart(recSeries, { color: 'var(--sky)', height: 120, fmt: v => Math.round(v) })}
+      <div class="hint" style="margin-top:6px">Best 60-second HR drop per session (runs AND classes). Bigger = fitter; a shrinking number under normal training is an early fatigue flag.</div>
+    </div></div>
+    <div class="span-6"><div class="card" style="height:100%">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.fitness}</span>Mechanics</div></div>
+      <div class="fx-grid">
+        ${metricCard('Ground contact', gct.current != null ? Math.round(gct.current) + ' ms' : '—', gct.trend_28d != null ? (gct.trend_28d > 0 ? '+' : '') + gct.trend_28d + ' ms / 4wk (down = better)' : '', gct.trend_28d != null && gct.trend_28d < 0 ? 'var(--emerald)' : 'var(--text-2)')}
+        ${metricCard('Vertical ratio', vr.current != null ? vr.current + ' %' : '—', vr.trend_28d != null ? (vr.trend_28d > 0 ? '+' : '') + vr.trend_28d + ' % / 4wk (down = better)' : '', vr.trend_28d != null && vr.trend_28d < 0 ? 'var(--emerald)' : 'var(--text-2)')}
+        ${metricCard('Stride length', (fm.stride_m || {}).current != null ? fm.stride_m.current + ' m' : '—', 'outcome of cadence x pace — not a goal itself', 'var(--text-2)')}
+      </div>
+      <div class="hint" style="margin-top:8px">Contact time and vertical ratio fall naturally as cadence rises — they confirm the cadence work is landing, no separate drills needed.</div>
+    </div></div>
   </div>`;
 }
 

@@ -735,8 +735,10 @@ def fitness() -> dict:
         raise RuntimeError("No profile — run `paceforge sync` first.")
     activities = store.load_activities()
     details = store.load_all_details()
+    from paceforge.engine.form import compute_form
     running = compute_running_metrics(activities, details, profile)
     running["pace_curves"] = compute_pace_curves(activities, details)
+    form = compute_form(activities, details)
     load = compute_load_recovery(store.load_history(), activities, profile,
                                  rpe_map=store.rpe_by_activity(),
                                  bike_rides=store.load_bike_rides())
@@ -769,7 +771,7 @@ def fitness() -> dict:
                               todays_type=todays_type, last_sync=last_sync)
 
     return {"running": running, "load": load, "strength": strength,
-            "compliance": compliance, "pace_insights": pace_insights,
+            "form": form, "compliance": compliance, "pace_insights": pace_insights,
             "insights": insights, **limiters}
 
 

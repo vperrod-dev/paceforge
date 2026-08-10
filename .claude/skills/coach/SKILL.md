@@ -207,3 +207,16 @@ cadence-first. Optional key `recover_to` (bpm): the between-efforts recovery
 ceiling for classes — the Class field shows "RECOVER TO <n>" whenever live HR
 sits above it. Set it when you give class-intensity guidance (typically the
 athlete's Z2 top); omit it and the cue stays hidden.
+
+## Form & recovery trends (2026-08-10)
+
+`data/fitness.json` now carries a `form` section: per-run cadence/stride/
+ground-contact/vertical-ratio series + summaries vs the coach cadence target,
+and `form.recovery_hr` — per-session best 60s HR drop after efforts (runs AND
+classes; bigger = fitter, a shrinking value under normal load = early fatigue
+flag). Contract: the WEEKLY review always includes one line on cadence
+progress vs target and one on the recovery-HR trend; per-activity analyses
+cite the session's `hrr60_best` when it stands out either way. When the
+athlete's 3-run cadence average sits inside the target band for 2+ weeks,
+nudge `watch-targets.json` up 3-5 spm (toward 175-180) and say so in the
+weekly review.
