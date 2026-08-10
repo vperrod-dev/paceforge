@@ -135,6 +135,14 @@ def commit_push(run: Run, paths: list[str], msg: str) -> None:
     pathspec, that half-staged work rides along in a "data:" commit and gets
     pushed. Both the emptiness check and the commit are scoped for that reason.
     """
+    # A named file may legitimately be gone (e.g. data/plan.json between plans) —
+    # git add hard-fails on a pathspec that is neither on disk nor tracked.
+    paths = [p for p in paths if (REPO_DIR / p).exists() or subprocess.run(
+        ["git", "ls-files", "--error-unmatch", p], cwd=REPO_DIR,
+        capture_output=True).returncode == 0]
+    if not paths:
+        run.log("nothing to commit (no named path exists)")
+        return
     sh(run, ["git", "add", *paths])
     if subprocess.run(["git", "diff", "--cached", "--quiet", "--", *paths],
                       cwd=REPO_DIR).returncode == 0:

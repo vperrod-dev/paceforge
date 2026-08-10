@@ -49,7 +49,16 @@ def test_dispatch_coalesces_queued_same_job(monkeypatch, tmp_path):
         first = runner.dispatch("noop-test", {})
         second = runner.dispatch("noop-test", {})
         assert first == second
-    # Different job names never coalesce with each other.
+    # Wait for the worker daemon-thread to finish INSIDE the monkeypatched
+    # STATE_DIR — otherwise its runs.jsonl write lands in live state.
+    import time
+    deadline = time.time() + 5
+    while time.time() < deadline:
+        rec = next(r for r in runner.RUNS if r["id"] == first)
+        if rec["status"] == "completed":
+            break
+        time.sleep(0.05)
+    assert started == [first]
 
 
 def test_maybe_day_pulse_once_per_slot(tmp_path, monkeypatch):
