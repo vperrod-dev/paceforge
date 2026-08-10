@@ -1,0 +1,1631 @@
+{
+  "plan_id": "21a4aefd",
+  "name": "Half Marathon \u2014 Intermediate",
+  "goal_type": "HALF_MARATHON",
+  "target_date": "2026-09-21",
+  "target_time_seconds": 5400.0,
+  "total_weeks": 7,
+  "weeks": [
+    {
+      "week_number": 1,
+      "phase": "Base",
+      "total_distance_km": 27.4,
+      "workouts": [
+        {
+          "session_id": "3bb62824",
+          "workout_type": "hills",
+          "sport": "run",
+          "name": "5 x 60s Hill Reps",
+          "description": "Hill repetitions build strength, power, and running economy. Effort should be hard but controlled.",
+          "scheduled_date": "2026-08-10",
+          "estimated_duration_seconds": 1950.0,
+          "estimated_distance_meters": 7000.0,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "10 min easy jog at conversational pace",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "interval",
+              "description": "5 x 60s hill reps",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 5,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "60s hard uphill effort",
+                  "duration_seconds": 60.0,
+                  "distance_meters": null,
+                  "target_type": "open",
+                  "target_low": null,
+                  "target_high": null,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": null
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "90s walking rest",
+                  "duration_seconds": 90.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            },
+            {
+              "step_type": "cooldown",
+              "description": "10 min easy jog to finish",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Strength, power and economy \u2014 uphill running loads the posterior chain at low impact and forces a strong knee drive. Right now this is groundwork \u2014 economy and resilience for the harder blocks ahead.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 5\u00d7 (60s hard uphill effort / 90s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Hard but controlled, RPE 8 \u2014 effort-based, forget pace on a gradient.",
+            "if_wrong": "Calves or achilles complaining? Shorten the reps and stay tall \u2014 lean from the ankles, not the waist.",
+            "cue": "Drive the knee, push the ground away, arms compact \u2014 and walk the first 20m of each descent before jogging.",
+            "venue": "Find a steady 4-6% gradient that takes 45-75s to climb; grass or trail saves the calves."
+          },
+          "purpose": "running_economy",
+          "cadence_target": 170,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q1:hills:0",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "4aee9725",
+          "workout_type": "tempo",
+          "sport": "run",
+          "name": "4km Tempo Run",
+          "description": "Sustained threshold-pace effort. Develops lactate clearance and mental focus.",
+          "scheduled_date": "2026-08-12",
+          "estimated_duration_seconds": 2247.875331438673,
+          "estimated_distance_meters": 7000.0,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "10 min easy jog at conversational pace",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "active",
+              "description": "4 km tempo at threshold pace",
+              "duration_seconds": null,
+              "distance_meters": 4000.0,
+              "target_type": "pace",
+              "target_low": 258.0393003667733,
+              "target_high": 272.44758617405506,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "threshold"
+            },
+            {
+              "step_type": "cooldown",
+              "description": "10 min easy jog to finish",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Lactate threshold \u2014 raises the pace you can sustain. The single biggest lever for Base-phase fitness at your distance. Right now this is groundwork \u2014 economy and resilience for the harder blocks ahead.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 4 km tempo at threshold pace @ 4:18-4:32/km \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Comfortably hard, RPE 7. You could speak a sentence, not hold a chat.",
+            "if_wrong": "Too hard? Slow 5-10 s/km rather than stopping \u2014 the aerobic stimulus survives a slower tempo, not a broken one. Heat or hills: switch to effort.",
+            "cue": "Lock the rhythm with your breathing (e.g. 2:2) and let pace follow it."
+          },
+          "purpose": "lactate_threshold",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q2:tempo:0",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "6b1780a6",
+          "workout_type": "long_run",
+          "sport": "run",
+          "name": "13km Long Run",
+          "description": "Steady long run building endurance and mental toughness at easy pace.",
+          "scheduled_date": "2026-08-14",
+          "estimated_duration_seconds": 3898.982360319556,
+          "estimated_distance_meters": 13400.0,
+          "steps": [
+            {
+              "step_type": "active",
+              "description": "13.4 km easy",
+              "duration_seconds": null,
+              "distance_meters": 13400.0,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
+            "structure": "13.4 km easy @ 4:50-5:19/km",
+            "feel": "Relaxed, conversational. The watch stays quiet today \u2014 that's the point.",
+            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great \u2260 speed up \u2014 save it for the structured long runs.",
+            "cue": "Check posture every ~15min: tall hips, relaxed shoulders, quiet feet."
+          },
+          "purpose": "endurance",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        }
+      ],
+      "focus": "5 x 60s Hill Reps + 4km Tempo Run",
+      "intro": "Base week 1 of 2: laying aerobic foundation and durable form \u2014 economy work now makes every later phase cheaper."
+    },
+    {
+      "week_number": 2,
+      "phase": "Base",
+      "total_distance_km": 30.2,
+      "workouts": [
+        {
+          "session_id": "a5377343",
+          "workout_type": "speed",
+          "sport": "run",
+          "name": "10 x 200m Speed Reps",
+          "description": "Short, fast repetitions developing speed and running economy. Full recovery between reps.",
+          "scheduled_date": "2026-08-17",
+          "estimated_duration_seconds": 2257.162599431602,
+          "estimated_distance_meters": 6000.0,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "10 min easy jog at conversational pace",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "interval",
+              "description": "10 x 200m fast reps",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 10,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "200m fast & relaxed \u2014 mile race effort",
+                  "duration_seconds": null,
+                  "distance_meters": 200.0,
+                  "target_type": "pace",
+                  "target_low": 221.72386072432695,
+                  "target_high": 237.72455170443303,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "repetition"
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "60s walking rest",
+                  "duration_seconds": 60.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            },
+            {
+              "step_type": "cooldown",
+              "description": "10 min easy jog to finish",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Speed and running economy \u2014 short, fast reps recruit fast-twitch fibres and sharpen form, making every slower pace cheaper. Right now this is groundwork \u2014 economy and resilience for the harder blocks ahead.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 10\u00d7 (200m fast & relaxed \u2014 mile race effort @ 3:41-3:57/km / 60s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Fast, springy and light \u2014 ~95%, never an all-out sprint. Full recovery is part of the design; R work only counts when you're fresh for each rep.",
+            "if_wrong": "Form breaking (shoulders up, overstriding)? Stop the set \u2014 junk reps train junk form. These reps are about quality, never volume.",
+            "warmup": "After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides \u2014 fast reps on a cold engine is how calves tear.",
+            "cue": "Think 'fast feet on hot coals' \u2014 ground contact short, heels never settling.",
+            "venue": "Track or a measured flat stretch \u2014 GPS pace lies over 200-400m, so run these by effort and check splits after."
+          },
+          "purpose": "speed_neuromuscular",
+          "cadence_target": 174,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q1:speed_200s:0",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "c6c4f416",
+          "workout_type": "easy_with_strides",
+          "sport": "run",
+          "name": "9km Easy + 6 Strides",
+          "description": "Easy run finishing with short strides to develop running economy and neuromuscular coordination.",
+          "scheduled_date": "2026-08-19",
+          "estimated_duration_seconds": 2735.1070288808824,
+          "estimated_distance_meters": 9400.0,
+          "steps": [
+            {
+              "step_type": "active",
+              "description": "8.8 km easy",
+              "duration_seconds": null,
+              "distance_meters": 8800.0,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "interval",
+              "description": "6 x strides",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 6,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "Stride \u2014 fast & relaxed",
+                  "duration_seconds": null,
+                  "distance_meters": 100.0,
+                  "target_type": "pace",
+                  "target_low": 221.72386072432695,
+                  "target_high": 237.72455170443303,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "repetition"
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "45s walking rest",
+                  "duration_seconds": 45.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
+            "structure": "8.8 km easy @ 4:50-5:19/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:41-3:57/km / 45s walking rest @ 4:50-5:19/km)",
+            "feel": "Easy throughout; strides are fast and springy, ~90% effort, never sprinted.",
+            "if_wrong": "Strides feeling forced or heavy-legged? Cut them \u2014 the easy running is the session; strides are a bonus.",
+            "cue": "Strides are turnover practice: quick light steps, arms driving straight back, eyes up."
+          },
+          "purpose": "running_economy",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "39fa1da3",
+          "workout_type": "long_run_progressive",
+          "sport": "run",
+          "name": "15km Progressive Long Run",
+          "description": "Start easy, build to marathon pace, finish at threshold. Develops pacing and fatigue resistance.",
+          "scheduled_date": "2026-08-21",
+          "estimated_duration_seconds": 4210.138726323092,
+          "estimated_distance_meters": 14800.0,
+          "steps": [
+            {
+              "step_type": "active",
+              "description": "8.9 km easy",
+              "duration_seconds": null,
+              "distance_meters": 8880.0,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "active",
+              "description": "4.4 km at marathon pace",
+              "duration_seconds": null,
+              "distance_meters": 4440.0,
+              "target_type": "pace",
+              "target_low": 270.5997678738783,
+              "target_high": 287.3378978454584,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "marathon"
+            },
+            {
+              "step_type": "active",
+              "description": "1.5 km at threshold pace",
+              "duration_seconds": null,
+              "distance_meters": 1480.0000000000002,
+              "target_type": "pace",
+              "target_low": 258.0393003667733,
+              "target_high": 272.44758617405506,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "threshold"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Endurance plus fatigue-resistance \u2014 running strong in the back half is exactly the race-day skill, trained under control.",
+            "structure": "8.9 km easy @ 4:50-5:19/km \u2192 4.4 km at marathon pace @ 4:30-4:47/km \u2192 1.5 km at threshold pace @ 4:18-4:32/km",
+            "feel": "Patient early, purposeful late. The final segment is honest work, RPE 6-7.",
+            "if_wrong": "If the faster segments break form, back off to the slow edge of the window \u2014 finishing strong matters more than the split."
+          },
+          "purpose": "mental_toughness",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        }
+      ],
+      "focus": "10 x 200m Speed Reps + 15km Progressive Long Run + 15km Progressive Long Run",
+      "intro": "Base week 2 of 2: laying aerobic foundation and durable form \u2014 economy work now makes every later phase cheaper."
+    },
+    {
+      "week_number": 3,
+      "phase": "Build",
+      "total_distance_km": 30.6,
+      "workouts": [
+        {
+          "session_id": "999ea974",
+          "workout_type": "hills",
+          "sport": "run",
+          "name": "8 x 60s Hill Reps",
+          "description": "Hill repetitions build strength, power, and running economy. Effort should be hard but controlled.",
+          "scheduled_date": "2026-08-24",
+          "estimated_duration_seconds": 2400.0,
+          "estimated_distance_meters": 7600.0,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "10 min easy jog at conversational pace",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "interval",
+              "description": "8 x 60s hill reps",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 8,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "60s hard uphill effort",
+                  "duration_seconds": 60.0,
+                  "distance_meters": null,
+                  "target_type": "open",
+                  "target_low": null,
+                  "target_high": null,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": null
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "90s walking rest",
+                  "duration_seconds": 90.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            },
+            {
+              "step_type": "cooldown",
+              "description": "10 min easy jog to finish",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Strength, power and economy \u2014 uphill running loads the posterior chain at low impact and forces a strong knee drive. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 8\u00d7 (60s hard uphill effort / 90s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Hard but controlled, RPE 8 \u2014 effort-based, forget pace on a gradient.",
+            "if_wrong": "Calves or achilles complaining? Shorten the reps and stay tall \u2014 lean from the ankles, not the waist.",
+            "cue": "Drive the knee, push the ground away, arms compact \u2014 and walk the first 20m of each descent before jogging.",
+            "venue": "Find a steady 4-6% gradient that takes 45-75s to climb; grass or trail saves the calves."
+          },
+          "purpose": "running_economy",
+          "cadence_target": 170,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q1:hills:1",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "4faf9e34",
+          "workout_type": "tempo",
+          "sport": "run",
+          "name": "5km Tempo Run",
+          "description": "Sustained threshold-pace effort. Develops lactate clearance and mental focus.",
+          "scheduled_date": "2026-08-26",
+          "estimated_duration_seconds": 2509.8441642983416,
+          "estimated_distance_meters": 8000.0,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "10 min easy jog at conversational pace",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "active",
+              "description": "5 km tempo at threshold pace",
+              "duration_seconds": null,
+              "distance_meters": 5000.0,
+              "target_type": "pace",
+              "target_low": 258.0393003667733,
+              "target_high": 272.44758617405506,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "threshold"
+            },
+            {
+              "step_type": "cooldown",
+              "description": "10 min easy jog to finish",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Lactate threshold \u2014 raises the pace you can sustain. The single biggest lever for Build-phase fitness at your distance. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 5 km tempo at threshold pace @ 4:18-4:32/km \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Comfortably hard, RPE 7. You could speak a sentence, not hold a chat.",
+            "if_wrong": "Too hard? Slow 5-10 s/km rather than stopping \u2014 the aerobic stimulus survives a slower tempo, not a broken one. Heat or hills: switch to effort.",
+            "cue": "Lock the rhythm with your breathing (e.g. 2:2) and let pace follow it."
+          },
+          "purpose": "lactate_threshold",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q2:tempo:1",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "e4bacca5",
+          "workout_type": "long_run",
+          "sport": "run",
+          "name": "15km Long Run",
+          "description": "Steady long run building endurance and mental toughness at easy pace.",
+          "scheduled_date": "2026-08-28",
+          "estimated_duration_seconds": 4364.532492895025,
+          "estimated_distance_meters": 15000.0,
+          "steps": [
+            {
+              "step_type": "active",
+              "description": "15.0 km easy",
+              "duration_seconds": null,
+              "distance_meters": 15000.0,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
+            "structure": "15.0 km easy @ 4:50-5:19/km",
+            "feel": "Relaxed, conversational. The watch stays quiet today \u2014 that's the point.",
+            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great \u2260 speed up \u2014 save it for the structured long runs.",
+            "cue": "Check posture every ~15min: tall hips, relaxed shoulders, quiet feet."
+          },
+          "purpose": "endurance",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        }
+      ],
+      "focus": "8 x 60s Hill Reps + 5km Tempo Run",
+      "intro": "Build week 1 of 3: the engine room \u2014 threshold and VO2 work stack week over week, each session one visible step up on the last. 4 weeks to race day."
+    },
+    {
+      "week_number": 4,
+      "phase": "Build",
+      "total_distance_km": 33.5,
+      "workouts": [
+        {
+          "session_id": "f4ee9bf5",
+          "workout_type": "fartlek",
+          "sport": "run",
+          "name": "30min Fartlek",
+          "description": "Unstructured speed play \u2014 alternate between hard surges and easy running by feel.",
+          "scheduled_date": "2026-08-31",
+          "estimated_duration_seconds": 1800.0,
+          "estimated_distance_meters": 6510.679635681229,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "10 min easy jog at conversational pace",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "interval",
+              "description": "Fartlek surges \u2014 varied pace",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 4,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "2 min hard surge",
+                  "duration_seconds": 120.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 258.0393003667733,
+                  "target_high": 254.54245820301202,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": null
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "120s walking rest",
+                  "duration_seconds": 120.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            },
+            {
+              "step_type": "cooldown",
+              "description": "6 min easy jog to finish",
+              "duration_seconds": 360.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Speed play \u2014 unstructured surges build gear changes and make hard running feel playful again. Deliberately loose. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 4\u00d7 (2 min hard surge @ 4:18-4:14/km / 120s walking rest @ 4:50-5:19/km) \u2192 6 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Surges roughly threshold-to-5K effort, by feel. Have fun with it.",
+            "if_wrong": "If every surge becomes a time trial, you've missed the point \u2014 vary them, land some easy ones."
+          },
+          "purpose": "aerobic_base",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q1:fartlek:0",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "9081c6eb",
+          "workout_type": "easy_with_strides",
+          "sport": "run",
+          "name": "11km Easy + 6 Strides",
+          "description": "Easy run finishing with short strides to develop running economy and neuromuscular coordination.",
+          "scheduled_date": "2026-09-02",
+          "estimated_duration_seconds": 3084.269628312484,
+          "estimated_distance_meters": 10600.0,
+          "steps": [
+            {
+              "step_type": "active",
+              "description": "10.0 km easy",
+              "duration_seconds": null,
+              "distance_meters": 10000.0,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "interval",
+              "description": "6 x strides",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 6,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "Stride \u2014 fast & relaxed",
+                  "duration_seconds": null,
+                  "distance_meters": 100.0,
+                  "target_type": "pace",
+                  "target_low": 221.72386072432695,
+                  "target_high": 237.72455170443303,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "repetition"
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "45s walking rest",
+                  "duration_seconds": 45.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Easy volume plus neuromuscular priming \u2014 strides teach fast, relaxed turnover without fatigue, and set up the next quality day.",
+            "structure": "10.0 km easy @ 4:50-5:19/km \u2192 6\u00d7 (Stride \u2014 fast & relaxed @ 3:41-3:57/km / 45s walking rest @ 4:50-5:19/km)",
+            "feel": "Easy throughout; strides are fast and springy, ~90% effort, never sprinted.",
+            "if_wrong": "Strides feeling forced or heavy-legged? Cut them \u2014 the easy running is the session; strides are a bonus.",
+            "cue": "Strides are turnover practice: quick light steps, arms driving straight back, eyes up."
+          },
+          "purpose": "running_economy",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "3970f086",
+          "workout_type": "long_run_with_race_pace",
+          "sport": "run",
+          "name": "16km Long Run w/ 7km Race Pace",
+          "description": "Long run with a sustained race-pace block to build specificity and confidence.",
+          "scheduled_date": "2026-09-04",
+          "estimated_duration_seconds": 4693.168858898561,
+          "estimated_distance_meters": 16400.0,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "15 min easy jog at conversational pace",
+              "duration_seconds": 900.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "active",
+              "description": "4.8 km easy",
+              "duration_seconds": null,
+              "distance_meters": 4839.999999999999,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "active",
+              "description": "7 km at race pace",
+              "duration_seconds": null,
+              "distance_meters": 6560.0,
+              "target_type": "pace",
+              "target_low": 252.11517952364025,
+              "target_high": 263.63313188766443,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "race"
+            },
+            {
+              "step_type": "cooldown",
+              "description": "10 min easy jog to finish",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Race specificity \u2014 goal pace on tired legs, plus a dress rehearsal for pacing, fueling and kit.",
+            "structure": "15 min easy jog at conversational pace @ 4:50-5:19/km \u2192 4.8 km easy @ 4:50-5:19/km \u2192 7 km at race pace @ 4:12-4:23/km \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Race-pace block should feel controlled and rhythmic, not desperate \u2014 lock in after 1km and relax into it.",
+            "if_wrong": "Can't hold the window without straining? Shorten the block rather than slowing the whole run \u2014 quality of pace beats quantity today.",
+            "fuel": "Fuel it: carbs beforehand, then practice race-day intake \u2014 a gel every ~25-30min and sips of fluid. The gut is trainable; race day is not the day to find out."
+          },
+          "purpose": "race_specificity",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        }
+      ],
+      "focus": "30min Fartlek + 16km Long Run w/ 7km Race Pace + 16km Long Run w/ 7km Race Pace",
+      "intro": "Build week 2 of 3: the engine room \u2014 threshold and VO2 work stack week over week, each session one visible step up on the last. 3 weeks to race day."
+    },
+    {
+      "week_number": 5,
+      "phase": "Build",
+      "total_distance_km": 35.1,
+      "workouts": [
+        {
+          "session_id": "fdccc728",
+          "workout_type": "vo2max",
+          "sport": "run",
+          "name": "5 x 2.5min VO2max Intervals",
+          "description": "Hard intervals at VO2max intensity to raise aerobic ceiling. Full recovery between reps.",
+          "scheduled_date": "2026-09-07",
+          "estimated_duration_seconds": 2700.0,
+          "estimated_distance_meters": 7203.207153493886,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "10 min easy jog at conversational pace",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "interval",
+              "description": "5 x 2.5 min VO2max intervals",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 5,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "2.5 min hard \u2014 3K-5K race effort",
+                  "duration_seconds": 150.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 235.05595422574794,
+                  "target_high": 254.54245820301202,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "interval"
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "2.5 min recovery jog",
+                  "duration_seconds": 150.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            },
+            {
+              "step_type": "cooldown",
+              "description": "10 min easy jog to finish",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Aerobic ceiling \u2014 short hard reps at ~3K-5K effort push maximal oxygen uptake, which everything below it hangs from. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 5\u00d7 (2.5 min hard \u2014 3K-5K race effort @ 3:55-4:14/km / 2.5 min recovery jog @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Hard, RPE 8-9. Controlled discomfort \u2014 the last rep matches the first.",
+            "if_wrong": "Fading before the final rep: slow 5 s/km or take 30s more recovery. In heat or wind run by RPE 8 \u2014 the pace window assumes calm, flat ground.",
+            "warmup": "After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides \u2014 fast reps on a cold engine is how calves tear.",
+            "cue": "Relax the face and hands on the back half of each rep \u2014 tension is free speed lost."
+          },
+          "purpose": "vo2max",
+          "cadence_target": 172,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q1:vo2max:0",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "d0cfc1b9",
+          "workout_type": "progressive",
+          "sport": "run",
+          "name": "11km Progressive Run",
+          "description": "Start easy, finish fast. Each third gets progressively faster developing pacing discipline.",
+          "scheduled_date": "2026-09-09",
+          "estimated_duration_seconds": 2967.1331782651177,
+          "estimated_distance_meters": 10700.0,
+          "steps": [
+            {
+              "step_type": "active",
+              "description": "3.6 km easy",
+              "duration_seconds": null,
+              "distance_meters": 3566.6666666666665,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "active",
+              "description": "3.6 km at marathon pace",
+              "duration_seconds": null,
+              "distance_meters": 3566.6666666666665,
+              "target_type": "pace",
+              "target_low": 270.5997678738783,
+              "target_high": 287.3378978454584,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "marathon"
+            },
+            {
+              "step_type": "active",
+              "description": "3.6 km at threshold pace",
+              "duration_seconds": null,
+              "distance_meters": 3566.6666666666665,
+              "target_type": "pace",
+              "target_low": 258.0393003667733,
+              "target_high": 272.44758617405506,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "threshold"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Pacing discipline \u2014 each third faster teaches negative splitting, the highest-percentage race strategy there is. This is the meat of the build: each week stacks a little more than the last.",
+            "structure": "3.6 km easy @ 4:50-5:19/km \u2192 3.6 km at marathon pace @ 4:30-4:47/km \u2192 3.6 km at threshold pace @ 4:18-4:32/km",
+            "feel": "First third annoyingly easy, last third honest work. Smooth gear changes.",
+            "if_wrong": "If the final third isn't the fastest, the start was too quick \u2014 that's the exact race-day error this session exists to fix.",
+            "cue": "Change gear with cadence first, stride length second."
+          },
+          "purpose": "lactate_threshold",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q2:progressive:0",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "690f334d",
+          "workout_type": "long_run",
+          "sport": "run",
+          "name": "17km Long Run",
+          "description": "Steady long run building endurance and mental toughness at easy pace.",
+          "scheduled_date": "2026-09-11",
+          "estimated_duration_seconds": 5004.663925186295,
+          "estimated_distance_meters": 17200.0,
+          "steps": [
+            {
+              "step_type": "active",
+              "description": "17.2 km easy",
+              "duration_seconds": null,
+              "distance_meters": 17200.0,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
+            "structure": "17.2 km easy @ 4:50-5:19/km",
+            "feel": "Relaxed, conversational. The watch stays quiet today \u2014 that's the point.",
+            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great \u2260 speed up \u2014 save it for the structured long runs.",
+            "cue": "Check posture every ~15min: tall hips, relaxed shoulders, quiet feet.",
+            "fuel": "Fuel it: carbs beforehand, then practice race-day intake \u2014 a gel every ~25-30min and sips of fluid. The gut is trainable; race day is not the day to find out."
+          },
+          "purpose": "endurance",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        }
+      ],
+      "focus": "5 x 2.5min VO2max Intervals + 11km Progressive Run",
+      "intro": "Cutback week (Build phase) \u2014 volume drops on purpose. Adaptation happens in the recovery, not the work; resist making up the kilometres, next week builds from a higher base because of this one."
+    },
+    {
+      "week_number": 6,
+      "phase": "Peak",
+      "total_distance_km": 26.3,
+      "workouts": [
+        {
+          "session_id": "e1f7680f",
+          "workout_type": "speed",
+          "sport": "run",
+          "name": "8 x 300m Speed Reps",
+          "description": "Short, fast repetitions developing speed and running economy. Full recovery between reps.",
+          "scheduled_date": "2026-09-14",
+          "estimated_duration_seconds": 2468.5951193179226,
+          "estimated_distance_meters": 6400.0,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "10 min easy jog at conversational pace",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "interval",
+              "description": "8 x 300m fast reps",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 8,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "300m fast & relaxed \u2014 mile race effort",
+                  "duration_seconds": null,
+                  "distance_meters": 300.0,
+                  "target_type": "pace",
+                  "target_low": 221.72386072432695,
+                  "target_high": 237.72455170443303,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "repetition"
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "90s walking rest",
+                  "duration_seconds": 90.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            },
+            {
+              "step_type": "cooldown",
+              "description": "10 min easy jog to finish",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Speed and running economy \u2014 short, fast reps recruit fast-twitch fibres and sharpen form, making every slower pace cheaper. Race-sharpening territory \u2014 quality stays, fatigue drains away.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 8\u00d7 (300m fast & relaxed \u2014 mile race effort @ 3:41-3:57/km / 90s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Fast, springy and light \u2014 ~95%, never an all-out sprint. Full recovery is part of the design; R work only counts when you're fresh for each rep.",
+            "if_wrong": "Form breaking (shoulders up, overstriding)? Stop the set \u2014 junk reps train junk form. These reps are about quality, never volume.",
+            "warmup": "After the easy warm-up: 2-3 drills (high knees, A-skips) plus 2-3 strides \u2014 fast reps on a cold engine is how calves tear.",
+            "cue": "Think 'fast feet on hot coals' \u2014 ground contact short, heels never settling.",
+            "venue": "Track or a measured flat stretch \u2014 GPS pace lies over 200-400m, so run these by effort and check splits after."
+          },
+          "purpose": "speed_neuromuscular",
+          "cadence_target": 174,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q1:speed_200s:1",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "e2e6e70b",
+          "workout_type": "race_pace",
+          "sport": "run",
+          "name": "3 x 1.0km Race Pace Intervals",
+          "description": "Race-specific intervals at race pace. Builds confidence and specificity.",
+          "scheduled_date": "2026-09-16",
+          "estimated_duration_seconds": 2226.345538570921,
+          "estimated_distance_meters": 7000.0,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "10 min easy jog at conversational pace",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            },
+            {
+              "step_type": "interval",
+              "description": "3 x 1.0km at race pace",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 3,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "1.0 km at race pace",
+                  "duration_seconds": null,
+                  "distance_meters": 1000.0,
+                  "target_type": "pace",
+                  "target_low": 252.11517952364025,
+                  "target_high": 263.63313188766443,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "race"
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "90s walking rest",
+                  "duration_seconds": 90.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            },
+            {
+              "step_type": "cooldown",
+              "description": "10 min easy jog to finish",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Race specificity \u2014 goal pace becomes automatic through repetition. Rhythm, relaxation and confidence at the pace that matters. Race-sharpening territory \u2014 quality stays, fatigue drains away.",
+            "structure": "10 min easy jog at conversational pace @ 4:50-5:19/km \u2192 3\u00d7 (1.0 km at race pace @ 4:12-4:23/km / 90s walking rest @ 4:50-5:19/km) \u2192 10 min easy jog to finish @ 4:50-5:19/km",
+            "feel": "Should feel 'sustainably quick' \u2014 if it feels like a fight now, the goal needs re-examining (that's useful information, not failure).",
+            "if_wrong": "Consistently outside the window at honest effort: log it \u2014 the adaptive review uses exactly this signal to adjust your paces."
+          },
+          "purpose": "race_specificity",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": "q2:race_pace:0",
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "76ca8c8b",
+          "workout_type": "long_run",
+          "sport": "run",
+          "name": "13km Long Run",
+          "description": "Steady long run building endurance and mental toughness at easy pace.",
+          "scheduled_date": "2026-09-18",
+          "estimated_duration_seconds": 3753.4979438897217,
+          "estimated_distance_meters": 12900.0,
+          "steps": [
+            {
+              "step_type": "active",
+              "description": "12.9 km easy",
+              "duration_seconds": null,
+              "distance_meters": 12900.0,
+              "target_type": "pace",
+              "target_low": 290.96883285966834,
+              "target_high": 319.77506628773466,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": "easy"
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Endurance \u2014 time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
+            "structure": "12.9 km easy @ 4:50-5:19/km",
+            "feel": "Relaxed, conversational. The watch stays quiet today \u2014 that's the point.",
+            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great \u2260 speed up \u2014 save it for the structured long runs.",
+            "cue": "Check posture every ~15min: tall hips, relaxed shoulders, quiet feet."
+          },
+          "purpose": "endurance",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        }
+      ],
+      "focus": "8 x 300m Speed Reps + 3 x 1.0km Race Pace Intervals",
+      "intro": "Peak week 1 of 1: converting fitness to race-readiness \u2014 race-pace work dominates and sessions look like the race. 1 weeks to race day."
+    },
+    {
+      "week_number": 7,
+      "phase": "Taper",
+      "total_distance_km": 22.0,
+      "workouts": [
+        {
+          "session_id": "0fdd23c2",
+          "workout_type": "easy_run",
+          "sport": "run",
+          "name": "Easy shakeout",
+          "description": "Easy shakeout",
+          "scheduled_date": "2026-09-22",
+          "estimated_duration_seconds": 1454.8441642983416,
+          "estimated_distance_meters": 5000.0,
+          "steps": [],
+          "notes": "",
+          "briefing": {
+            "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
+            "structure": "Easy shakeout",
+            "feel": "Conversational, RPE 3-4. You should finish feeling like you could do it again.",
+            "if_wrong": "If pace drifts above the window to hold a conversation, let it \u2014 easy means effort, not a number. Heart rate above ~75% max: slow down.",
+            "cue": "Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) \u2014 quicker, shorter steps, no overstriding."
+          },
+          "purpose": "recovery",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "a4c05678",
+          "workout_type": "easy_run",
+          "sport": "run",
+          "name": "Short shakeout with strides",
+          "description": "Short shakeout with strides",
+          "scheduled_date": "2026-09-24",
+          "estimated_duration_seconds": 1163.8753314386734,
+          "estimated_distance_meters": 4000.0,
+          "steps": [
+            {
+              "step_type": "warmup",
+              "description": "",
+              "duration_seconds": 600.0,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": null
+            },
+            {
+              "step_type": "interval",
+              "description": "Repeat x4",
+              "duration_seconds": null,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": 4,
+              "steps": [
+                {
+                  "step_type": "interval",
+                  "description": "",
+                  "duration_seconds": 19.8,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 221.72386072432695,
+                  "target_high": 237.72455170443303,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "repetition"
+                },
+                {
+                  "step_type": "recovery",
+                  "description": "",
+                  "duration_seconds": 60.0,
+                  "distance_meters": null,
+                  "target_type": "pace",
+                  "target_low": 290.96883285966834,
+                  "target_high": 319.77506628773466,
+                  "repeat_count": null,
+                  "steps": null,
+                  "pace_key": "easy"
+                }
+              ],
+              "pace_key": null
+            },
+            {
+              "step_type": "cooldown",
+              "description": "",
+              "duration_seconds": 300.0,
+              "distance_meters": null,
+              "target_type": "open",
+              "target_low": null,
+              "target_high": null,
+              "repeat_count": null,
+              "steps": null,
+              "pace_key": null
+            }
+          ],
+          "notes": "",
+          "briefing": {
+            "purpose": "Aerobic base \u2014 most of your fitness is built here, at an effort that lets you absorb the hard days instead of digging the hole deeper.",
+            "structure": "warmup \u2192 4\u00d7 (interval @ 3:41-3:57/km / recovery @ 4:50-5:19/km) \u2192 cooldown",
+            "feel": "Conversational, RPE 3-4. You should finish feeling like you could do it again.",
+            "if_wrong": "If pace drifts above the window to hold a conversation, let it \u2014 easy means effort, not a number. Heart rate above ~75% max: slow down.",
+            "cue": "Cadence: count 30 right-foot strikes in 20s (target creeping up over the plan) \u2014 quicker, shorter steps, no overstriding."
+          },
+          "purpose": "recovery",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        },
+        {
+          "session_id": "64038642",
+          "workout_type": "race_pace",
+          "sport": "run",
+          "name": "RACE DAY \u2014 Half Marathon",
+          "description": "RACE DAY \u2014 Half Marathon",
+          "scheduled_date": "2026-09-27",
+          "estimated_duration_seconds": 6139.442373339002,
+          "estimated_distance_meters": 21100.0,
+          "steps": [],
+          "notes": "",
+          "briefing": {
+            "purpose": "The day it was all for. Nothing new today \u2014 the kit, fueling and pacing you rehearsed are the plan.",
+            "structure": "RACE DAY \u2014 Half Marathon",
+            "feel": "First third controlled (it should feel too easy), middle third rhythmic, final third everything you have left.",
+            "if_wrong": "Bad patch mid-race? They pass \u2014 ease 5 s/km for 2 minutes, take fuel, rebuild. Never surge to 'make up' time.",
+            "fuel": "Race-day intake exactly as rehearsed on the long runs."
+          },
+          "purpose": "recovery",
+          "cadence_target": null,
+          "completed": false,
+          "matched_activity_ids": [],
+          "manual_activity_ids": [],
+          "excluded_activity_ids": [],
+          "completion_analysis": null,
+          "completion_metrics": null,
+          "garmin_workout_id": null,
+          "variant_key": null,
+          "user_rpe": null,
+          "user_notes": null
+        }
+      ],
+      "focus": "Race week \u2014 trust the training",
+      "intro": "Race week. The work is banked \u2014 nothing you do now makes you fitter, plenty can make you tired. Short, sharp, rested."
+    }
+  ],
+  "created_at": "2026-08-10",
+  "intake": {
+    "goal_type": "HALF_MARATHON",
+    "target_date": "2026-09-21",
+    "target_time_seconds": 5400.0,
+    "recent_race_distance": "5K",
+    "recent_race_seconds": 1200.0,
+    "current_weekly_km": 25.0,
+    "training_days": [
+      "monday",
+      "wednesday",
+      "friday"
+    ],
+    "long_run_day": "friday",
+    "experience_level": "intermediate"
+  },
+  "easy_pace": 290.96883285966834,
+  "marathon_pace": 278.96883285966834,
+  "threshold_pace": 261.96883285966834,
+  "interval_pace": 243.58129971580098,
+  "repetition_pace": 228.58129971580098,
+  "pace_bands": {
+    "easy": [
+      290.96883285966834,
+      319.77506628773466
+    ],
+    "marathon": [
+      270.5997678738783,
+      287.3378978454584
+    ],
+    "threshold": [
+      258.0393003667733,
+      272.44758617405506
+    ],
+    "interval": [
+      235.05595422574794,
+      254.54245820301202
+    ],
+    "repetition": [
+      221.72386072432695,
+      237.72455170443303
+    ],
+    "race": [
+      252.11517952364025,
+      263.63313188766443
+    ]
+  },
+  "vdot": 49.806233428066335,
+  "ftp": null,
+  "pace_source": "Stated recent 5K (20:00 \u2192 VDOT 49.8)",
+  "rationale": "",
+  "tips": [],
+  "athlete_summary": "VO2 Max: 52.4 \u00b7 Resting HR: 49 bpm \u00b7 Max HR: 195 bpm \u00b7 Weekly mileage: 15.3 km \u00b7 Training status: Recovery \u00b7 LT pace: 4:24/km \u00b7 LT HR: 163 bpm \u00b7 Endurance score: 6272.0 \u00b7 Recent runs: 31 activities, avg 6.3km @ 4:53/km \u00b7 Pace source: Stated recent 5K (20:00 \u2192 VDOT 49.8)",
+  "accepted": true,
+  "last_recalibration": null,
+  "last_ai_review": null,
+  "adaptation_notes": null
+}
