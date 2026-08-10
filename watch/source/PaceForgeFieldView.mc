@@ -1,5 +1,6 @@
 using Toybox.WatchUi;
 using Toybox.Graphics;
+using Toybox.Math;
 using Toybox.Activity;
 using Toybox.Lang;
 
@@ -290,12 +291,20 @@ class PaceForgeFieldView extends WatchUi.DataField {
     }
 
     // ---- drawing ---------------------------------------------------------
+    // Runna-style: white face, top pace-arc gauge (teal band, red edges,
+    // needle at current pace), band text, huge pace, verdict word, labeled
+    // stat columns, HR/cadence/stride row, next-step footer.
+
+    hidden var TEAL = 0x00AA88;
+    hidden var RED = 0xFF5544;
+    hidden var GREY = 0x555555;
 
     function onUpdate(dc) {
-        var bg = getBackgroundColor();
-        var isDark = (bg == Graphics.COLOR_BLACK);
-        var fg = isDark ? Graphics.COLOR_WHITE : Graphics.COLOR_BLACK;
-        var dim = isDark ? Graphics.COLOR_LT_GRAY : Graphics.COLOR_DK_GRAY;
+        // Runna forces a light face regardless of system theme — daylight
+        // legibility on MIP; we follow the reference look.
+        var bg = Graphics.COLOR_WHITE;
+        var fg = Graphics.COLOR_BLACK;
+        var dim = Graphics.COLOR_DK_GRAY;
 
         dc.setColor(fg, bg);
         dc.clear();
@@ -305,62 +314,148 @@ class PaceForgeFieldView extends WatchUi.DataField {
         var cx = w / 2;
 
         if (haveWorkout) {
-            drawWorkout(dc, w, h, cx, fg, dim, isDark);
+            drawWorkout(dc, w, h, cx, fg, dim);
         } else {
             drawBasics(dc, w, h, cx, fg, dim);
         }
     }
 
-    hidden function drawWorkout(dc, w, h, cx, fg, dim, isDark) {
-        // step name (top)
+    // Map a pace (sec/km) onto the top arc: the band occupies the middle
+    // [0.30, 0.70] of the gauge (Runna-proportioned), red zones the edges.
+    hidden function paceFrac(sec, slowSec, fastSec) {
+        var f = 0.30 + 0.40 * (slowSec - sec) / (slowSec - fastSec);
+        if (f < 0.0) { f = 0.0; }
+        if (f > 1.0) { f = 1.0; }
+        return f;
+    }
+
+    // Arc runs over the top of the round face: 150deg (left) -> 30deg (right).
+    hidden function fracDeg(f) {
+        return 150.0 - f * 120.0;
+    }
+
+    hidden function drawPaceArc(dc, w, h, cx) {
+        if (lowSpeed == null || highSpeed == null) {
+            return;
+        }
+        var cy = h / 2;
+        var r = (w / 2) - 8;
+        var slowSec = 1000.0 / lowSpeed;    // band slow bound, sec/km
+        var fastSec = 1000.0 / highSpeed;   // band fast bound, sec/km
+        var f1 = paceFrac(slowSec, slowSec, fastSec);  // band start
+        var f2 = paceFrac(fastSec, slowSec, fastSec);  // band end
+
+        dc.setPenWidth(13);
+        // too-slow segment (left, red)
+        dc.setColor(RED, Graphics.COLOR_TRANSPARENT);
+        dc.drawArc(cx, cy, r, Graphics.ARC_CLOCKWISE, fracDeg(0.0), fracDeg(f1));
+        // in-band segment (teal)
+        dc.setColor(TEAL, Graphics.COLOR_TRANSPARENT);
+        dc.drawArc(cx, cy, r, Graphics.ARC_CLOCKWISE, fracDeg(f1), fracDeg(f2));
+        // too-fast segment (right, red)
+        dc.setColor(RED, Graphics.COLOR_TRANSPARENT);
+        dc.drawArc(cx, cy, r, Graphics.ARC_CLOCKWISE, fracDeg(f2), fracDeg(1.0));
+        dc.setPenWidth(1);
+
+        // needle: grey triangle just inside the arc at the current pace
+        if (curSpeed != null && curSpeed >= 0.3) {
+            var f = paceFrac(1000.0 / curSpeed, slowSec, fastSec);
+            var a = fracDeg(f) * Math.PI / 180.0;
+            var tipR = r - 14.0;
+            var baseR = r - 26.0;
+            var spread = 4.0 * Math.PI / 180.0;
+            var tip = [cx + tipR * Math.cos(a), cy - tipR * Math.sin(a)];
+            var b1 = [cx + baseR * Math.cos(a - spread), cy - baseR * Math.sin(a - spread)];
+            var b2 = [cx + baseR * Math.cos(a + spread), cy - baseR * Math.sin(a + spread)];
+            dc.setColor(GREY, Graphics.COLOR_TRANSPARENT);
+            dc.fillPolygon([tip, b1, b2]);
+        }
+    }
+
+    hidden function verdict() {
+        if (curSpeed == null || curSpeed < 0.3
+            || lowSpeed == null || highSpeed == null) {
+            return null;
+        }
+        if (curSpeed >= lowSpeed && curSpeed <= highSpeed) {
+            return "GOOD PACE";
+        }
+        return (curSpeed < lowSpeed) ? "TOO SLOW" : "TOO FAST";
+    }
+
+    hidden function drawWorkout(dc, w, h, cx, fg, dim) {
+        drawPaceArc(dc, w, h, cx);
+
+        var hasBand = (lowSpeed != null && highSpeed != null);
+
+        // band text (or the step name when there is no pace target)
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.08, Graphics.FONT_SMALL,
-            fitText(dc, stepName, Graphics.FONT_SMALL, w * 0.72),
+        var top = hasBand
+            ? paceStr(highSpeed) + " - " + paceStr(lowSpeed) + "/KM"
+            : fitText(dc, stepName, Graphics.FONT_SMALL, w * 0.62);
+        dc.drawText(cx, h * 0.135, Graphics.FONT_SMALL, top,
             Graphics.TEXT_JUSTIFY_CENTER);
 
-        // notes (optional, one truncated line)
-        if (stepNotes != null) {
+        // huge current pace (black — the arc + verdict carry the color)
+        dc.drawText(cx, h * 0.20, Graphics.FONT_NUMBER_HOT, paceStr(curSpeed),
+            Graphics.TEXT_JUSTIFY_CENTER);
+
+        // verdict word (teal/red), or step name under the pace when banded
+        var v = verdict();
+        if (v != null) {
+            dc.setColor(v.equals("GOOD PACE") ? TEAL : RED, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, h * 0.455, Graphics.FONT_TINY, v,
+                Graphics.TEXT_JUSTIFY_CENTER);
+        } else if (hasBand) {
             dc.setColor(dim, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, h * 0.185, Graphics.FONT_XTINY,
-                fitText(dc, stepNotes, Graphics.FONT_XTINY, w * 0.84),
+            dc.drawText(cx, h * 0.455, Graphics.FONT_TINY,
+                fitText(dc, stepName, Graphics.FONT_TINY, w * 0.7),
+                Graphics.TEXT_JUSTIFY_CENTER);
+        }
+        if (hasBand && v != null) {
+            // step name in small caps between verdict and stats
+            dc.setColor(dim, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, h * 0.535, Graphics.FONT_XTINY,
+                fitText(dc, stepName, Graphics.FONT_XTINY, w * 0.8),
                 Graphics.TEXT_JUSTIFY_CENTER);
         }
 
-        // big current pace, colored by drift vs band
-        dc.setColor(driftColor(isDark, fg), Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, h * 0.26, Graphics.FONT_NUMBER_HOT, paceStr(curSpeed),
-            Graphics.TEXT_JUSTIFY_CENTER);
-
-        // target band
-        dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
-        var band;
-        if (lowSpeed != null && highSpeed != null) {
-            band = paceStr(highSpeed) + " - " + paceStr(lowSpeed) + " /km";
-        } else {
-            band = "no pace target";
-        }
-        dc.drawText(cx, h * 0.565, Graphics.FONT_SMALL, band,
-            Graphics.TEXT_JUSTIFY_CENTER);
-
-        // remaining in step
-        if (!remainText.equals("")) {
-            dc.drawText(cx, h * 0.655, Graphics.FONT_MEDIUM, remainText,
+        // three labeled stat columns: step-left / time / distance
+        var xs = [w * 0.26, w * 0.5, w * 0.74];
+        var vals = [
+            remainText.equals("") ? "--" : stripLeft(remainText),
+            fmtTime(timerSec),
+            (dist != null) ? fmtDist(dist) : "0 m",
+        ];
+        var labs = ["STEP LEFT", "TIME", "DISTANCE"];
+        for (var i = 0; i < 3; i++) {
+            dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(xs[i], h * 0.615, Graphics.FONT_SMALL, vals[i],
+                Graphics.TEXT_JUSTIFY_CENTER);
+            dc.setColor(dim, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(xs[i], h * 0.695, Graphics.FONT_XTINY, labs[i],
                 Graphics.TEXT_JUSTIFY_CENTER);
         }
 
-        // HR / cadence / stride — the numbers the athlete is working on
+        // HR / cadence / stride — the form numbers being worked on
         dc.setColor(fg, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, h * 0.765, Graphics.FONT_TINY,
-            fitText(dc, metricsLine(), Graphics.FONT_TINY, w * 0.80),
+            fitText(dc, metricsLine(), Graphics.FONT_TINY, w * 0.78),
             Graphics.TEXT_JUSTIFY_CENTER);
 
         // next-step footer
         if (nextText != null) {
             dc.setColor(dim, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, h * 0.875, Graphics.FONT_XTINY,
-                fitText(dc, nextText, Graphics.FONT_XTINY, w * 0.60),
+            dc.drawText(cx, h * 0.865, Graphics.FONT_XTINY,
+                fitText(dc, nextText, Graphics.FONT_XTINY, w * 0.58),
                 Graphics.TEXT_JUSTIFY_CENTER);
         }
+    }
+
+    // "2:14 left" -> "2:14" (the column label already says STEP LEFT)
+    hidden function stripLeft(s) {
+        var i = s.find(" left");
+        return (i != null) ? s.substring(0, i) : s;
     }
 
     hidden function drawBasics(dc, w, h, cx, fg, dim) {
@@ -385,22 +480,6 @@ class PaceForgeFieldView extends WatchUi.DataField {
         dc.drawText(cx, h * 0.82, Graphics.FONT_TINY,
             cad + " spm   " + strideStr() + " m",
             Graphics.TEXT_JUSTIFY_CENTER);
-    }
-
-    // green inside band, amber within 5% outside, red beyond; neutral when
-    // no band or standing still
-    hidden function driftColor(isDark, fg) {
-        if (curSpeed == null || curSpeed < 0.3
-            || lowSpeed == null || highSpeed == null) {
-            return fg;
-        }
-        if (curSpeed >= lowSpeed && curSpeed <= highSpeed) {
-            return isDark ? Graphics.COLOR_GREEN : Graphics.COLOR_DK_GREEN;
-        }
-        if (curSpeed >= lowSpeed * 0.95 && curSpeed <= highSpeed * 1.05) {
-            return Graphics.COLOR_ORANGE;
-        }
-        return Graphics.COLOR_RED;
     }
 
     // truncate with ".." to fit maxW pixels
