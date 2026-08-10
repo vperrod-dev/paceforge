@@ -91,7 +91,8 @@ _HISTORY_FIELDS = (
     "sleep_score", "sleep_duration_seconds", "sleep_deep_seconds",
     "sleep_rem_seconds", "sleep_light_seconds", "stress_avg", "stress_high",
     "weekly_mileage_km", "hill_score", "respiration_avg_sleep", "spo2_avg",
-    "running_tolerance",
+    "running_tolerance", "spo2_lowest", "skin_temp_deviation_c",
+    "sleep_restless_moments", "body_battery_overnight_change", "sleep_avg_stress",
 )
 
 # max_hr and weekly_mileage_km derive from the activity list, so they survive a

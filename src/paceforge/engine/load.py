@@ -542,12 +542,27 @@ def compute_sleep(history: list) -> dict[str, Any]:
     if len(scores) >= 2:
         trend = "improving" if scores[-1] > scores[0] else "declining" if scores[-1] < scores[0] else "flat"
 
+    # Last 14 nights of stage minutes for the stacked history panel.
+    stages_14d = []
+    for row in history[-14:]:
+        d, r, li = (row.get("sleep_deep_seconds"), row.get("sleep_rem_seconds"),
+                    row.get("sleep_light_seconds"))
+        if not any((d, r, li)):
+            continue
+        stages_14d.append({
+            "date": str(row.get("date")),
+            "deep_min": round((d or 0) / 60),
+            "rem_min": round((r or 0) / 60),
+            "light_min": round((li or 0) / 60),
+        })
+
     return {
         "availability": "ok",
         "score": score,
         "architecture": architecture,
         "sleep_debt_hours": round(sleep_debt_hours, 2),
         "trend": trend,
+        "stages_14d": stages_14d,
     }
 
 
@@ -627,18 +642,36 @@ def compute_spo2_trend(history: list) -> dict[str, Any]:
     }
 
 
-def compute_illness_watch(resp: dict, spo2: dict, rhr: dict, hrv: dict) -> dict[str, Any]:
+def compute_skin_temp(history: list) -> dict[str, Any]:
+    """Overnight skin-temp deviation — Garmin reports it vs its own baseline, so
+    no rolling window here; a sustained positive deviation precedes fever."""
+    raw = _series(history, "skin_temp_deviation_c")
+    if not raw:
+        return {"availability": _accumulating(0, 1)}
+    latest = raw[-1][1]
+    return {
+        "availability": "ok",
+        "latest": round(latest, 2),
+        "elevated": latest >= 1.0,
+    }
+
+
+def compute_illness_watch(resp: dict, spo2: dict, rhr: dict, hrv: dict,
+                          skin_temp: dict | None = None) -> dict[str, Any]:
     """Illness early-warning distinct from overtraining.
 
-    Fires only on respiratory evidence (elevated overnight respiration or low
-    SpO2) — cardio-only patterns (RHR up, HRV down) belong to the overtraining
-    composite. Corroboration by any second signal escalates watch → alert.
+    Fires only on systemic evidence (elevated overnight respiration, low SpO2,
+    or raised skin temperature) — cardio-only patterns (RHR up, HRV down) belong
+    to the overtraining composite. Corroboration by any second signal escalates
+    watch → alert.
     """
     signals: list[str] = []
     if resp.get("elevated"):
         signals.append("respiration_elevated")
     if spo2.get("low"):
         signals.append("spo2_low")
+    if (skin_temp or {}).get("elevated"):
+        signals.append("skin_temp_elevated")
     respiratory = bool(signals)
     if rhr.get("elevated"):
         signals.append("rhr_elevated")
@@ -839,7 +872,8 @@ def compute_load_recovery(history: list, activities: list, profile,
     stress = compute_stress_trend(history)
     resp = compute_respiration_trend(history)
     spo2 = compute_spo2_trend(history)
-    illness = compute_illness_watch(resp, spo2, rhr, hrv)
+    skin_temp = compute_skin_temp(history)
+    illness = compute_illness_watch(resp, spo2, rhr, hrv, skin_temp)
 
     overtraining = compute_overtraining_composite(
         history, hrv, rhr, sleep, ctl, monotony, ramp, stress
@@ -862,6 +896,7 @@ def compute_load_recovery(history: list, activities: list, profile,
         "stress_trend": stress,
         "respiration_trend": resp,
         "spo2_trend": spo2,
+        "skin_temp": skin_temp,
         "illness_watch": illness,
         "overtraining_composite": overtraining,
         "readiness_composite": readiness,

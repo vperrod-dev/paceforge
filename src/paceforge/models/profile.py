@@ -131,6 +131,21 @@ class UserFitnessProfile(BaseModel):
         None, description="Average overnight respiration rate (breaths/min)"
     )
     spo2_avg: float | None = Field(None, description="Average overnight SpO2 (%)")
+    spo2_lowest: float | None = Field(None, description="Lowest overnight SpO2 (%)")
+
+    # Extra sleep-derived signals (same get_sleep_data call, kept since 2026-08-10).
+    skin_temp_deviation_c: float | None = Field(
+        None, description="Overnight skin-temperature deviation from baseline (°C)"
+    )
+    sleep_restless_moments: int | None = Field(
+        None, description="Count of restless moments during last night's sleep"
+    )
+    body_battery_overnight_change: int | None = Field(
+        None, description="Body Battery change over last night's sleep (recharge)"
+    )
+    sleep_avg_stress: float | None = Field(
+        None, description="Average stress level during sleep"
+    )
 
     # Running tolerance — Garmin's impact-load capacity estimate.
     running_tolerance: float | None = Field(

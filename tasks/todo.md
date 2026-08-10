@@ -1,5 +1,22 @@
 # PaceForge gap-closing — tasks/todo.md (2026-08-10)
 
+## 2026-08-10 night — garmin-grafana adoption (items 2→1→3 of tasks/garmin-grafana-feature-extraction-2026-08-10.md) — DONE
+- [x] Sleep signals: +5 profile fields (skin_temp_deviation_c, sleep_restless_moments,
+      body_battery_overnight_change, sleep_avg_stress, spo2_lowest) — model, client parse, history
+- [x] Skin temp → illness watch (engine/load.py, triggering evidence like respiration/SpO2)
+- [x] Strength sets: client fetch for strength activities, _trim_detail + targeted refetch
+      (empty-list marker caps retries), engine compute_set_volume, report key
+- [x] Web: set-volume card (Strength tab), skin temp tile, sleep stages 14d chart;
+      fixed two dead tiles (sleep.sleep_debt/deep_pct read wrong keys since forever)
+- [x] Tests (758 passed) + ruff clean on touched files
+- [x] Live verify: runner restarted, sync run 344 OK — profile has skin_temp −0.5°C /
+      26 restless / +50 BB; real strength activity 23233353570 returns sets end-to-end;
+      Playwright-rendered recovery card (sleep-debt + deep-sleep tiles now live too)
+- [x] users.py update, commit + push, CLAUDE.md line
+- Skipped (per review doc): intra-night HRV curve, FIT full-res, bulk import — add when
+  a concrete analysis needs them. set_volume shows available:false until a rep-tracked
+  strength_training session lands inside 28d (newest real one is 2026-06-13).
+
 Plan: ~/.claude/plans/we-have-been-doing-recursive-wadler.md
 Research: tasks/running-plan-methodology-research-2026-08-10.md
 

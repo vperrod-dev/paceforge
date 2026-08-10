@@ -48,6 +48,22 @@ class TestTrimDetail:
             {"distance": 1000, "duration": 300, "averageHR": 150}]}})
         assert out["splits"][0]["avg_hr"] == 150
 
+    def test_exercise_sets_trimmed_and_rest_dropped(self):
+        out = actions._trim_detail({"activity_id": 7, "exercise_sets": {"exerciseSets": [
+            {"setType": "ACTIVE", "setOrder": 1, "repetitionCount": 5, "weight": 100000,
+             "duration": 30.0, "exercises": [{"category": "DEADLIFT", "name": "BARBELL_DEADLIFT"}]},
+            {"setType": "REST", "setOrder": 2, "repetitionCount": 0},
+        ]}})
+        assert len(out["exercise_sets"]) == 1
+        s = out["exercise_sets"][0]
+        assert s["weight_kg"] == 100.0
+        assert s["reps"] == 5
+        assert s["name"] == "BARBELL_DEADLIFT"
+
+    def test_no_exercise_sets_key_for_non_strength(self):
+        out = actions._trim_detail({"activity_id": 7, "splits": {"lapDTOs": []}})
+        assert "exercise_sets" not in out
+
 
 class TestStoreDetail:
     def test_save_then_load_roundtrips(self):
@@ -75,6 +91,28 @@ class TestSyncDetails:
         again, _ = actions._sync_details(client, limit=40)
         assert again == 0
         assert client.calls == []
+
+    def test_strength_detail_without_sets_is_refetched_once(self, monkeypatch):
+        """Pre-2026-08-10 strength details lack exercise_sets — one targeted re-fetch."""
+        monkeypatch.setattr(actions.time, "sleep", lambda s: None)
+        gym = _activity(1)
+        gym.activity_type = "strength_training"
+        store.save_activities([gym, _activity(2)])
+        client = FakeClient()
+        actions._sync_details(client, limit=40)  # stores both, sets-free (FakeClient)
+        # Simulate the new client attaching sets on the next fetch.
+        original = client.get_activity_detail
+        client.get_activity_detail = lambda aid: {**original(aid), "exercise_sets": {
+            "exerciseSets": [{"setType": "ACTIVE", "repetitionCount": 5, "weight": 50000,
+                              "exercises": [{"category": "SQUAT"}]}]}}
+        client.calls.clear()
+        refetched, _ = actions._sync_details(client, limit=40)
+        assert refetched == 1 and client.calls == [1]
+        assert store.load_detail(1)["exercise_sets"][0]["reps"] == 5
+        # Now stable — no further refetch.
+        client.calls.clear()
+        again, _ = actions._sync_details(client, limit=40)
+        assert again == 0
 
 
 class TestExtractSeries:

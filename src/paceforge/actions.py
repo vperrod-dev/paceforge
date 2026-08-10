@@ -617,6 +617,27 @@ def _trim_detail(detail: dict) -> dict:
             "humidity": w.get("relativeHumidity"),
             "desc": wt.get("desc"),
         }
+
+    # Key presence (even as []) is the "sets were attempted" marker _sync_details
+    # keys its targeted refetch on — so a strength session Garmin has no sets for
+    # doesn't get its whole detail refetched every sync.
+    es = detail.get("exercise_sets")
+    if "exercise_sets" in detail:
+        sets = []
+        for s in (es.get("exerciseSets") if isinstance(es, dict) else None) or []:
+            if not isinstance(s, dict) or s.get("setType") == "REST":
+                continue
+            ex = (s.get("exercises") or [{}])[0]
+            weight_g = s.get("weight") or 0
+            sets.append({
+                "order": s.get("setOrder"),
+                "category": ex.get("category"),
+                "name": ex.get("name"),
+                "reps": s.get("repetitionCount"),
+                "weight_kg": round(weight_g / 1000.0, 2) if weight_g else None,
+                "duration_s": s.get("duration"),
+            })
+        out["exercise_sets"] = sets
     return out
 
 
@@ -625,7 +646,10 @@ def _sync_details(client: GarminClient, limit: int = 40) -> tuple[int, int]:
     matched by the current plan. Incremental (skips stored ids); best-effort per
     activity so one bad fetch never fails the whole sync. Returns (stored, failed).
     """
-    ids: list = [a.activity_id for a in store.load_activities()[:limit]]
+    recent = store.load_activities()
+    ids: list = [a.activity_id for a in recent[:limit]]
+    strength_ids = {a.activity_id for a in recent
+                    if "strength" in (a.activity_type or "").lower()}
     plan = store.load_plan()
     if plan is not None:
         for wk in plan.weeks:
@@ -641,8 +665,14 @@ def _sync_details(client: GarminClient, limit: int = 40) -> tuple[int, int]:
         seen.add(aid)
         # Skip only if the stored detail is already at the current schema version;
         # older details get re-fetched once so the new charts get their time-series.
-        if store.has_detail(aid) and (store.load_detail(aid) or {}).get("v", 0) >= _DETAIL_VERSION:
-            continue
+        # Strength details stored before exercise sets existed (2026-08-10) get one
+        # targeted re-fetch — cheaper than a global version bump across all sports.
+        if store.has_detail(aid):
+            stored = store.load_detail(aid) or {}
+            up_to_date = stored.get("v", 0) >= _DETAIL_VERSION
+            has_sets = "exercise_sets" in stored or aid not in strength_ids
+            if up_to_date and has_sets:
+                continue
         try:
             store.save_detail(aid, _trim_detail(_fetch_detail(client, aid)))
             fetched += 1

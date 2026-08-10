@@ -176,7 +176,10 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # one-time setup
   `strength.py`, `limiters.py`. `analytics.py` is the LEGACY snapshot analysis.
 - **`garmin/client.py`** — reads metrics, uploads structured workouts (pace.zone
   windows from plan bands, per-step notes ≤200 chars, HR bpm targets, REST
-  steps; description ≤500 chars leads with the briefing purpose).
+  steps; description ≤500 chars leads with the briefing purpose). Since
+  2026-08-10 sleep sync also keeps skin-temp/restless/overnight-recharge
+  signals, and strength_training details carry per-set exercise data
+  (reps × weight → engine/strength.py compute_set_volume).
 - **`hyrox/`** — race-result analyzer vs field benchmarks.
 - **`web/bike/` + `engine/bike.py`** — indoor cycling (Zwift replacement; plan:
   `tasks/bike-section-plan-2026-07-13.md`). Browser-side ES modules (Chrome/Edge

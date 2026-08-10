@@ -29,6 +29,7 @@ class _Activity:
     training_effect_anaerobic: float | None = None
     avg_hr: int | None = None
     max_hr: int | None = None
+    activity_id: int = 1
 
 
 def _split(name, t):
@@ -179,3 +180,39 @@ def test_no_race_no_benchmarks_populates_data_gaps_without_crash():
     assert "no strength benchmarks" in gaps
     assert "no bodyweight" in gaps
     assert out["station_percentiles"] == {"available": False}
+
+
+# --- set volume (watch-recorded exercise sets) -----------------------------
+
+
+def test_set_volume_tonnage_from_recent_strength_sessions():
+    from paceforge.engine.strength import compute_set_volume
+    now = datetime.now()
+    acts = [
+        _Activity(activity_id=1, activity_type="strength_training",
+                  start_time=now - timedelta(days=2)),
+        _Activity(activity_id=2, activity_type="strength_training",
+                  start_time=now - timedelta(days=40)),  # outside window
+        _Activity(activity_id=3, activity_type="running",
+                  start_time=now - timedelta(days=1)),   # not strength
+    ]
+    details = {
+        1: {"exercise_sets": [
+            {"name": "DEADLIFT", "reps": 5, "weight_kg": 100.0},
+            {"name": "DEADLIFT", "reps": 5, "weight_kg": 100.0},
+            {"name": "PUSH_UP", "reps": 20, "weight_kg": None},  # bodyweight
+        ]},
+        2: {"exercise_sets": [{"name": "SQUAT", "reps": 5, "weight_kg": 80.0}]},
+    }
+    out = compute_set_volume(acts, details)
+    assert out["available"] is True
+    assert len(out["sessions"]) == 1
+    assert out["total_tonnage_kg"] == 1000.0
+    assert out["total_reps"] == 30
+    assert out["top_exercises"][0]["name"] == "Deadlift"
+
+
+def test_set_volume_unavailable_without_set_data():
+    from paceforge.engine.strength import compute_set_volume
+    acts = [_Activity(activity_type="strength_training")]
+    assert compute_set_volume(acts, {})["available"] is False

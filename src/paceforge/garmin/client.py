@@ -439,6 +439,11 @@ class GarminClient:
         sleep_light = None
         sleep_rem = None
         sleep_awake = None
+        sleep_avg_stress = None
+        spo2_lowest = None
+        skin_temp_dev = None
+        restless_moments = None
+        bb_overnight = None
         with self._endpoint("sleep"):
             sl_data = self.client.get_sleep_data(today)
             logger.debug("Sleep data raw keys=%s", list(sl_data.keys()) if isinstance(sl_data, dict) else type(sl_data).__name__)
@@ -455,6 +460,12 @@ class GarminClient:
                 sleep_light = daily.get("lightSleepSeconds")
                 sleep_rem = daily.get("remSleepSeconds")
                 sleep_awake = daily.get("awakeSleepSeconds")
+                sleep_avg_stress = daily.get("avgSleepStress")
+                spo2_lowest = daily.get("lowestSpO2Value")
+                # Top-level (not in dailySleepDTO) — extraction map per garmin-grafana.
+                skin_temp_dev = sl_data.get("avgSkinTempDeviationC")
+                restless_moments = sl_data.get("restlessMomentsCount")
+                bb_overnight = sl_data.get("bodyBatteryChange")
             logger.debug("Sleep parsed: score=%s duration=%s", sleep_score, sleep_duration)
 
         # Stress data
@@ -652,6 +663,11 @@ class GarminClient:
             hill_score=hill_score,
             respiration_avg_sleep=respiration_avg,
             spo2_avg=spo2_avg,
+            spo2_lowest=spo2_lowest,
+            skin_temp_deviation_c=skin_temp_dev,
+            sleep_restless_moments=restless_moments,
+            body_battery_overnight_change=bb_overnight,
+            sleep_avg_stress=sleep_avg_stress,
             running_tolerance=running_tolerance,
         )
 
@@ -699,6 +715,19 @@ class GarminClient:
         except Exception:
             logger.debug("time-series metrics unavailable for %s", activity_id)
             result["metrics"] = None
+
+        # Per-set exercise data for gym work (reps/weight/exercise name — the API
+        # copy carries user-corrected names, unlike the FIT file). Strength only:
+        # other sports have no sets and the extra call would be wasted.
+        summary = result.get("summary") or {}
+        type_key = str(((summary.get("activityTypeDTO") or summary.get("activityType") or {})
+                        ).get("typeKey", ""))
+        if "strength" in type_key.lower():
+            try:
+                result["exercise_sets"] = self.client.get_activity_exercise_sets(activity_id)
+            except Exception:
+                logger.debug("exercise sets unavailable for %s", activity_id)
+                result["exercise_sets"] = None
 
         return result
 

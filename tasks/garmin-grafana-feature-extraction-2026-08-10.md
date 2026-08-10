@@ -2,6 +2,8 @@
 
 Date: 2026-08-10 · Source: [arpanghosh8453/garmin-grafana](https://github.com/arpanghosh8453/garmin-grafana) (3.4k★, BSD-3-Clause — code reuse OK with attribution) · Local clone: `~/projects/garmin-grafana`
 
+> **STATUS (2026-08-10 evening): items 1–3 IMPLEMENTED and live.** Sleep signals (skin temp, restless moments, overnight recharge, sleep stress, lowest SpO2) sync into profile + history; skin temp feeds the illness watch; strength sessions store per-set data and `compute_set_volume` reports real tonnage; portal shows the set-volume card, skin-temp tile and a 14-night sleep-stage chart (plus two sleep tiles that had been dead due to key mismatches). Items 4–6 (FIT resolution, bulk import, refresh trick) remain future options as scoped below.
+
 ## Verdict
 
 Don't run it — mine it. Its stack (fetcher → InfluxDB → Grafana) duplicates PaceForge's sync + store + portal with zero coaching logic. But its fetcher calls **5 endpoint groups PaceForge doesn't touch**, and two of them fix real gaps in our engine. Everything below is ranked by value to PaceForge.

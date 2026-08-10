@@ -265,6 +265,7 @@ class TestComputeLoadRecovery:
             "stress_trend",
             "respiration_trend",
             "spo2_trend",
+            "skin_temp",
             "illness_watch",
             "overtraining_composite",
             "readiness_composite",
@@ -438,3 +439,36 @@ class TestIllnessWatch:
             {"elevated": True}, {"low": False}, {"elevated": True}, {"status": "within"}
         )
         assert out["level"] == "alert"
+
+    def test_skin_temp_is_triggering_evidence(self):
+        """A raised skin temp alone opens a watch — it is systemic, not cardio-only."""
+        from paceforge.engine.load import compute_illness_watch
+        out = compute_illness_watch(
+            {"elevated": False}, {"low": False}, {"elevated": False}, {"status": "within"},
+            {"elevated": True},
+        )
+        assert out["level"] == "watch"
+
+
+class TestSkinTemp:
+    def test_elevated_at_one_degree_deviation(self):
+        from paceforge.engine.load import compute_skin_temp
+        rows = [_wellness(i, skin_temp_deviation_c=0.1) for i in range(5)]
+        rows.append(_wellness(5, skin_temp_deviation_c=1.2))
+        out = compute_skin_temp(rows)
+        assert out["elevated"] is True
+
+    def test_normal_deviation_not_elevated(self):
+        from paceforge.engine.load import compute_skin_temp
+        out = compute_skin_temp([_wellness(0, skin_temp_deviation_c=-0.3)])
+        assert out["elevated"] is False
+
+
+class TestSleepStages:
+    def test_stages_series_built_from_history(self):
+        rows = [_wellness(i, sleep_deep_seconds=3600, sleep_rem_seconds=5400,
+                          sleep_light_seconds=14400, sleep_duration_seconds=8 * 3600)
+                for i in range(20)]
+        out = compute_sleep(rows)
+        assert len(out["stages_14d"]) == 14
+        assert out["stages_14d"][-1]["deep_min"] == 60

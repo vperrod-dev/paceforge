@@ -3,6 +3,8 @@
 HONESTY RULE: HR and duration from a strength_training session cannot measure
 strength. Any HR-derived figure here is tagged confidence="low" with an explicit
 note so the UI never presents an HR proxy as if it were a real strength number.
+Real strength measures come from benchmarks and, since 2026-08-10, from
+watch-recorded exercise sets (reps × weight — see compute_set_volume).
 """
 
 from __future__ import annotations
@@ -42,6 +44,7 @@ class StrengthHyroxReport:
     transition_cost: dict
     anaerobic_capacity: dict
     strength_endurance: dict
+    set_volume: dict
     hybrid_balance: dict
     data_gaps: list[str] = field(default_factory=list)
 
@@ -52,6 +55,7 @@ class StrengthHyroxReport:
             "transition_cost": self.transition_cost,
             "anaerobic_capacity": self.anaerobic_capacity,
             "strength_endurance": self.strength_endurance,
+            "set_volume": self.set_volume,
             "hybrid_balance": self.hybrid_balance,
             "data_gaps": self.data_gaps,
         }
@@ -313,6 +317,57 @@ def _hr_proxy_from_strength(activities: list) -> dict:
     return {"strength_sessions": len(sessions), "avg_pct_hrmax": avg_pct}
 
 
+def compute_set_volume(activities: list, details: dict) -> dict:
+    """Real strength volume from watch-recorded exercise sets (last 28 days).
+
+    Tonnage = Σ reps × weight. Bodyweight sets (no weight logged) still count
+    toward sets/reps. Adapted from garmin-grafana's set extraction (BSD-3,
+    © Arpan Ghosh).
+    """
+    cutoff = datetime.now() - timedelta(days=_ANAEROBIC_WINDOW_DAYS)
+    sessions = []
+    per_exercise: dict[str, dict] = {}
+    for act in activities:
+        if "strength" not in (getattr(act, "activity_type", "") or "").lower():
+            continue
+        start = getattr(act, "start_time", None)
+        if start is None or start.replace(tzinfo=None) < cutoff:
+            continue
+        sets = (details.get(getattr(act, "activity_id", None)) or {}).get("exercise_sets")
+        if not sets:
+            continue
+        tonnage = sum((s.get("reps") or 0) * (s.get("weight_kg") or 0) for s in sets)
+        reps = sum(s.get("reps") or 0 for s in sets)
+        sessions.append({
+            "activity_id": act.activity_id,
+            "date": start.date().isoformat(),
+            "sets": len(sets),
+            "reps": reps,
+            "tonnage_kg": round(tonnage, 1),
+        })
+        for s in sets:
+            label = (s.get("name") or s.get("category") or "UNKNOWN").replace("_", " ").title()
+            agg = per_exercise.setdefault(label, {"sets": 0, "reps": 0, "tonnage_kg": 0.0})
+            agg["sets"] += 1
+            agg["reps"] += s.get("reps") or 0
+            agg["tonnage_kg"] = round(agg["tonnage_kg"] + (s.get("reps") or 0)
+                                      * (s.get("weight_kg") or 0), 1)
+
+    if not sessions:
+        return {"available": False}
+    top = sorted(per_exercise.items(), key=lambda kv: (kv[1]["tonnage_kg"], kv[1]["reps"]),
+                 reverse=True)[:8]
+    return {
+        "available": True,
+        "window_days": _ANAEROBIC_WINDOW_DAYS,
+        "sessions": sorted(sessions, key=lambda s: s["date"], reverse=True),
+        "total_sets": sum(s["sets"] for s in sessions),
+        "total_reps": sum(s["reps"] for s in sessions),
+        "total_tonnage_kg": round(sum(s["tonnage_kg"] for s in sessions), 1),
+        "top_exercises": [{"name": n, **v} for n, v in top],
+    }
+
+
 def compute_hybrid_balance(profile, hyrox_results: list, benchmarks: dict | None) -> dict:
     """Compare a running index (from profile) against a strength index.
 
@@ -401,6 +456,7 @@ def compute_strength_hyrox(
         transition_cost=compute_transition_cost(hyrox_results),
         anaerobic_capacity=compute_anaerobic_capacity(activities),
         strength_endurance=compute_strength_endurance(benchmarks, activities),
+        set_volume=compute_set_volume(activities, details),
         hybrid_balance=compute_hybrid_balance(profile, hyrox_results, benchmarks),
         data_gaps=_collect_data_gaps(hyrox_results, benchmarks, profile),
     )
