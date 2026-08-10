@@ -212,11 +212,16 @@ with per-flavor progression; `validate._check_weekly_quality` fails any
 non-taper week without a quality session; `adaptation.hold_back_progression`
 repeats (not advances) a flavor whose last attempt failed.
 
-## Watch (`watch/`)
-Connect IQ full-screen data field ("PaceForge Coach Field", fēnix 7X):
-current workout step + target pace band + drift color + next-step preview.
-Compiled `.prg` in `watch/build/` (committed); rebuild/sideload steps in
-`watch/README.md` (SDK 9.2.0 at `~/tools/connectiq-sdk-9.2.0`).
+## Watch (`watch/`) — 5 Connect IQ apps, INSTALLED on the fēnix 7X PRO
+PF Coach + PF Form (Run screens: pace gauge/verdict/LOAD%/drift + cadence/
+stride vs the coach's live band), PF Class (Cardio: HR-zone ring +
+time-in-zone + recovery ceiling), PF Race (race-day projection vs goal),
+PF Today (glance widget: today's session + brief headline). **Victor's watch
+is the 7X PRO — ship `-fenix7xpro.prg` builds.** Fields fetch live coach
+targets from the runner's tokened endpoints (/watch-targets, /watch-brief,
+/watch-race; PF_WATCH_TOKEN in the env file) through the phone. Toolchain +
+sideload lessons (UserProfile permission trap, CIQ_LOG, Garmin Express
+cleanup): `watch/README.md`. SDK 9.2.0 at `~/tools/connectiq-sdk-9.2.0`.
 
 ## The AI / validation split
 Deterministic facts stay in code; judgement is Claude's. The **engine owns**

@@ -69,3 +69,11 @@ whenever ready — Sept 20 race has no plan scaffolding until then.
 - Calibration open: watch LOAD % uses zone-weighted minutes vs server type-weight
   estimate — skew possible, tune after first workouts. Telegram INBOUND commands
   skipped (bot getUpdates single-consumer conflict) — portal buttons only.
+
+## 2026-08-10 evening — watch suite INSTALLED
+- [x] All 5 CIQ apps live on Victor's fēnix 7X PRO (PF Coach/Form/Class/Race/Today)
+- Debug trail: 7x-vs-7xPRO binary mismatch → name truncation (5x "PaceForge…")
+  → UserProfile permission missing (Coach+Class crash on zone read). All fixed.
+- Still open: on-watch confirm of STRUCTURED WORKOUT rendering during next
+  quality run (pace gauge per step, silent recoveries, repeat structure) +
+  LOAD% calibration vs server planned_trimp.

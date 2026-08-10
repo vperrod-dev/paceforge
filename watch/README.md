@@ -1,24 +1,40 @@
-# PaceForge watch fields (2 data screens)
+# PaceForge watch suite (5 Connect IQ apps) — INSTALLED on Victor's fēnix 7X PRO 2026-08-10
 
-**Two Connect IQ data fields** — Garmin allows max 2 CIQ fields per activity
-profile, and data fields can't paginate internally, so each gets its own
-1-field data screen; swipe (or UP/DOWN) between them mid-run:
+**Victor's watch is a fēnix 7X PRO — always ship the `-fenix7xpro.prg` builds**
+(plain `-fenix7x` binaries silently fail to load on it).
 
-1. **PaceForge Coach** (`build/PaceForgeField-*.prg`) — the workout screen:
-   pace-arc gauge + verdict + step stats + BIG heart rate colored by zone,
-   with a bottom arc showing your position across your 5 HR zones.
-2. **PaceForge Form** (`form/build/PaceForgeForm-*.prg`) — the form screen:
-   cadence-arc gauge (band = the coach's live prescription via watch-targets),
-   BIG cadence + BIG stride, pace/HR footer.
-3. **PaceForge Class** (`classfield/build/PaceForgeClass-*.prg`) — for
-   cardio/HYROX classes, added to the **Cardio/HIIT profile** (the 2-field cap
-   is per profile, so this doesn't compete with Run's two): full-circle
-   HR-zone ring (active zone thick), BIG zone-colored HR, live time-in-zone
-   bars, elapsed, and the coach's `recover_to` ceiling when HR is above it.
+| App (watch name) | Dir | Where it lives on the watch |
+|---|---|---|
+| **PF Coach** | `./` | Run → data screen 1 — pace gauge + verdict + step stats + LOAD% + drift alert + HR-zone arc |
+| **PF Form** | `form/` | Run → data screen 2 — cadence gauge (coach's live band) + stride |
+| **PF Race** | `race/` | swap in for PF Form on race day — projected finish vs goal |
+| **PF Class** | `classfield/` | Cardio/HIIT profile — zone ring + big HR + time-in-zone + recovery ceiling |
+| **PF Today** | `widget/` | glance (Appearance → Glances → Add) — today's session + coach headline |
 
-Sideload the .prg files you want to `/GARMIN/APPS/`, then add each as the only field
-on its own 1-field data screen. HR zones come from your Garmin user profile
-(Settings → User Profile → Heart Rate Zones → Running).
+Short names are deliberate: the picker truncates, and five "PaceForge …" entries
+looked identical. 2 CIQ data fields max per activity profile (Garmin cap) — Run
+carries Coach+Form, Cardio carries Class, Race swaps in on race day.
+
+## Hard-won sideload lessons (2026-08-10 install)
+
+- **Permissions are enforced at USE, not import**: `Toybox.UserProfile`
+  (HR zones) needs `<iq:uses-permission id="UserProfile"/>` — without it the
+  field imports, appears in the picker, then dies with CIQ_LOG
+  `Permission for module '00800012' required`. Communications = `00800005`-ish;
+  any new Toybox module → check its permission.
+- Rejected/invalid `.prg` files are **deleted from GARMIN/APPS on boot**;
+  successful imports may also consume the file. The truth is in
+  `GARMIN/APPS/LOGS/CIQ_LOG.YML`.
+- After copying: **reboot the watch** before judging — the picker often only
+  indexes sideloads after a restart.
+- Ghost/stale installs (no file left in the folder) are removed via
+  **Garmin Express** → device → Apps (the CIQ phone app hides sideloads).
+- Data-screen pickers are per activity profile, but the Connect IQ list is
+  shared — a field visible in Cardio but not Run means registry/staleness,
+  not a build problem.
+- Fields fetch their coach targets over HTTP through the phone (tokened
+  endpoints on the runner; URLs baked at build into gitignored `Secrets.mc`
+  by each `build.sh`). Offline → cached/baked values, the workout never blocks.
 
 # PaceForge Coach Field
 
