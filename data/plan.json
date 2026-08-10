@@ -771,12 +771,22 @@
           },
           "purpose": "aerobic_base",
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            23919369232
+          ],
           "manual_activity_ids": [],
           "excluded_activity_ids": [],
           "completion_analysis": null,
-          "completion_metrics": null,
+          "completion_metrics": {
+            "status": "green",
+            "ratio": 1.02,
+            "planned_km": 4.9,
+            "actual_km": 5.0,
+            "planned_min": 22.5,
+            "actual_min": 24.0,
+            "activity_id": 23919369232
+          },
           "garmin_workout_id": 1660092453,
           "user_rpe": null,
           "user_notes": null

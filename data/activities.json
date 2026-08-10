@@ -1,5 +1,28 @@
 [
   {
+    "activity_id": 23919369232,
+    "name": "5km Easy Run",
+    "activity_type": "treadmill_running",
+    "start_time": "2026-08-10T07:54:37",
+    "distance_meters": 5000.0,
+    "duration_seconds": 1439.157958984375,
+    "avg_hr": 136,
+    "max_hr": 144,
+    "avg_pace_sec_per_km": 287.9,
+    "calories": 356,
+    "training_effect_aerobic": 2.4000000953674316,
+    "training_effect_anaerobic": 0.0,
+    "vo2_max_value": null,
+    "avg_running_cadence": 157.609375,
+    "avg_stride_length": 142.59000244140626,
+    "avg_ground_contact_time": 264.3999938964844,
+    "avg_vertical_oscillation": 10.61999969482422,
+    "avg_vertical_ratio": 7.449999809265137,
+    "avg_power": 488.0,
+    "elevation_gain": null,
+    "avg_respiration_rate": null
+  },
+  {
     "activity_id": 23894658462,
     "name": "Cardio",
     "activity_type": "indoor_cardio",
