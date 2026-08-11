@@ -1614,7 +1614,7 @@
   "sleep_light_seconds": 14460.0,
   "sleep_rem_seconds": 1080.0,
   "sleep_awake_seconds": 240.0,
-  "stress_avg": 15,
+  "stress_avg": 17,
   "stress_high": 75,
   "stress_low": null,
   "training_load_7day": 523.0,
@@ -1626,7 +1626,7 @@
   "spo2_lowest": null,
   "skin_temp_deviation_c": -0.7,
   "sleep_restless_moments": 22,
-  "body_battery_overnight_change": 44,
+  "body_battery_overnight_change": 43,
   "sleep_avg_stress": 16.0,
   "running_tolerance": null
 }
