@@ -310,7 +310,9 @@
   "notes": "",
   "source": "manual",
   "garmin_workout_id": 1661755446,
-  "matched_activity_ids": [],
-  "completed": false
+  "matched_activity_ids": [
+   "23940503930"
+  ],
+  "completed": true
  }
 ]

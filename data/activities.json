@@ -1,5 +1,28 @@
 [
   {
+    "activity_id": 23940503930,
+    "name": "County Dublin Road Cycling",
+    "activity_type": "road_biking",
+    "start_time": "2026-08-11T17:50:38",
+    "distance_meters": 32371.58984375,
+    "duration_seconds": 7076.30810546875,
+    "avg_hr": 106,
+    "max_hr": 135,
+    "avg_pace_sec_per_km": 218.6,
+    "calories": 1145,
+    "training_effect_aerobic": 2.5,
+    "training_effect_anaerobic": 0.0,
+    "vo2_max_value": 56.0,
+    "avg_running_cadence": null,
+    "avg_stride_length": null,
+    "avg_ground_contact_time": null,
+    "avg_vertical_oscillation": null,
+    "avg_vertical_ratio": null,
+    "avg_power": 136.0,
+    "elevation_gain": 577.0,
+    "avg_respiration_rate": 20.639999389648438
+  },
+  {
     "activity_id": 23931390221,
     "name": "Un1t",
     "activity_type": "indoor_cardio",
