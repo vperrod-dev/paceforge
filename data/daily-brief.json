@@ -1,12 +1,12 @@
 {
   "date": "2026-08-11",
-  "headline": "New half-marathon block starts today, but the composite verdict reads red — treat this 7K as genuinely easy, not another grey-zone day.",
-  "body_state": "Garmin readiness is 52, the composite score 60.4 (moderate, driver: sleep) — but the overall verdict flags **red**: acute:chronic load ratio 1.60 (>1.5 = 2–4x injury risk next week) and 26h of accumulating 14-day sleep debt. Last night was only 6.3h (score 66, deep 32%, REM just 4.7%). HRV is BALANCED (45ms) and body battery recharged well overnight (+44 to 47), stress is low (avg 15) — the recovery signals are fine, it's the load and sleep ledgers that aren't. TSB sits at -13.2, still inside the -5…-30 productive zone, and training status reads \"Recovery.\" Load focus is skewed anaerobic.",
-  "session": "**7km Easy Run** @ 4:50–5:19/km — week 1 of the new Half Marathon plan (target Sep 21). Given the ACWR spike, run the slow end of that window, not the fast end: yesterday's \"easy\" 5K sat at 89.7% zone-3 time (4:27/km, HR 136 vs an LTHR of 163), which is exactly the grey-zone pattern the plan is flagging. Cap HR around 115–130, hold conversational pace, and use the first 10 minutes to lift cadence toward 165–170 spm before letting stride open up.",
-  "recent": "Aug 10's easy 5K ran fast-for-easy (4:27/km, HR136, 89.7% zone-3) — turnover-driven, not overstriding, but still moderate effort under an \"easy\" label. Aug 8's Un1t cardio class banked a full aerobic dose (TE 2.8/2.1) with no RPE logged yet. Aug 7's progressive long run closed at 179bpm/4:11 pace — threshold-adjacent when the linked session called for easy — and readiness cratered to 23 right after; it climbed back to the 50s only by Aug 10. The new plan (created Aug 10) resets the block at week 1, but the same grey-zone habit that flattened last week is still showing up day one.",
+  "headline": "Sleep debt is driving today's call — treat this morning's Un1t as your hard work done, and keep the easy run genuinely easy.",
+  "body_state": "Readiness composite 61.5/100 (moderate), Garmin training readiness 52 (\"train as planned\"), status Recovery. Driver is sleep: only 6.3h last night, 26h of 14-day sleep debt building — that's the one red flag today. HRV balanced (45ms), stress low (avg 15), overtraining green, no illness signal (skin temp -0.7°C). Body battery 47 but recharged +44 overnight, so the tank isn't empty — it's the accumulated debt, not last night alone, that matters.",
+  "session": "You already banked today's harder stimulus: the 06:06 Un1t class (46min, avg HR 132, peaked 164 near your 163 LTHR, 70% of it in zone 3). The 7km easy run is still on deck (target 4:51-5:20/km) — run the slow end of that window, HR capped low zone 2 (~115-130bpm). Yesterday's \"easy\" 5K ran 4:27/km with 90% of it in zone 3; don't repeat that today, especially stacked on top of the class.",
+  "recent": "The grey-zone pattern is persistent: Aug 10's \"easy\" run sat 90% in zone 3, Aug 7's progressive long run was cut to 6.0km/26.5min against 7.9km/35.5min planned (yellow, RPE 8) — the same fast-start-fade pacing limiter showing up again. Aug 8's Un1t matched the plan cleanly (green). Two of your last three Un1t/cardio sessions (Aug 8, Aug 11) still have no RPE logged, so their real cost is under-counted in load tracking.",
   "focus": [
-    "Keep today's run genuinely easy — HR 115–130, not the 4:2X/km pace the last few \"easy\" days have drifted to.",
-    "ACWR is 1.60 (high flag) — don't add anything unplanned this week; let the plan's own volume do the work.",
-    "Log RPE on Aug 8's Un1t class so session load stops relying on HR alone."
+    "Run genuinely easy today — cap HR in zone 2, ignore the pace number if it drifts slow.",
+    "Bank sleep: aim ~60min earlier to bed for the next two weeks to clear the debt.",
+    "Log RPE on the Aug 8 and Aug 11 Un1t classes — they're currently invisible to the load model."
   ]
 }
