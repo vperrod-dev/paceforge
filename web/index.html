@@ -3581,7 +3581,7 @@ window.saveExtra = async function() {
   }, 'Scheduling…', 'Waiting for it to land on the calendar.', saveBtn);
   hideExtraForm();
 
-  const run = await waitForJobRun('add-session.yml', baselineId);
+  const run = await waitForJobRun('add-session.yml', baselineId, 60000);
   if (!run || run.conclusion !== 'success') {
     toast('err', 'Scheduling failed', run ? 'Check Settings → Job history for the log.' : 'Timed out waiting for the job.');
     return;
