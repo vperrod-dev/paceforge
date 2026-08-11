@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -204,6 +205,49 @@ class GarminClient:
         stats = self.client.get_stats(today) or {}
         hr_data = self.client.get_heart_rates(today) or {}
 
+        # Prefetch the remaining independent read-only endpoints on a small
+        # thread pool — the two unguarded calls above ran first so any token
+        # refresh happened once, not raced across threads. Workers stay low on
+        # purpose: unofficial API, one shared WARP egress IP, be gentle.
+        start = (date.today() - timedelta(days=lookback_days)).isoformat()
+        # None => Garmin returns every activity type (runs, cardio, strength, …).
+        _act_types = activity_types or [None]
+
+        def _fetch_activities() -> list:
+            raw: list = []
+            for _atype in _act_types:
+                try:
+                    raw.extend(self.client.get_activities_by_date(start, today, _atype) or [])
+                except Exception:
+                    logger.warning("Could not fetch %s activities", _atype, exc_info=True)
+            return raw
+
+        _fetches = {
+            "training_status": lambda: self.client.get_training_status(yesterday),
+            "training_readiness": lambda: self.client.get_morning_training_readiness(yesterday),
+            "hrv": lambda: self.client.get_hrv_data(yesterday),
+            "lactate_threshold": lambda: self.client.get_lactate_threshold(latest=True),
+            "endurance_score": lambda: self.client.get_endurance_score(yesterday),
+            "hill_score": lambda: self.client.get_hill_score(yesterday),
+            "respiration": lambda: self.client.get_respiration_data(yesterday),
+            "spo2": lambda: self.client.get_spo2_data(yesterday),
+            "running_tolerance": lambda: self.client.get_running_tolerance(
+                yesterday, yesterday, aggregation="daily"
+            ),
+            "body_composition": lambda: self.client.get_body_composition(today),
+            "body_battery": lambda: self.client.get_body_battery(today),
+            "sleep": lambda: self.client.get_sleep_data(today),
+            "stress": lambda: self.client.get_stress_data(today),
+            "race_predictions": lambda: self.client.get_race_predictions(),
+            "personal_records": lambda: self.client.get_personal_record(),
+            "activities": _fetch_activities,
+        }
+        with ThreadPoolExecutor(max_workers=4) as _pool:
+            _fut = {name: _pool.submit(fn) for name, fn in _fetches.items()}
+        # Every future is complete here; .result() inside each _endpoint guard
+        # re-raises that call's own exception, so per-endpoint error handling
+        # and the returned structure are exactly the sequential code's.
+
         # Training status — fetch first because it also carries VO2max/load
         training_status = None
         training_load_7day = None
@@ -211,7 +255,7 @@ class GarminClient:
         vo2 = None
         fitness_age = None
         with self._endpoint("training_status"):
-            ts_data = self.client.get_training_status(yesterday)
+            ts_data = _fut["training_status"].result()
             if ts_data and isinstance(ts_data, dict):
                 # VO2max lives inside mostRecentVO2Max
                 mr_vo2 = ts_data.get("mostRecentVO2Max")
@@ -291,7 +335,7 @@ class GarminClient:
         # both assume.
         readiness = None
         with self._endpoint("training_readiness"):
-            tr_data = self.client.get_morning_training_readiness(yesterday)
+            tr_data = _fut["training_readiness"].result()
             if isinstance(tr_data, dict):
                 readiness = tr_data.get("score")
 
@@ -299,7 +343,7 @@ class GarminClient:
         hrv_status = None
         hrv_value = None
         with self._endpoint("hrv"):
-            hrv_data = self.client.get_hrv_data(yesterday)
+            hrv_data = _fut["hrv"].result()
             if hrv_data:
                 summary = hrv_data.get("hrvSummary") or {}
                 hrv_status = summary.get("status")
@@ -309,7 +353,7 @@ class GarminClient:
         lt_hr = None
         lt_speed = None
         with self._endpoint("lactate_threshold"):
-            lt_data = self.client.get_lactate_threshold(latest=True)
+            lt_data = _fut["lactate_threshold"].result()
             if lt_data and isinstance(lt_data, dict):
                 shr = lt_data.get("speed_and_heart_rate") or lt_data.get("speedAndHeartRate") or {}
                 if isinstance(shr, dict):
@@ -321,7 +365,7 @@ class GarminClient:
         # Endurance score
         endurance = None
         with self._endpoint("endurance_score"):
-            es_data = self.client.get_endurance_score(yesterday)
+            es_data = _fut["endurance_score"].result()
             if es_data and isinstance(es_data, dict):
                 endurance = (
                     es_data.get("overallScore")
@@ -333,7 +377,7 @@ class GarminClient:
         # model from the flat-ground endurance score above).
         hill_score = None
         with self._endpoint("hill_score"):
-            hs_data = self.client.get_hill_score(yesterday)
+            hs_data = _fut["hill_score"].result()
             if hs_data and isinstance(hs_data, dict):
                 hill_score = (
                     hs_data.get("overallScore")
@@ -346,7 +390,7 @@ class GarminClient:
         # before HRV/RHR react to an oncoming infection.
         respiration_avg = None
         with self._endpoint("respiration"):
-            resp_data = self.client.get_respiration_data(yesterday)
+            resp_data = _fut["respiration"].result()
             if resp_data and isinstance(resp_data, dict):
                 respiration_avg = (
                     resp_data.get("avgSleepRespirationValue")
@@ -355,7 +399,7 @@ class GarminClient:
 
         spo2_avg = None
         with self._endpoint("spo2"):
-            spo2_data = self.client.get_spo2_data(yesterday)
+            spo2_data = _fut["spo2"].result()
             if spo2_data and isinstance(spo2_data, dict):
                 spo2_avg = (
                     spo2_data.get("averageSpO2")
@@ -367,7 +411,7 @@ class GarminClient:
         # cross-check against the home-grown ACWR guardrail in engine/load.py.
         running_tolerance = None
         with self._endpoint("running_tolerance"):
-            rt_data = self.client.get_running_tolerance(yesterday, yesterday, aggregation="daily")
+            rt_data = _fut["running_tolerance"].result()
             if rt_data and isinstance(rt_data, list) and isinstance(rt_data[-1], dict):
                 last = rt_data[-1]
                 running_tolerance = (
@@ -380,7 +424,7 @@ class GarminClient:
         # Body composition (weight)
         weight = None
         with self._endpoint("body_composition"):
-            bc_data = self.client.get_body_composition(today)
+            bc_data = _fut["body_composition"].result()
             if bc_data and isinstance(bc_data, dict):
                 # Weight could be in grams or kg depending on API version
                 w = bc_data.get("weight")
@@ -394,7 +438,7 @@ class GarminClient:
         bb_high = None
         bb_low = None
         with self._endpoint("body_battery"):
-            bb_data = self.client.get_body_battery(today)
+            bb_data = _fut["body_battery"].result()
             logger.debug("Body battery raw type=%s", type(bb_data).__name__)
             if bb_data and isinstance(bb_data, (list, dict)):
                 # Handle both list and dict response formats
@@ -445,7 +489,7 @@ class GarminClient:
         restless_moments = None
         bb_overnight = None
         with self._endpoint("sleep"):
-            sl_data = self.client.get_sleep_data(today)
+            sl_data = _fut["sleep"].result()
             logger.debug("Sleep data raw keys=%s", list(sl_data.keys()) if isinstance(sl_data, dict) else type(sl_data).__name__)
             if sl_data and isinstance(sl_data, dict):
                 daily = sl_data.get("dailySleepDTO", sl_data)
@@ -473,7 +517,7 @@ class GarminClient:
         stress_high = None
         stress_low = None
         with self._endpoint("stress"):
-            st_data = self.client.get_stress_data(today)
+            st_data = _fut["stress"].result()
             logger.debug("Stress data raw keys=%s", list(st_data.keys()) if isinstance(st_data, dict) else type(st_data).__name__)
             if st_data and isinstance(st_data, dict):
                 stress_avg = (
@@ -488,7 +532,7 @@ class GarminClient:
         # Race predictions
         predictions: list[RacePrediction] = []
         with self._endpoint("race_predictions"):
-            rp_data = self.client.get_race_predictions()
+            rp_data = _fut["race_predictions"].result()
             if rp_data:
                 logger.debug("Race predictions raw: %s", type(rp_data).__name__)
                 if isinstance(rp_data, dict):
@@ -525,7 +569,7 @@ class GarminClient:
         # Personal records
         personal_records: list[PersonalRecord] = []
         with self._endpoint("personal_records"):
-            pr_data = self.client.get_personal_record()
+            pr_data = _fut["personal_records"].result()
             if pr_data and isinstance(pr_data, (list, dict)):
                 items = pr_data if isinstance(pr_data, list) else pr_data.get("personalRecords", [])
                 _DIST_MAP = {
@@ -551,17 +595,8 @@ class GarminClient:
 
         # Recent activities (multiple types supported)
         activities: list[RecentActivity] = []
-        # None => Garmin returns every activity type (runs, cardio, strength, …).
-        _act_types = activity_types or [None]
         with self._endpoint("activities"):
-            start = (date.today() - timedelta(days=lookback_days)).isoformat()
-            raw: list = []
-            for _atype in _act_types:
-                try:
-                    _type_raw = self.client.get_activities_by_date(start, today, _atype)
-                    raw.extend(_type_raw or [])
-                except Exception:
-                    logger.warning("Could not fetch %s activities", _atype, exc_info=True)
+            raw = _fut["activities"].result()
             # Deduplicate by activityId
             _seen_ids: set[int] = set()
             _deduped: list[dict] = []

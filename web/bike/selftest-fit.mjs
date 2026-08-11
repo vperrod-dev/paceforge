@@ -117,6 +117,7 @@ for (let i = 1; i <= 3600; i++) {
   rec.addSample({ power: 100, hr: 150, cadence: 85, speedKmh: 30 });
 }
 ok(fakeStorage.data['pf-bike-ride-inprogress'], 'checkpoint written during ride');
+ok(fakeStorage.data['pf-bike-ride-inprogress:1'] !== undefined, 'checkpoints persist incremental chunks');
 const recovered = RideRecorder.recover(fakeStorage);
 ok(recovered && recovered.startTimeMs === startMs && recovered.ftp === 100, 'recover() returns saved ride');
 ok(recovered.records.length >= 3540, 'recovered records cover ride up to last checkpoint');
@@ -124,6 +125,14 @@ ok(recovered.records[0].power === 100, 'recovered sample round-trips');
 
 const result = rec.stop();
 ok(fakeStorage.data['pf-bike-ride-inprogress'] === undefined, 'stop() clears checkpoint');
+ok(Object.keys(fakeStorage.data).every((k) => !k.startsWith('pf-bike-ride-inprogress')),
+  'stop() clears chunk keys too');
+// pre-chunk single-blob checkpoint (old on-disk format) must still recover
+fakeStorage.setItem('pf-bike-ride-inprogress',
+  JSON.stringify({ startTimeMs: 1, ftp: 200, records: [{ tMs: 1, power: 5 }], laps: [] }));
+const legacy = RideRecorder.recover(fakeStorage);
+ok(legacy && legacy.records.length === 1 && legacy.ftp === 200, 'legacy single-blob checkpoint recovers');
+fakeStorage.removeItem('pf-bike-ride-inprogress');
 ok(result.laps.length === 1, 'no lap() calls -> single whole-ride lap');
 ok(Math.abs(result.summary.durationSec - 3600) < 1, 'duration 3600s');
 ok(Math.abs(result.summary.tss - 100) <= 1, `TSS 60min @ FTP = 100±1 (got ${result.summary.tss.toFixed(2)})`);

@@ -164,14 +164,22 @@ def commit_push(run: Run, paths: list[str], msg: str) -> None:
 
 def publish(run: Run | None = None) -> None:
     """Bake the derived JSON (analytics, fitness, hyrox). The runner serves web/
-    + data/ straight from this checkout, so there is nothing to copy anywhere."""
+    + data/ straight from this checkout, so there is nothing to copy anywhere.
+
+    A publish failure only means the derived JSON is stale — it must never fail
+    the unrelated job that triggered it (e.g. save-rpe), so inside a job it logs
+    and marks the run instead of raising. The standalone `--publish` CLI still
+    fails loudly."""
     def _log(t: str) -> None:
         run.log(t) if run else print(t)
     p = subprocess.run([str(VENV_BIN / "python"), "scripts/build_site_data.py"],
                        cwd=REPO_DIR, capture_output=True, text=True, timeout=300)
     _log(p.stdout + p.stderr)
     if p.returncode != 0:
-        raise RuntimeError("build_site_data.py failed")
+        if run is None:
+            raise RuntimeError("build_site_data.py failed")
+        run.rec["publish_failed"] = True
+        _log("build_site_data.py failed — derived data is stale; job continues")
 
 
 def telegram(text: str, pre: bool = False, title: str = "", html: bool = False) -> None:

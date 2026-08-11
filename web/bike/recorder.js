@@ -24,9 +24,12 @@ export class RideRecorder {
   }
 
   start(ftp) {
+    this.discard(); // clear any stale checkpoint chunks from an earlier ride
     this.ftp = ftp || null;
     this.startTimeMs = this.now();
     this.records = [];
+    this.savedRecords = 0; // records already persisted into chunk keys
+    this.savedChunks = 0;
     this.laps = [];
     this.lapStartMs = this.startTimeMs;
     this.paused = false;
@@ -117,14 +120,27 @@ export class RideRecorder {
     };
   }
 
+  // Each checkpoint persists only the records since the last one into its own
+  // `${STORAGE_KEY}:<i>` chunk key, plus a small meta blob — re-stringifying
+  // the whole accumulated array every 60s was O(n²) over a multi-hour ride.
+  // Records are append-only, so already-written chunks never go stale; the
+  // meta (laps can grow) is tiny and rewritten each time.
   checkpoint(tMs) {
     this.lastSaveMs = tMs;
     try {
+      if (this.records.length > this.savedRecords) {
+        this.storage?.setItem(
+          `${STORAGE_KEY}:${this.savedChunks}`,
+          JSON.stringify(this.records.slice(this.savedRecords)),
+        );
+        this.savedChunks += 1;
+        this.savedRecords = this.records.length;
+      }
       this.storage?.setItem(STORAGE_KEY, JSON.stringify({
         startTimeMs: this.startTimeMs,
         ftp: this.ftp,
-        records: this.records,
         laps: this.laps,
+        chunks: this.savedChunks,
       }));
     } catch {
       // storage full/unavailable: keep recording, ride stays in memory
@@ -133,14 +149,26 @@ export class RideRecorder {
 
   discard() {
     try {
+      const meta = JSON.parse(this.storage?.getItem(STORAGE_KEY) ?? 'null');
+      for (let i = 0; i < (meta?.chunks || 0); i++) this.storage?.removeItem(`${STORAGE_KEY}:${i}`);
       this.storage?.removeItem(STORAGE_KEY);
-    } catch { /* ignore */ }
+    } catch {
+      try { this.storage?.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+    }
   }
 
   static recover(storage = defaultStorage()) {
     try {
       const raw = storage?.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      const saved = JSON.parse(raw);
+      if (saved?.chunks == null) return saved; // pre-chunk single-blob checkpoint
+      const records = [];
+      for (let i = 0; i < saved.chunks; i++) {
+        const chunk = storage?.getItem(`${STORAGE_KEY}:${i}`);
+        if (chunk) records.push(...JSON.parse(chunk));
+      }
+      return { startTimeMs: saved.startTimeMs, ftp: saved.ftp, records, laps: saved.laps };
     } catch {
       return null;
     }
