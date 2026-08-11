@@ -1572,6 +1572,20 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return None
+        if path == "/health/import":
+            # Bearer-token auth, not the session cookie — this is hit by a
+            # scheduled push from an iOS app (Health Auto Export), which can't
+            # hold a browser session.
+            tok = os.environ.get("PF_HEALTH_IMPORT_TOKEN", "")
+            auth = self.headers.get("Authorization", "")
+            given = auth[7:] if auth.startswith("Bearer ") else ""
+            if not tok or not hmac.compare_digest(given, tok):
+                return self._send(401, {"message": "bad token"})
+            from paceforge import actions
+            try:
+                return self._send(200, actions.import_health_data(self._body()))
+            except ValueError as e:
+                return self._send(400, {"message": str(e)})
         if not self._authed():
             return self._send(401, {"message": "sign in first"})
         if not self._origin_ok():

@@ -36,6 +36,7 @@ from paceforge.models.plan import (
     WorkoutStepType,
     WorkoutType,
 )
+from paceforge.models.profile import HealthDataPoint
 
 logger = logging.getLogger(__name__)
 
@@ -218,6 +219,12 @@ def sync(lookback_days: int = 90, details_limit: int = 40) -> dict:
         client = garmin_connect()
         profile = client.get_fitness_profile(lookback_days=lookback_days)
         status["endpoints"] = client.endpoint_report
+        # health_data comes only from /health/import (non-Garmin scales); a fresh
+        # Garmin fetch never sets it, so carry the existing value forward or every
+        # sync would silently wipe it back to empty.
+        existing = store.load_profile()
+        if existing is not None:
+            profile.health_data = existing.health_data
         store.save_profile(profile)
         history = store.append_daily_history(profile)
         store.save_activities(profile.recent_activities)
@@ -258,6 +265,67 @@ def sync(lookback_days: int = 90, details_limit: int = 40) -> dict:
         raise
     finally:
         store.save_sync_status(status)
+
+
+# ── Non-Garmin health data (e.g. a Hume scale via Apple Health) ────────
+
+# Health Auto Export (iOS) metric names -> our BodyComposition field.
+_HEALTH_METRIC_FIELDS = {
+    "weight_body_mass": "weight_kg",
+    "body_mass": "weight_kg",
+    "body_fat_percentage": "body_fat_pct",
+    "lean_body_mass": "lean_body_mass_kg",
+    "body_mass_index": "bmi",
+}
+
+
+def import_health_data(payload: dict, source: str = "apple_health") -> dict:
+    """Ingest a Health Auto Export REST-API JSON payload.
+
+    Hume (or any other Apple-Health-connected scale) writes weight/body-fat/
+    lean-mass into HealthKit; Health Auto Export pushes it here on a schedule.
+    Garmin never sets ``health_data`` (see the carry-forward comment in
+    ``sync()``), so this is the only writer.
+    """
+    profile = store.load_profile()
+    if profile is None:
+        raise ValueError("no profile.json yet — run a Garmin sync first")
+
+    bc = profile.health_data.body_composition
+    points_by_field = {
+        "weight_kg": bc.weight_kg,
+        "bmi": bc.bmi,
+        "body_fat_pct": bc.body_fat_pct,
+        "lean_body_mass_kg": bc.lean_body_mass_kg,
+    }
+    written = 0
+    for metric in (payload.get("data") or {}).get("metrics") or []:
+        field = _HEALTH_METRIC_FIELDS.get(metric.get("name"))
+        if field is None:
+            continue
+        points = points_by_field[field]
+        seen_dates = {p.date for p in points}
+        for entry in metric.get("data") or []:
+            qty, raw_date = entry.get("qty"), entry.get("date")
+            if qty is None or not raw_date:
+                continue
+            day = str(raw_date)[:10]  # HAE sends "YYYY-MM-DD HH:MM:SS +ZZZZ"
+            if day in seen_dates:
+                continue
+            points.append(HealthDataPoint(date=day, value=float(qty), source=source))
+            seen_dates.add(day)
+            written += 1
+        points.sort(key=lambda p: p.date)
+
+    if written:
+        if source not in profile.health_data.sources:
+            profile.health_data.sources.append(source)
+        profile.health_data.last_sync = datetime.now(UTC).isoformat(timespec="seconds")
+        if bc.weight_kg:
+            profile.weight_kg = bc.weight_kg[-1].value
+        store.save_profile(profile)
+
+    return {"written": written, "weight_kg": profile.weight_kg}
 
 
 def log_rpe(activity_id: int | None = None, when: str | None = None, *,

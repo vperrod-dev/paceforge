@@ -152,6 +152,10 @@ class UserFitnessProfile(BaseModel):
         None, description="Garmin running tolerance (impact-load capacity)"
     )
 
+    # Body composition from non-Garmin sources (e.g. a Hume scale via Apple
+    # Health), pushed in by the /health/import webhook.
+    health_data: HealthData = Field(default_factory=HealthData)
+
 
 class GoalType(StrEnum):
     FIVE_K = "5K"
