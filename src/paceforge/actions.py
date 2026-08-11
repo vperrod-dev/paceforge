@@ -269,23 +269,25 @@ def sync(lookback_days: int = 90, details_limit: int = 40) -> dict:
 
 # ── Non-Garmin health data (e.g. a Hume scale via Apple Health) ────────
 
-# Health Auto Export (iOS) metric names -> our BodyComposition field.
-_HEALTH_METRIC_FIELDS = {
-    "weight_body_mass": "weight_kg",
-    "body_mass": "weight_kg",
-    "body_fat_percentage": "body_fat_pct",
-    "lean_body_mass": "lean_body_mass_kg",
-    "body_mass_index": "bmi",
+# Health Export Kit's additional.body.daily[].values keys -> our BodyComposition field.
+_HEALTH_BODY_FIELDS = {
+    "bodyMass": "weight_kg",
+    "bodyFat": "body_fat_pct",
+    "bmi": "bmi",
+    "leanBodyMass": "lean_body_mass_kg",
 }
 
 
 def import_health_data(payload: dict, source: str = "apple_health") -> dict:
-    """Ingest a Health Auto Export REST-API JSON payload.
+    """Ingest a Health Export Kit JSON export's body-composition section.
 
     Hume (or any other Apple-Health-connected scale) writes weight/body-fat/
-    lean-mass into HealthKit; Health Auto Export pushes it here on a schedule.
-    Garmin never sets ``health_data`` (see the carry-forward comment in
-    ``sync()``), so this is the only writer.
+    BMI into HealthKit; Health Export Kit's ``additional.body.daily`` carries
+    it back out (pushed here via a Shortcuts automation, since the app itself
+    has no scheduled export). Garmin never sets ``health_data`` (see the
+    carry-forward comment in ``sync()``), so this is the only writer. Other
+    export categories (sleep/heart/activity) are ignored — Garmin already
+    supplies those, at higher fidelity, directly.
     """
     profile = store.load_profile()
     if profile is None:
@@ -298,23 +300,24 @@ def import_health_data(payload: dict, source: str = "apple_health") -> dict:
         "body_fat_pct": bc.body_fat_pct,
         "lean_body_mass_kg": bc.lean_body_mass_kg,
     }
+    seen_by_field = {field: {p.date for p in pts} for field, pts in points_by_field.items()}
+
     written = 0
-    for metric in (payload.get("data") or {}).get("metrics") or []:
-        field = _HEALTH_METRIC_FIELDS.get(metric.get("name"))
-        if field is None:
+    daily = ((payload.get("additional") or {}).get("body") or {}).get("daily") or []
+    for entry in daily:
+        day = str(entry.get("date") or "")[:10]
+        if not day:
             continue
-        points = points_by_field[field]
-        seen_dates = {p.date for p in points}
-        for entry in metric.get("data") or []:
-            qty, raw_date = entry.get("qty"), entry.get("date")
-            if qty is None or not raw_date:
+        values = entry.get("values") or {}
+        for src_key, field in _HEALTH_BODY_FIELDS.items():
+            qty = values.get(src_key)
+            if qty is None or day in seen_by_field[field]:
                 continue
-            day = str(raw_date)[:10]  # HAE sends "YYYY-MM-DD HH:MM:SS +ZZZZ"
-            if day in seen_dates:
-                continue
-            points.append(HealthDataPoint(date=day, value=float(qty), source=source))
-            seen_dates.add(day)
+            points_by_field[field].append(HealthDataPoint(date=day, value=float(qty), source=source))
+            seen_by_field[field].add(day)
             written += 1
+
+    for points in points_by_field.values():
         points.sort(key=lambda p: p.date)
 
     if written:

@@ -1574,8 +1574,8 @@ class Handler(BaseHTTPRequestHandler):
             return None
         if path == "/health/import":
             # Bearer-token auth, not the session cookie — this is hit by a
-            # scheduled push from an iOS app (Health Auto Export), which can't
-            # hold a browser session.
+            # Shortcuts automation on iOS (wrapping Health Export Kit's export
+            # action), which can't hold a browser session.
             tok = os.environ.get("PF_HEALTH_IMPORT_TOKEN", "")
             auth = self.headers.get("Authorization", "")
             given = auth[7:] if auth.startswith("Bearer ") else ""
