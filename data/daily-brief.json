@@ -1,12 +1,12 @@
 {
   "date": "2026-08-11",
-  "headline": "Sleep debt is driving today's call — treat this morning's Un1t as your hard work done, and keep the easy run genuinely easy.",
-  "body_state": "Readiness composite 61.5/100 (moderate), Garmin training readiness 52 (\"train as planned\"), status Recovery. Driver is sleep: only 6.3h last night, 26h of 14-day sleep debt building — that's the one red flag today. HRV balanced (45ms), stress low (avg 15), overtraining green, no illness signal (skin temp -0.7°C). Body battery 47 but recharged +44 overnight, so the tank isn't empty — it's the accumulated debt, not last night alone, that matters.",
-  "session": "You already banked today's harder stimulus: the 06:06 Un1t class (46min, avg HR 132, peaked 164 near your 163 LTHR, 70% of it in zone 3). The 7km easy run is still on deck (target 4:51-5:20/km) — run the slow end of that window, HR capped low zone 2 (~115-130bpm). Yesterday's \"easy\" 5K ran 4:27/km with 90% of it in zone 3; don't repeat that today, especially stacked on top of the class.",
-  "recent": "The grey-zone pattern is persistent: Aug 10's \"easy\" run sat 90% in zone 3, Aug 7's progressive long run was cut to 6.0km/26.5min against 7.9km/35.5min planned (yellow, RPE 8) — the same fast-start-fade pacing limiter showing up again. Aug 8's Un1t matched the plan cleanly (green). Two of your last three Un1t/cardio sessions (Aug 8, Aug 11) still have no RPE logged, so their real cost is under-counted in load tracking.",
+  "headline": "Sleep debt is today's story — protect it, and keep the run genuinely easy.",
+  "body_state": "Readiness 61.5/100 (moderate), driven by sleep: 6.3h last night (score 66) on top of 26h of 14-day debt — that's the red flag, not training. Garmin composite reads lower (52, status \"Recovery\"). HRV 45ms is balanced, body battery 47 but recharged well overnight (+44), stress avg only 15. 7-day load 523, anaerobic-focus. Nothing here says stop training — it says protect sleep and don't add intensity on top of it.",
+  "session": "Already banked this morning: \"Un1t\" class, 46min, avg HR 132, 69.7% of it in zone 3 — a real moderate-hard stimulus, still unrated in RPE. Still on the plan: 7km easy @ 4:51-5:20/km. Given the sleep debt and one session already in the bank, run this at the slow end of that band, cap HR near 130, and hold cadence 168-172 spm — yesterday's \"easy\" run sat at 157.6 spm and 89.7% zone 3, which is exactly the pattern to break today.",
+  "recent": "The last 5 days repeat the same grey-zone pattern fitness.json flags as your #1 limiter: three \"easy\"-labeled sessions (Aug 7 long run, Aug 10 5km, this morning's Un1t) ran 69-90% zone-3 time each. Aug 7's progressive long run closed at 179bpm/threshold effort and readiness crashed to 23 the next check, training status flipped to \"Unproductive.\" Cadence has stayed 157-163 spm across all of them, still under the 168-172 target set yesterday. The lever is the same every day: start slower than feels necessary.",
   "focus": [
-    "Run genuinely easy today — cap HR in zone 2, ignore the pace number if it drifts slow.",
-    "Bank sleep: aim ~60min earlier to bed for the next two weeks to clear the debt.",
-    "Log RPE on the Aug 8 and Aug 11 Un1t classes — they're currently invisible to the load model."
+    "Protect sleep — go to bed ~60 min earlier for the next two weeks (26h debt built up).",
+    "Make today's easy run actually easy: slow end of 4:51-5:20/km, HR capped ~130, cadence 168-172.",
+    "Log RPE on this morning's Un1t — unrated sessions are invisible to load tracking."
   ]
 }
