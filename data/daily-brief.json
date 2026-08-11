@@ -1,12 +1,12 @@
 {
   "date": "2026-08-11",
-  "headline": "Sleep debt is today's real story — bank the 7km easy run at a genuinely easy effort, not another grey-zone one.",
-  "body_state": "Readiness composite reads 61.5 (\"moderate\"), driven by sleep: 26h of 14-day sleep debt, last night only 6h20m (score 66) and HRV 45 (BALANCED, still \"above\" trend). Garmin's own readiness sits at 52 and training status \"Recovery.\" Body battery is at 47, stress avg 15 — nothing acute, but the tank isn't full. Load-wise you're in the productive zone (TSB -10.5, -5…-30 is the optimal building band, overtraining green) — the issue isn't volume, it's recovery inputs.",
-  "session": "Plan calls for a 7km Easy Run @ ~4:50-5:19/km. You've already logged an Un1t class this morning (46min, HR avg 132, 70% of it in zone 3) — that's real load banked before this run even starts. Run this one properly easy: HR capped in zone 1-2 (well under your 163 LTHR), pace on the slow edge of the window if needed. Yesterday's \"easy\" 5km ran 89.7% zone 3 at 4:27/km — don't repeat that today.",
-  "recent": "The grey-zone pattern is the throughline: Aug 7's long run was linked to an easy slot but closed at 158bpm avg / 184bpm max (threshold-adjacent effort, cut short at 6.01km vs 7.9km planned); Aug 10's \"easy\" run spent 89.7% of its time in zone 3 at true pace 4:27/km. Only 17.8% of your running time is landing truly easy against an 80% target — that's the top-ranked limiter right now, ahead of the weak HYROX stations (Row 1000m, Sandbag Lunges, Sled Pull) and habitual positive splits (ratio 1.024).",
+  "headline": "Sleep debt is today's real limiter — readiness looks moderate on paper, but 26h of accumulated deficit means the easy run needs to actually be easy.",
+  "body_state": "Readiness composite 61.5/100 (moderate band), but the verdict flags **sleep** as the driver, not the score: 26h of 14-day sleep debt, last night only 6.3h (sleep score 66). Garmin's own training readiness reads lower — 52, status **Recovery**. HRV 45ms, BALANCED. Body battery recovered well overnight (+44) but sits at 47 now. Stress is low (avg 15) — the deficit is sleep quantity, not daytime load. Overtraining composite is green; this isn't a red-flag day, it's a protect-the-margin one.",
+  "session": "Plan calls for a 7km easy run @ 4:50-5:19/km. You've already banked 46min of Un1t this morning — 69.7% of it in zone 3 (avg HR 132, peak 163, right at your LTHR) — a real stimulus before this run even starts. Run this one genuinely easy: HR under ~130, pace toward the slow edge (5:00+/km) rather than the 4:20s you've been drifting to on 'easy' days. Grey-zone training is your #1 ranked limiter (17.8% true easy vs an 80% target) — today's a chance to bank a real easy day. Hold cadence 168-172 spm.",
+  "recent": "Aug 7's progressive long run closed at 179bpm/RPE 8 — readiness cratered to 23 the next day. Aug 8's Un1t landed green vs plan (42min, HR 130). Aug 10's 'easy' run ran 89.7% in zone 3 at 4:27/km, HR 136 — same pattern as this morning's Un1t. The thread: intensity keeps creeping into days meant to be easy, and readiness has whiplashed (11→52→61.5) this week paying for it. Cadence has held steady 155-160 spm across these sessions — still under the 168-172 target.",
   "focus": [
-    "Run today's 7km genuinely easy — HR zone 1-2, slow edge of the pace band if it fights you.",
-    "Sleep debt is the active driver — earlier bedtime for the next two weeks, not more training changes.",
-    "2x/week targeted work on Row 1000m, Sandbag Lunges 100m, Sled Pull 50m — your highest-impact limiter."
+    "Run today's 7km genuinely easy — HR under 130, slow the pace, protect against the grey-zone limiter",
+    "Bedtime ~60min earlier for the next two weeks — 26h sleep debt is the real constraint today",
+    "Log RPE on this morning's Un1t so it counts toward load tracking"
   ]
 }
