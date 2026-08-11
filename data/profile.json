@@ -1,7 +1,7 @@
 {
   "garmin_display_name": "857c1d55-4e18-4355-982c-f17af0487ab2",
   "vo2_max": 52.4,
-  "resting_hr": 48,
+  "resting_hr": 46,
   "max_hr": 195,
   "hr_zones": [],
   "training_readiness": 52.0,
@@ -1605,7 +1605,7 @@
     }
   ],
   "profile_date": "2026-08-11",
-  "body_battery_current": 47,
+  "body_battery_current": 52,
   "body_battery_high": null,
   "body_battery_low": null,
   "sleep_score": 66,
