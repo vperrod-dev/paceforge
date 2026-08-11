@@ -312,5 +312,18 @@
   "garmin_workout_id": 1660437263,
   "matched_activity_ids": [],
   "completed": false
+ },
+ {
+  "item_id": "0947c948",
+  "date": "2026-08-11",
+  "sport": "Bike",
+  "title": "Outdoor cycling",
+  "duration_min": 120,
+  "distance_km": null,
+  "notes": "",
+  "source": "manual",
+  "garmin_workout_id": null,
+  "matched_activity_ids": [],
+  "completed": false
  }
 ]
