@@ -1628,5 +1628,16 @@
   "sleep_restless_moments": 22,
   "body_battery_overnight_change": 43,
   "sleep_avg_stress": 16.0,
-  "running_tolerance": null
+  "running_tolerance": null,
+  "health_data": {
+    "sources": [],
+    "last_sync": null,
+    "body_composition": {
+      "height_cm": null,
+      "weight_kg": [],
+      "bmi": [],
+      "body_fat_pct": [],
+      "lean_body_mass_kg": []
+    }
+  }
 }
