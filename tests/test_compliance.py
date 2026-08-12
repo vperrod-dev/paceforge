@@ -2,6 +2,7 @@
 from datetime import date
 
 from paceforge.engine.compliance import annotate_plan, weekly_compliance
+from paceforge.models.calendar import ScheduledItem
 from paceforge.models.plan import (
     TrainingPlan,
     TrainingWeek,
@@ -105,3 +106,33 @@ def test_future_week_not_scored():
     annotate_plan(plan, acts, today=TODAY)
     roll = weekly_compliance(plan, acts, today=TODAY)
     assert len(roll["weeks"]) == 1 and roll["overall_pct"] == 100
+
+
+def _item(day, completed=False, matched=None, sport="Cardio"):
+    return ScheduledItem(date=date(2026, 7, day), sport=sport, title="Un1t",
+                         duration_min=45, completed=completed,
+                         matched_activity_ids=matched or [])
+
+
+def test_completed_class_is_a_planned_session_not_unplanned():
+    plan = _plan([_workout(1, matched=[11]), _workout(5)])
+    acts = [_activity(11, 1), _activity(99, 2, atype="indoor_cardio")]
+    annotate_plan(plan, acts, today=TODAY)
+    wk = weekly_compliance(plan, acts, today=TODAY, items=[_item(2, True, ["99"])])["weeks"][0]
+    assert wk["unplanned"] == []
+
+
+def test_completed_class_scores_green():
+    plan = _plan([_workout(1, matched=[11]), _workout(5)])
+    acts = [_activity(11, 1), _activity(99, 2, atype="indoor_cardio")]
+    annotate_plan(plan, acts, today=TODAY)
+    wk = weekly_compliance(plan, acts, today=TODAY, items=[_item(2, True, ["99"])])["weeks"][0]
+    assert wk["counts"]["green"] == 2
+
+
+def test_skipped_class_in_the_past_scores_red():
+    plan = _plan([_workout(1, matched=[11]), _workout(5)])
+    acts = [_activity(11, 1)]
+    annotate_plan(plan, acts, today=TODAY)
+    wk = weekly_compliance(plan, acts, today=TODAY, items=[_item(2)])["weeks"][0]
+    assert wk["counts"]["red"] == 1

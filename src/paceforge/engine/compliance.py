@@ -208,15 +208,22 @@ def annotate_plan(plan: TrainingPlan, activities: list[RecentActivity],
 
 
 def weekly_compliance(plan: TrainingPlan, activities: list[RecentActivity],
-                      today: date | None = None) -> dict:
+                      today: date | None = None, items: list | None = None) -> dict:
     """Roll workouts up into per-week and overall compliance (for fitness.json).
 
     Only weeks that have started count toward the overall percentage — future
     weeks aren't "non-compliant", they just haven't happened.
+
+    The week is the athlete's WHOLE week: scheduled calendar items (classes,
+    rides, swims — `data/calendar.json`) are planned sessions too, so they score
+    alongside the running workouts (done = green, past and not done = red) and
+    their activities are never listed as ``unplanned``.
     """
     today = today or date.today()
-    matched_ids = {aid for wk in plan.weeks for wo in wk.workouts
+    items = items or []
+    matched_ids = {str(aid) for wk in plan.weeks for wo in wk.workouts
                    for aid in wo.matched_activity_ids}
+    matched_ids |= {str(aid) for i in items for aid in i.matched_activity_ids}
     weeks = []
     total_scored = total_green = 0
     for wk in plan.weeks:
@@ -231,12 +238,16 @@ def weekly_compliance(plan: TrainingPlan, activities: list[RecentActivity],
         for wo in dated:
             status = (wo.completion_metrics or {}).get("status")
             counts[status if status in counts else "pending"] += 1
+        wk_items = [i for i in items if week_start <= i.date <= week_end]
+        for item in wk_items:
+            counts["green" if item.completed
+                   else "red" if item.date < today else "pending"] += 1
         scored = sum(counts[c] for c in ("green", "yellow", "orange", "red"))
         unplanned = [
             {"activity_id": a.activity_id, "name": a.name, "type": a.activity_type,
              "date": str(a.start_time)[:10]}
             for a in activities
-            if a.activity_id not in matched_ids
+            if str(a.activity_id) not in matched_ids
             and week_start <= a.start_time.date() <= week_end
         ]
         weeks.append({
@@ -245,6 +256,12 @@ def weekly_compliance(plan: TrainingPlan, activities: list[RecentActivity],
             "counts": counts,
             "compliance_pct": round(100 * counts["green"] / scored) if scored else None,
             "unplanned": unplanned,
+            "calendar": [
+                {"item_id": i.item_id, "date": i.date.isoformat(), "sport": i.sport,
+                 "title": i.title, "duration_min": i.duration_min,
+                 "completed": i.completed, "matched_activity_ids": i.matched_activity_ids}
+                for i in wk_items
+            ],
         })
         total_scored += scored
         total_green += counts["green"]

@@ -767,20 +767,58 @@ def _hermes_pulse(run: Run, prompt: str) -> str:
         return ""
 
 
+def planned_session(data_dir: Path, activity_id: str) -> str:
+    """What the athlete had scheduled for this activity, in one line.
+
+    The running plan is only half the schedule — a booked class/ride in
+    data/calendar.json is a planned session too. Resolved here rather than left
+    to the coach to grep, because a missed lookup reads to the athlete as
+    "you did an unplanned session" for work they had on the calendar.
+    """
+    try:
+        plan = json.loads((data_dir / "plan.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        plan = {"weeks": []}
+    for wk in plan.get("weeks") or []:
+        for wo in wk.get("workouts") or []:
+            if str(activity_id) in {str(a) for a in wo.get("matched_activity_ids") or []}:
+                return (f"PLANNED — plan workout \"{wo.get('name')}\" "
+                        f"(session {wo.get('session_id')}, {wo.get('scheduled_date')}, "
+                        f"type {wo.get('workout_type')}); judge it against that workout "
+                        f"and its completion_metrics")
+    try:
+        items = json.loads((data_dir / "calendar.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        items = []
+    items = items if isinstance(items, list) else items.get("items") or []
+    for i in items:
+        if str(activity_id) in {str(a) for a in i.get("matched_activity_ids") or []}:
+            return (f"PLANNED — calendar item \"{i.get('title')}\" ({i.get('sport')}, "
+                    f"{i.get('duration_min')} min, {i.get('date')}); a booked class/ride is "
+                    f"a planned session — judge it against ITS target, never call it "
+                    f"unplanned or \"not part of the plan\"")
+    return "UNPLANNED — nothing in the plan or the calendar claims it; judge it on its own merits"
+
+
 def job_analyze(run: Run, inputs: dict) -> None:
     run.step("Find unanalysed completed workouts")
     ids = pending_analyses(REPO_DIR / "data")
     run.log(f"pending: {ids or 'none'}")
     if not ids:
         return
+    scheduled = {i: planned_session(REPO_DIR / "data", i) for i in ids}
+    for aid, line in scheduled.items():
+        run.log(f"{aid}: {line.split(';')[0]}")
     run.step("Write analyses with the coach")
     claude_step(run, (
         'Use the coach skill in .claude/skills/coach/ — the "Per-activity analysis" '
         f"section. Write data/analyses/{{id}}.md for each of these activity ids "
         f"that doesn't have one yet: {','.join(ids)}. "
-        "Garmin ids: use data/activities.json, data/details/{id}.json, the matched plan "
-        "workout in data/plan.json IF one matches (unplanned sessions get analysed on "
-        "their own merits — never skip one for being unplanned), and data/profile.json. "
+        "What each one was scheduled as (authoritative — do NOT re-derive it): "
+        + " · ".join(f"{aid} → {line}" for aid, line in scheduled.items()) + ". "
+        "Garmin ids: use data/activities.json, data/details/{id}.json, that planned "
+        "session, and data/profile.json. Unplanned sessions get analysed on their own "
+        "merits — never skip one for being unplanned. "
         "Ids starting with 'bike:' are app-recorded indoor rides — use their entry in "
         "data/bike/rides.json (summary, trace, ftp) and data/bike/profile.json instead; "
         "there is no details/ file for them. Be specific (real pace/power/HR/distance "

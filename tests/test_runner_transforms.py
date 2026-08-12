@@ -14,6 +14,7 @@ from runner import (  # noqa: E402
     append_ride,
     patch_bike_profile,
     pending_analyses,
+    planned_session,
     upsert_rpe,
     write_benchmarks,
     write_events,
@@ -134,3 +135,36 @@ def test_write_benchmarks_accepts_a_dict(tmp_path):
 def test_write_benchmarks_rejects_non_dict(tmp_path):
     with pytest.raises(ValueError):
         write_benchmarks([180], tmp_path)
+
+
+def _plan_file(tmp_path, matched):
+    (tmp_path / "plan.json").write_text(json.dumps({"weeks": [{"workouts": [
+        {"name": "4km Tempo Run", "session_id": "4aee9725", "workout_type": "tempo",
+         "scheduled_date": "2026-08-12", "matched_activity_ids": matched},
+    ]}]}))
+
+
+def _calendar_file(tmp_path, matched):
+    (tmp_path / "calendar.json").write_text(json.dumps([
+        {"item_id": "0589c109", "date": "2026-08-11", "sport": "Cardio", "title": "Un1t",
+         "duration_min": 45, "matched_activity_ids": matched, "completed": bool(matched)},
+    ]))
+
+
+def test_planned_session_names_the_plan_workout(tmp_path):
+    _plan_file(tmp_path, [23948272738])
+    _calendar_file(tmp_path, [])
+    assert "plan workout \"4km Tempo Run\"" in planned_session(tmp_path, "23948272738")
+
+
+def test_planned_session_names_the_calendar_item(tmp_path):
+    _plan_file(tmp_path, [])
+    _calendar_file(tmp_path, ["23931390221"])
+    line = planned_session(tmp_path, "23931390221")
+    assert line.startswith("PLANNED") and 'calendar item "Un1t"' in line
+
+
+def test_planned_session_reports_unplanned_when_nothing_claims_it(tmp_path):
+    _plan_file(tmp_path, [])
+    _calendar_file(tmp_path, [])
+    assert planned_session(tmp_path, "999").startswith("UNPLANNED")

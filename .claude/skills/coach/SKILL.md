@@ -128,8 +128,11 @@ the time breakdown. To review a race:
    `completion_metrics` (in `data/plan.json`) carries the TrainingPeaks-style band
    (`green` 80–120% of planned volume · `yellow` · `orange` · `red` = missed) plus
    planned/actual km & min; `data/fitness.json` `compliance` has the weekly rollup
-   (per-week `compliance_pct`, band counts, and `unplanned` sessions). Cite the bands;
+   (per-week `compliance_pct`, band counts, `calendar` items and genuinely `unplanned`
+   sessions). Cite the bands;
    add pace/HR/cadence colour from the activity details only where it changes the story.
+   The rollup already counts scheduled classes/rides — review the athlete's WHOLE week
+   (running + calendar), never the running plan alone.
 4. Write `week-review.md` with these sections: **Headline diagnosis** (the #1 limiter in plain
    language) · **Top limiters** (≤3, each with the metric evidence) · **This week** (1–2 named
    sessions with pace/HR targets, readiness-gated) · **This block** (theme + re-test date) ·
@@ -161,9 +164,16 @@ meaningful sessions already have one:
 3. For each: read the activity in `data/activities.json` (incl. `avg_running_cadence`,
    `avg_stride_length`, GCT, vertical ratio), its `data/details/{id}.json` — per-km splits
    (pace/HR/`avg_cadence`) and the time-series (`series` items carry `hr`, `pace`, `cad`,
-   `stride`) — the matched planned workout, and `data/profile.json`. Write `data/analyses/{id}.md`
+   `stride`) — the matched planned session, and `data/profile.json`. Write `data/analyses/{id}.md`
    with these `##` sections: **Session summary**, **Versus the plan**, **Effect on your profile**,
    **What to improve** — concrete and specific (pace/HR/fade numbers, not platitudes). Commit it.
+   **"The plan" means the athlete's whole schedule, not the running plan:** a workout in
+   `data/plan.json` (`matched_activity_ids`) OR an item in `data/calendar.json` whose
+   `matched_activity_ids` holds this id — a booked class, ride or swim is a planned
+   session, judged against its own target (sport, `duration_min`, and for rides the
+   ride's own intent), not against a running workout. Only call a session unplanned
+   when NEITHER file claims it, and never frame a matched calendar item as
+   "unplanned", "calendar-only" or "not part of the plan".
 4. **Running economy is first-class for runs:** explicitly assess **cadence** (spm; ~170–180
    typical, watch over-striding = low cadence + long stride) and **stride length** (and how
    both drift late in the session = fatigue), plus GCT and vertical ratio. Tie them to economy
@@ -173,7 +183,8 @@ meaningful sessions already have one:
 Every morning (runner `daily` job, after the sync) write the athlete's landing-page
 morning read. Read `data/profile.json`, `data/fitness.json` (its `insights` block is the
 deterministic verdict — cite it, never contradict it without saying why), `data/plan.json`
-(today's workout + its briefing, plus the current week), the last ~4 days of
+(today's workout + its briefing, plus the current week), `data/calendar.json` (today's
+booked classes/rides — part of today's load, brief them like any session), the last ~4 days of
 `data/activities.json` and their `data/analyses/{id}.md`, and `week-review.md` for the
 block theme. Write `data/daily-brief.json`:
 `{"date": "<YYYY-MM-DD>", "headline": "<one sentence — the day in plain language>",

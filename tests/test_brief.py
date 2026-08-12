@@ -8,6 +8,7 @@ from datetime import date
 import pytest
 
 from paceforge import actions, store
+from paceforge.models.calendar import ScheduledItem
 from paceforge.models.plan import TrainingPlan, TrainingWeek, Workout, WorkoutStep
 from paceforge.models.profile import UserFitnessProfile
 
@@ -76,3 +77,17 @@ def test_brief_telegram_readiness_verdict_from_fitness_json():
     (store.DATA_DIR / "fitness.json").write_text(json.dumps(
         {"load": {"readiness_composite": {"score": 74, "band": "green"}}}))
     assert "📈 <b>Trend</b> 🟢 74 (green)" in actions.brief("2026-06-01", fmt="telegram")
+
+
+def test_brief_lists_a_booked_class_on_an_otherwise_empty_day():
+    _seed()
+    store.save_calendar([ScheduledItem(date=date(2026, 6, 1), sport="Cardio",
+                                       title="Un1t", duration_min=45)])
+    assert actions.brief("2026-06-01").endswith("Today: Un1t (Cardio) — 45 min")
+
+
+def test_brief_telegram_lists_a_booked_ride():
+    _seed()
+    store.save_calendar([ScheduledItem(date=date(2026, 6, 1), sport="Bike",
+                                       title="Outdoor cycling", duration_min=120)])
+    assert "🚴 <b>Outdoor cycling</b> (Bike) — 120 min" in actions.brief("2026-06-01", fmt="telegram")

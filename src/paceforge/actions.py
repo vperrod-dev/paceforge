@@ -469,7 +469,13 @@ def brief(when: str | None = None, fmt: str = "text") -> str:
             if wo.briefing and wo.briefing.get("purpose"):
                 line += f". {wo.briefing['purpose']}"
             lines.append(line)
-    else:
+    classes = _todays_calendar(day)
+    for item in classes:
+        line = f"Today: {item.title} ({item.sport})"
+        if item.duration_min:
+            line += f" — {item.duration_min:.0f} min"
+        lines.append(line)
+    if not sessions and not classes:
         lines.append("Today: rest day." if todays else "Today: nothing scheduled.")
     return "\n".join(lines) or "No data synced yet."
 
@@ -517,6 +523,11 @@ def _readiness_verdict() -> str | None:
     return f"📈 <b>Trend</b> {dot}{score_txt} ({_esc_html(band)})"
 
 
+def _todays_calendar(day: date) -> list:
+    """Scheduled classes/rides/swims for the day — planned sessions like any other."""
+    return [i for i in store.load_calendar() if i.date == day]
+
+
 def _brief_telegram(day: date) -> str:
     """Telegram-HTML morning brief (parse_mode=HTML; the runner prepends the title)."""
     p = store.load_profile()
@@ -562,7 +573,14 @@ def _brief_telegram(day: date) -> str:
             lines.append(line)
             if wo.briefing and wo.briefing.get("purpose"):
                 lines.append(_esc_html(wo.briefing["purpose"]))
-    else:
+    classes = _todays_calendar(day)
+    for item in classes:
+        emoji = "🚴" if item.sport.strip().lower() in ("bike", "cycling") else "🏋️"
+        line = f"{emoji} <b>{_esc_html(item.title)}</b> ({_esc_html(item.sport)})"
+        if item.duration_min:
+            line += f" — {item.duration_min:.0f} min"
+        lines.append(line)
+    if not sessions and not classes:
         lines.append("🏃 Rest day." if todays else "🏃 Nothing scheduled.")
     return "\n".join(lines) or "No data synced yet."
 
@@ -862,7 +880,7 @@ def fitness() -> dict:
     vo2_for_coach = eff.get("current") if eff.get("available") else profile.vo2_max
     limiters = rank_limiters(running, load, strength, profile_vo2max=vo2_for_coach)
     plan = store.load_plan()
-    compliance = weekly_compliance(plan, activities) if plan else None
+    compliance = weekly_compliance(plan, activities, items=store.load_calendar()) if plan else None
     pace_insights = pace_status(plan) if plan and plan.weeks else None
 
     import json
