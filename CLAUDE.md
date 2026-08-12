@@ -105,6 +105,13 @@ no-remote checkouts, forks, CI artifacts, or patch/diff outputs):
 - Victor’s instance keeps the existing git-tracked `data/` layout for his private
   checkout only. Shared/public contexts should set `PACEFORGE_DATA_DIR` to an
   untracked path before any job writes state.
+- **Never `git rm --cached` these files here.** They are ignored-but-tracked on
+  purpose: `.gitignore` stops a fresh/shared checkout from adding them, while
+  Victor's private checkout keeps them versioned because git IS this app's state
+  history. Untracking them makes every `commit_push` that names one (`save-rpe`,
+  `analyze`, `sync`) die on `git add … exited 1` — that happened on 2026-08-12
+  (auto-repair commit `58c38b6`, reverted). Same for `data/analyses/`, which must
+  stay OUT of `.gitignore`.
 - `scripts/users.py` already provisions each friend with their own isolated checkout
   and `data/` — no remote, so pushes cannot accidentally expose data.
 - Before attaching or publishing diffs, patches, or screenshots, sanitize/redact

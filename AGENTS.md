@@ -68,6 +68,8 @@ artifacts, PRs, patches, screenshots, or CI bundles:
 
 `.gitignore` enforces this for Victor's private checkout. Friends' instances have
 no remote, so `git push` is impossible; still redact before sharing any diff.
+They stay **ignored-but-tracked** here — never `git rm --cached` them, or every
+job that commits a named path (`save-rpe`, `analyze`, `sync`) fails on `git add`.
 For extra safety, run jobs with `PACEFORGE_DATA_DIR` pointing outside the repo.
 
 ## Browser-driven writes (HYROX + events + everything else)
