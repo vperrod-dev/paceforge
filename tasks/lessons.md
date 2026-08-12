@@ -62,3 +62,17 @@ Two process lessons from the same session:
   silently overwriting live untracked-since state (profile.json, rpe.json —
   one athlete-logged RPE lost). Before reverting a `git rm --cached` commit,
   copy the working tree files aside; `--no-commit` does not mean "index only".
+
+## 2026-08-12 — "the plan" means the athlete's whole week, not the running plan
+Victor: "the coach is not counting planned cycling or planned cardio as the plan
+— only the running. The running plan is one thing and the coach analysis
+another." Every layer had inherited plan.json as the definition of planned:
+per-activity analyses called booked classes "calendar-only … not part of the
+running plan", `weekly_compliance` listed their activities under `unplanned`,
+and `brief` said "nothing scheduled" on a class day. Since the 2026-08-10
+decoupling, `data/calendar.json` IS the week and the running plan merely
+contributes workouts to it — code and prompts have to follow the data model.
+Also: telling the coach agent to look the match up itself failed twice even with
+explicit instructions. Resolve facts the deterministic layer already knows
+(`planned_session()` in runner.py) and hand the agent the answer; judgement is
+the model's job, lookups are not.
