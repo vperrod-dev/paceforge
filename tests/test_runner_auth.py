@@ -316,3 +316,15 @@ def test_state_changing_post_with_matching_referer_is_accepted(app):
     code, _, _ = _req(app.public + "/api/gh/repos/o/r/actions/workflows/nope.yml/dispatches", "POST", {},
                       headers={"Cookie": cookie, "Referer": app.public + "/"})
     assert code == 404
+
+
+def test_watch_endpoint_rejects_wrong_token(app, monkeypatch):
+    monkeypatch.setenv("PF_WATCH_TOKEN", "correct-horse")
+    code, _, _ = _req(app.public + "/watch-brief?k=wrong")
+    assert code == 401
+
+
+def test_watch_endpoint_accepts_correct_token(app, monkeypatch):
+    monkeypatch.setenv("PF_WATCH_TOKEN", "correct-horse")
+    code, _, _ = _req(app.public + "/watch-brief?k=correct-horse")
+    assert code == 200

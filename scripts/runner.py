@@ -1336,7 +1336,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/plan.ics":
             tok = os.environ.get("PF_WATCH_TOKEN", "")
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            if not tok or q.get("k", [""])[0] != tok:
+            if not tok or not hmac.compare_digest(q.get("k", [""])[0], tok):
                 return self._send(401, {"message": "bad token"})
             lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//PaceForge//EN",
                      "X-WR-CALNAME:PaceForge"]
@@ -1381,7 +1381,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/watch-race":
             tok = os.environ.get("PF_WATCH_TOKEN", "")
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            if not tok or q.get("k", [""])[0] != tok:
+            if not tok or not hmac.compare_digest(q.get("k", [""])[0], tok):
                 return self._send(401, {"message": "bad token"})
             out = {"distance_km": 21.0975, "goal_time_sec": None,
                    "target_pace_sec_km": None, "prognosis_time_sec": None}
@@ -1409,7 +1409,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/watch-brief":
             tok = os.environ.get("PF_WATCH_TOKEN", "")
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            if not tok or q.get("k", [""])[0] != tok:
+            if not tok or not hmac.compare_digest(q.get("k", [""])[0], tok):
                 return self._send(401, {"message": "bad token"})
             out = {"date": datetime.now(ZoneInfo("Europe/Dublin")).strftime("%Y-%m-%d"),
                    "headline": "", "session": "", "detail": ""}
@@ -1444,7 +1444,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/watch-targets":
             tok = os.environ.get("PF_WATCH_TOKEN", "")
             q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
-            if not tok or q.get("k", [""])[0] != tok:
+            if not tok or not hmac.compare_digest(q.get("k", [""])[0], tok):
                 return self._send(401, {"message": "bad token"})
             f = REPO_DIR / "data" / "watch-targets.json"
             try:
