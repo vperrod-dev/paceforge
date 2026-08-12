@@ -41,3 +41,24 @@ Garmin history is for prefills, suggestions and live metrics (readiness, load,
 adaptation) — advisory, never a cap. Generalization: when output quality drives
 the very signal used as input constraint, the constraint is circular — anchor on
 stated intent, validate with history, don't govern by it.
+
+## 2026-08-12 — "unplanned" analyses: the matcher's 90% gate vs WU/CD estimates
+Victor: "the coach analysis makes no sense... I did a plan activity!" Today's
+`4km Tempo Run` never linked to the treadmill session because
+`estimated_distance_meters` prices the 10-min warm-up/cool-down at easy pace
+(7.0 km planned) while the actual run was 5.43 km — 78%, under `_MIN_SIMILARITY`
+0.9 — so the coach analysed a planned session as unplanned. Generalization: when
+a matcher compares an ESTIMATE against a MEASUREMENT, the gate has to tolerate
+the estimate's own systematic bias; here the workout's own paced work steps are
+the honest floor (`_did_the_work`).
+
+Two process lessons from the same session:
+- The nightly auto-repair `git rm --cached`'d the ignored-but-tracked `data/`
+  state files (58c38b6). Every job that commits a NAMED path then dies on
+  `git add … exited 1` (save-rpe, twice) — and nothing was versioned for 11 h.
+  An "obvious" security repair that contradicts a documented invariant needs the
+  invariant restated where the repair agent will read it (CLAUDE.md + AGENTS.md).
+- `git revert` of that commit RESTORED THE OLD BLOBS INTO THE WORKING TREE,
+  silently overwriting live untracked-since state (profile.json, rpe.json —
+  one athlete-logged RPE lost). Before reverting a `git rm --cached` commit,
+  copy the working tree files aside; `--no-commit` does not mean "index only".
