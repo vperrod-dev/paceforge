@@ -1,0 +1,58 @@
+{
+  "generated_at": "2026-06-26T14:10:02",
+  "query": {
+    "name": "Perez Rodriguez",
+    "gender": "M",
+    "firstname": "Victor"
+  },
+  "results": [
+    {
+      "name": "Perez Rodriguez, Victor",
+      "city": "Dublin",
+      "event_date": "Dublin 2025",
+      "total_time": "01:03:46",
+      "rank": "6289",
+      "athlete_url": "?content=detail&fpid=list_overall&pid=list_overall&idp=LR3MS4JI40A094OV&lang=EN_CAP&event=H_HYROXOVERALL&pidp=ranking_nav&search%5Bname%5D=Perez+Rodriguez&search%5Bsex%5D=M&search%5Bfirstname%5D=Victor&search_event=H_HYROXOVERALL"
+    },
+    {
+      "name": "Perez Rodriguez, Victor",
+      "city": "Bilbao",
+      "event_date": "Bilbao 2025",
+      "total_time": "01:06:17",
+      "rank": "12550",
+      "athlete_url": "?content=detail&fpid=list_overall&pid=list_overall&idp=JGDMS4JI237DF7OV&lang=EN_CAP&event=H_HYROXOVERALL&pidp=ranking_nav&search%5Bname%5D=Perez+Rodriguez&search%5Bsex%5D=M&search%5Bfirstname%5D=Victor&search_event=H_HYROXOVERALL"
+    },
+    {
+      "name": "Perez Rodriguez, Victor",
+      "city": "Valencia",
+      "event_date": "Valencia 2025",
+      "total_time": "01:06:30",
+      "rank": "13189",
+      "athlete_url": "?content=detail&fpid=list_overall&pid=list_overall&idp=LR3MS4JI3F3EADOV&lang=EN_CAP&event=H_HYROXOVERALL&pidp=ranking_nav&search%5Bname%5D=Perez+Rodriguez&search%5Bsex%5D=M&search%5Bfirstname%5D=Victor&search_event=H_HYROXOVERALL"
+    },
+    {
+      "name": "Perez Rodriguez, Victor",
+      "city": "Cardiff",
+      "event_date": "Cardiff 2025",
+      "total_time": "01:09:32",
+      "rank": "25286",
+      "athlete_url": "?content=detail&fpid=list_overall&pid=list_overall&idp=LR3MS4JI321434OV&lang=EN_CAP&event=H_HYROXOVERALL&pidp=ranking_nav&search%5Bname%5D=Perez+Rodriguez&search%5Bsex%5D=M&search%5Bfirstname%5D=Victor&search_event=H_HYROXOVERALL"
+    },
+    {
+      "name": "Perez Rodriguez, Victor",
+      "city": "Malaga",
+      "event_date": "Malaga 2025",
+      "total_time": "01:10:56",
+      "rank": "32021",
+      "athlete_url": "?content=detail&fpid=list_overall&pid=list_overall&idp=LR3MS4JI2C37ACOV&lang=EN_CAP&event=H_HYROXOVERALL&pidp=ranking_nav&search%5Bname%5D=Perez+Rodriguez&search%5Bsex%5D=M&search%5Bfirstname%5D=Victor&search_event=H_HYROXOVERALL"
+    },
+    {
+      "name": "Perez Rodriguez, Victor",
+      "city": "Rome",
+      "event_date": "Rome 2025",
+      "total_time": "01:11:25",
+      "rank": "34545",
+      "athlete_url": "?content=detail&fpid=list_overall&pid=list_overall&idp=LR3MS4JI3BA099OV&lang=EN_CAP&event=H_HYROXOVERALL&pidp=ranking_nav&search%5Bname%5D=Perez+Rodriguez&search%5Bsex%5D=M&search%5Bfirstname%5D=Victor&search_event=H_HYROXOVERALL"
+    }
+  ]
+}
