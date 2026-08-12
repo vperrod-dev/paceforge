@@ -30,6 +30,7 @@ data/hyrox_preview.json
 data/token-meta.json
 data/sync-status.json
 data/rpe.json
+data/analyses/
 data/analytics.json
 data/fitness.json
 data/details/
