@@ -24,6 +24,7 @@ _DAY_TOLERANCE = 1
 # A run only auto-links when its distance is within 90% of the planned distance —
 # an unplanned run on a training day must not be mistaken for the session.
 _MIN_SIMILARITY = 0.9
+_WORK_STEPS = ("interval", "active")
 
 # Matching passes, in claim order: (plan workout types, garmin types, criterion).
 _PASSES = (
@@ -43,6 +44,23 @@ def _similarity(actual: float | None, target: float | None) -> float:
     if not actual or not target:
         return 0.0
     return min(actual, target) / max(actual, target)
+
+
+def _did_the_work(actual: float | None, wo) -> bool:  # noqa: ANN001
+    """True when the run covers the workout's paced work steps without exceeding
+    its planned total. A structured session's `estimated_distance_meters` prices
+    warm-up/cool-down at easy pace, so trimming them (treadmill sessions
+    especially) lands under the 90% gate even though the tempo/interval block was
+    run in full — that session is done, not unplanned.
+    """
+    work = 0.0
+    for step in wo.steps:
+        subs = step.steps if step.steps else [step]
+        mult = step.repeat_count or 1
+        for s in subs:
+            if s.step_type.value in _WORK_STEPS and s.distance_meters:
+                work += s.distance_meters * mult
+    return bool(work) and work <= (actual or 0) <= (wo.estimated_distance_meters or 0)
 
 
 def match_plan_to_activities(plan: TrainingPlan, activities: list[RecentActivity],
@@ -100,7 +118,8 @@ def match_plan_to_activities(plan: TrainingPlan, activities: list[RecentActivity
                     target = wo.estimated_distance_meters
                     best = max(candidates,
                                key=lambda a: _similarity(a.distance_meters, target))
-                    if _similarity(best.distance_meters, target) < _MIN_SIMILARITY:
+                    if (_similarity(best.distance_meters, target) < _MIN_SIMILARITY
+                            and not _did_the_work(best.distance_meters, wo)):
                         continue
                 else:
                     target = wo.estimated_duration_seconds or 0

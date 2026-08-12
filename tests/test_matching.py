@@ -2,7 +2,7 @@
 from datetime import date, datetime
 
 from paceforge.engine.matching import match_plan_to_activities
-from paceforge.models.plan import TrainingPlan, TrainingWeek, Workout
+from paceforge.models.plan import TrainingPlan, TrainingWeek, Workout, WorkoutStep
 from paceforge.models.profile import RecentActivity
 
 
@@ -178,6 +178,26 @@ def test_run_within_90pct_distance_matches():
                          estimated_distance_meters=10000))
     match_plan_to_activities(plan, [_act(1, d, 9100)])
     assert plan.weeks[0].workouts[0].matched_activity_ids == [1]
+
+
+def test_structured_run_matches_when_the_work_block_was_completed():
+    """Warm-up/cool-down trimmed: 5.4km run vs a 7km-priced 4km tempo — still the session."""
+    d = date(2026, 6, 1)
+    wo = Workout(workout_type="tempo", name="4km Tempo Run", scheduled_date=d,
+                 estimated_distance_meters=7000,
+                 steps=[WorkoutStep(step_type="warmup", duration_seconds=600),
+                        WorkoutStep(step_type="active", distance_meters=4000),
+                        WorkoutStep(step_type="cooldown", duration_seconds=600)])
+    match_plan_to_activities(_plan(wo), [_act(1, d, 5430)])
+    assert wo.matched_activity_ids == [1]
+
+
+def test_run_shorter_than_the_work_block_does_not_match():
+    d = date(2026, 6, 1)
+    wo = Workout(workout_type="tempo", name="4km Tempo Run", scheduled_date=d,
+                 estimated_distance_meters=7000,
+                 steps=[WorkoutStep(step_type="active", distance_meters=4000)])
+    assert match_plan_to_activities(_plan(wo), [_act(1, d, 3000)]) == 0
 
 
 def test_run_without_estimated_distance_never_auto_matches():
