@@ -31,38 +31,51 @@ export const BUTTONS = {
 export function decodeControllerNotification(bytes) {
   if (bytes[0] !== MSG_CONTROLLER_NOTIFICATION) return null;
   let i = 1;
+  // A truncated or spoofed notification must be rejected, not decoded into
+  // garbage: reading past the end yields undefined, which silently becomes a
+  // 0 byte and ends up emitted as a button press or analog value.
+  const bad = () => { throw new RangeError('truncated notification'); };
+  const byteAt = () => (i < bytes.length ? bytes[i++] : bad());
+  const jump = n => { i += n; if (i > bytes.length) bad(); };
   const varint = () => {
     let v = 0, s = 0, b;
-    do { b = bytes[i++]; v += (b & 0x7f) * 2 ** s; s += 7; } while (b & 0x80);
+    do { b = byteAt(); v += (b & 0x7f) * 2 ** s; s += 7; } while (b & 0x80);
     return v;
   };
   const zigzag = n => (n % 2 ? -(n + 1) / 2 : n / 2);
   const skip = wire => {
     if (wire === 0) varint();
-    else if (wire === 1) i += 8;
-    else if (wire === 2) i += varint();
-    else if (wire === 5) i += 4;
+    else if (wire === 1) jump(8);
+    else if (wire === 2) jump(varint());
+    else if (wire === 5) jump(4);
+    else bad();
   };
+  const limit = n => (n <= bytes.length ? n : bad());
   const out = { bitmap: IDLE_BITMAP, analog: [] };
-  while (i < bytes.length) {
-    const tag = varint(), field = tag >> 3, wire = tag & 7;
-    if (field === 1 && wire === 0) out.bitmap = varint();
-    else if (field === 2 && wire === 2) {
-      const groupEnd = i + varint();
-      while (i < groupEnd) {
-        const gtag = varint();
-        if ((gtag >> 3) === 1 && (gtag & 7) === 2) {
-          const end = i + varint();
-          const press = { location: 0, value: 0 };
-          while (i < end) {
-            const ktag = varint(), kv = varint();
-            if ((ktag >> 3) === 1) press.location = kv;
-            else if ((ktag >> 3) === 2) press.value = zigzag(kv);
-          }
-          out.analog.push(press);
-        } else skip(gtag & 7);
-      }
-    } else skip(wire);
+  try {
+    while (i < bytes.length) {
+      const tag = varint(), field = tag >> 3, wire = tag & 7;
+      if (field === 1 && wire === 0) out.bitmap = varint();
+      else if (field === 2 && wire === 2) {
+        const groupEnd = limit(i + varint());
+        while (i < groupEnd) {
+          const gtag = varint();
+          if ((gtag >> 3) === 1 && (gtag & 7) === 2) {
+            const end = limit(i + varint());
+            const press = { location: 0, value: 0 };
+            while (i < end) {
+              const ktag = varint(), kv = varint();
+              if ((ktag >> 3) === 1) press.location = kv;
+              else if ((ktag >> 3) === 2) press.value = zigzag(kv);
+            }
+            out.analog.push(press);
+          } else skip(gtag & 7);
+        }
+      } else skip(wire);
+    }
+  } catch (err) {
+    if (!(err instanceof RangeError)) throw err;
+    return null;
   }
   return out;
 }

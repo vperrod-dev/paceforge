@@ -45,6 +45,35 @@ const hex = u8 => [...u8].map(b => b.toString(16).padStart(2, '0')).join(' ');
   console.log('ok 3 - zwift ride decoder + button edges');
 }
 
+// 3b. Malformed notifications are rejected, not decoded into garbage. A
+// glitched or spoofed BLE peripheral is the realistic trigger; before the
+// bounds checks these read past the end and emitted phantom presses.
+{
+  const full = Uint8Array.of(
+    0x23,
+    0x08, 0xfe, 0xff, 0xff, 0xff, 0x0f,
+    0x12, 0x06, 0x0a, 0x04, 0x08, 0x00, 0x10, 0x63,
+  );
+  // Every truncation that lands mid-field is rejected. Cuts 1 and 7 are the
+  // only field boundaries in this frame (header alone, header + bitmap), and
+  // those are complete messages that happen to carry fewer fields.
+  const boundaries = new Set([1, 7]);
+  for (let cut = 1; cut < full.length; cut++) {
+    const msg = decodeControllerNotification(full.slice(0, cut));
+    if (boundaries.has(cut)) assert.deepEqual(msg.analog, [], `cut ${cut} is a whole frame`);
+    else assert.equal(msg, null, `truncation at ${cut} should be rejected`);
+  }
+  // varint that never terminates (continuation bit set on the last byte)
+  assert.equal(decodeControllerNotification(Uint8Array.of(0x23, 0x08, 0xff)), null);
+  // length prefix pointing past the end of the buffer
+  assert.equal(decodeControllerNotification(Uint8Array.of(0x23, 0x12, 0x40, 0x0a)), null);
+  // unknown wire type
+  assert.equal(decodeControllerNotification(Uint8Array.of(0x23, 0x0c, 0x00)), null);
+  // a valid frame still decodes after all of that
+  assert.equal(decodeControllerNotification(full).bitmap, 0xfffffffe);
+  console.log('ok 3b - zwift ride decoder rejects malformed notifications');
+}
+
 // 4. MockTrainer converges on ERG target
 {
   const t = new MockTrainer({ tickMs: 5 });
