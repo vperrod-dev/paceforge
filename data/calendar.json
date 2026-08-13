@@ -154,8 +154,10 @@
   "notes": "",
   "source": "manual",
   "garmin_workout_id": 1663135677,
-  "matched_activity_ids": [],
-  "completed": false
+  "matched_activity_ids": [
+   "23958256041"
+  ],
+  "completed": true
  },
  {
   "item_id": "00e49c0a",
