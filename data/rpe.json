@@ -99,6 +99,14 @@
       "duration_min": 26.1,
       "notes": null,
       "source": "cli"
+    },
+    {
+      "activity_id": 23958256041,
+      "date": "2026-08-13",
+      "rpe": 7,
+      "duration_min": 41.2,
+      "notes": null,
+      "source": "web"
     }
   ]
 }
