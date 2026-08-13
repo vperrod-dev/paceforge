@@ -315,6 +315,15 @@ without a manual reload — the job commits async (~1–3s) and the in-memory
 `PACEFORGE_GARMIN_EMAIL`, `GARMIN_TOKEN` (base64 token from `paceforge login`),
 `PACEFORGE_GARMIN_TOKEN_DIR` (default `~/.garminconnect`). None are committed.
 
+⚠️ **Single-quote any value containing `$` in these env files.** `PF_WEB_PASS_SCRYPT`
+holds `<salt>$<hash>`; unquoted, a `source` under `set -u` expands `$<hash>` and
+aborts with "unbound variable". That is what killed
+`scripts/check-health-import-once.sh` 8 ms into its 2026-08-12 run and left the
+one-shot unit `failed` unnoticed for a day. Quoted 2026-08-13 (systemd's
+`EnvironmentFile` strips the quotes, so the runner sees the same value —
+verified against the live process). Any new script that hardens with `set -u`
+depends on this.
+
 The VM runner reads its own set from `~/.config/paceforge/env` (Victor) or
 `~/.config/paceforge/<name>.env` (an instance, written by `scripts/users.py`):
 `PF_WEB_USER` + `PF_WEB_PASS_SCRYPT` (`'<salt_hex>$<hash_hex>'`, scrypt
