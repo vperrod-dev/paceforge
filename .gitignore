@@ -43,6 +43,16 @@ htmlcov/
 .coverage
 coverage.xml
 
+# Generated audit / coverage reports dropped at the repo root — the canonical,
+# re-verified copy of each run lives in tasks/ (root-anchored, so tasks/ is unaffected)
+/coverage.json
+/SECURITY-*.json
+/security-audit-*.json
+/PERFORMANCE-AUDIT-*.md
+/COVERAGE-*.md
+/TEST-COVERAGE-*.md
+/UPDATED-COVERAGE-*.md
+
 # SQLite database (contains credentials)
 *.db
 *.db-journal
