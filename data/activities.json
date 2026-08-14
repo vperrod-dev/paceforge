@@ -1,5 +1,28 @@
 [
   {
+    "activity_id": 23977892447,
+    "name": "County Dublin - 7km Easy Run",
+    "activity_type": "running",
+    "start_time": "2026-08-14T19:19:02",
+    "distance_meters": 5459.02001953125,
+    "duration_seconds": 1528.5799560546875,
+    "avg_hr": 149,
+    "max_hr": 166,
+    "avg_pace_sec_per_km": 280.0,
+    "calories": 421,
+    "training_effect_aerobic": 3.200000047683716,
+    "training_effect_anaerobic": 0.0,
+    "vo2_max_value": 53.0,
+    "avg_running_cadence": 159.421875,
+    "avg_stride_length": 134.7800048828125,
+    "avg_ground_contact_time": 264.0,
+    "avg_vertical_oscillation": 10.319999694824219,
+    "avg_vertical_ratio": 7.659999847412109,
+    "avg_power": 457.0,
+    "elevation_gain": 13.230000004172325,
+    "avg_respiration_rate": null
+  },
+  {
     "activity_id": 23958256041,
     "name": "Un1t",
     "activity_type": "indoor_cardio",
