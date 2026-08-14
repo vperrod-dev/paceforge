@@ -318,6 +318,23 @@ def _generate_template_plan(
         for i in range(total_weeks):
             week_kms[i] = round(min(week_kms[i], cap), 1)
             cap *= 1.12
+        # The cap climbs monotonically, so min() only preserves a template
+        # cutback when the cap happens to sit ABOVE it — never true for a
+        # low-volume athlete, whose whole curve is cap-driven. That silently
+        # deleted every recovery week while the rest of the planner still
+        # treated them as recovery (_FOCUS_* says "Recovery week", _Q1_* hands
+        # them the strides slot, Q2 is demoted at <=3 run days), producing a
+        # RISING week with no quality session at all. Re-impose the SHAPE
+        # instead of the absolute value: a template week that steps down keeps
+        # its step-down ratio against the capped curve, so deload detection,
+        # the milestone time trial and validate's strides exemption all fire.
+        for i in range(1, total_weeks):
+            t_cur = volume_prog[min(_template_week(i) - 1, len(volume_prog) - 1)]
+            t_prev = volume_prog[min(_template_week(i - 1) - 1, len(volume_prog) - 1)]
+            if t_cur < t_prev:
+                week_kms[i] = round(
+                    min(week_kms[i], week_kms[i - 1] * (t_cur / t_prev)), 1
+                )
 
     weeks: list[TrainingWeek] = []
     for wk_idx in range(total_weeks):
