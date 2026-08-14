@@ -1,12 +1,12 @@
 {
   "date": "2026-08-14",
-  "headline": "Red day — HRV and sleep debt say protect today, and the plan already has you down for an easy 7K, not a harder session.",
-  "body_state": "Readiness 33.6 — low band, driver is sleep. HRV last night 36 ms sits below your normal range (deterministic verdict: postpone quality, easy running only today). 14-day sleep debt has built to 25 h; overnight body-battery recharge was a modest +45. This follows a real bounce: readiness climbed 52 (8/11) → 48 (8/12) → 49 (8/13) after bottoming at 11 on 8/10, then dropped back to 36 overnight. Garmin status reads Recovery. TSB is -17, still inside the -5…-30 productive-training band — fitness isn't the problem, recovery is.",
-  "session": "Today's 7 km easy run @ 4:50-5:19/km is already the right call — no quality scheduled. Keep it conversational, RPE 3-4; if HR creeps past ~75% max, slow down regardless of pace. Cadence has been sitting 154-163 spm on recent runs, below your 168-172 target — count 30 right-foot strikes per 20s and nudge it up with shorter steps, not longer ones. Nothing booked on the calendar today.",
-  "recent": "Yesterday's Un1t (41 min, avg HR 133) was a sustainable zone-2/3 stimulus but ran 3.8 min short of its 45-min booking. Aug 12's tempo run undershot harder: only 2.98 of 4 km at threshold, pace 4:38/km (6-20 s/km slow), HR topped 156 — 7 bpm under your 163 LT — despite an RPE-8 rating. That hard-feeling-but-not-actually-hard mismatch, plus a weak 13 bpm HR recovery that day, is the same under-recovery signal today's readiness verdict is flagging. Intensity distribution is still skewed (21.9% easy vs the 80% target), so grey-zone training is the throughline this week, not one bad day.",
+  "headline": "Readiness is red today (33.6/100, HRV below your normal range) — the plan's 7km easy run is exactly the right call, so keep it genuinely easy.",
+  "body_state": "Training readiness 36 (verdict score 33.6, band **low**), Garmin status **Recovery**. HRV last night 36 ms — below your normal band, and it's the readiness driver. Sleep debt is building: 25 h over the last 14 days. Overnight body battery only recharged +45, and average sleep stress sits at 28 (elevated). No illness-watch flags — skin temp is flat at 0.0°C deviation.",
+  "session": "**7km Easy Run @ 4:51-5:20/km.** RPE 3-4, conversational — if holding a conversation means the pace drifts slower than the window, let it; effort is the target, not the number. Cadence cue: nudge toward ~162-165 spm today, a step toward your 168-172 target (Tuesday's tempo sat at 154-159, well under). No quality today — the readiness verdict says postpone it, and tomorrow's 13km long run is the next thing to protect by not digging a deeper hole now.",
+  "recent": "Aug 10's easy 5K landed clean (green, HR 136 avg). Aug 11-13 leaned hard on cross-training (two Un1t classes, mostly zone 2-3, plus a 2h+ bike ride) while Tuesday's 4km Tempo Run under-delivered: only 78% of planned volume (5.43 vs 7km) and the tempo segment ran 4:38/km against a 4:18-4:32 target — HR averaged just 143 vs your 163 lactate-threshold, despite an RPE 8. That's a hard-feeling-but-not-actually-hard pattern: read it as fatigue, not fitness. It fits the week's bigger limiter — only 21.9% of running time easy against an ~80% target, with cross-training crowding the recovery days.",
   "focus": [
-    "Easy 7K only today — no quality, cap effort at RPE 3-4 / ~75% max HR.",
-    "Sleep debt is 25h over 14 days — earlier bedtime this week to pay it down.",
-    "Slow the easy days down: 21.9% easy vs 80% target is why hard sessions have been feeling harder than the numbers say."
+    "Protect today: true easy effort, let HR govern pace, not the other way round",
+    "Cadence: 162-165 spm today (step toward 168-172) — last tempo sat at 154-159",
+    "Bank the sleep debt (25h/14d) tonight — tomorrow's 13km long run needs the recovery"
   ]
 }
