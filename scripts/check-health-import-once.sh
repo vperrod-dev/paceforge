@@ -40,6 +40,4 @@ else
     MSG="PaceForge health-import check: the 9am Shortcuts automation doesn't seem to have landed (last_sync=${LAST_SYNC}). No request access-log exists to see why — worth checking the Shortcut ran and didn't error."
 fi
 
-curl -sS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
-    -d "chat_id=${TG_CHAT_ID}" \
-    --data-urlencode "text=${MSG}" > /dev/null
+TG_SENDER=paceforge-health-import "$HOME/.claude/scripts/tgsend.sh" "${MSG}" > /dev/null
