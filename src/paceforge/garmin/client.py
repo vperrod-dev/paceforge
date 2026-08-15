@@ -64,6 +64,17 @@ def _pace_writes() -> None:
         time.sleep(WRITE_PACE_SECONDS)
 
 
+# The all-day-events fallback in get_scheduled_workouts() has no range endpoint,
+# so it reads one day at a time — up to 60 back-to-back calls on the same shared
+# WARP egress. Pace them like the writes. Tests set this to 0.
+READ_PACE_SECONDS = 0.5
+
+
+def _pace_reads() -> None:
+    if READ_PACE_SECONDS:
+        time.sleep(READ_PACE_SECONDS)
+
+
 def _sport_for(workout: Workout) -> dict:
     if workout.sport == "bike":
         return _CYCLING_SPORT
@@ -844,8 +855,10 @@ class GarminClient:
         # so cap this last-resort sweep — callers pass days_ahead up to 400.
         if not scheduled:
             for d in range(min(days_ahead, 60)):
+                day = (date.today() + timedelta(days=d)).isoformat()
+                if d:
+                    _pace_reads()
                 try:
-                    day = (date.today() + timedelta(days=d)).isoformat()
                     events = self.client.get_all_day_events(day)
                     if isinstance(events, list):
                         for ev in events:
@@ -860,7 +873,10 @@ class GarminClient:
                                     "estimated_duration_seconds": ev.get("durationInSecs"),
                                     "estimated_distance_meters": None,
                                 })
-                except Exception:
+                except Exception as e:  # noqa: BLE001 - best-effort last-resort sweep
+                    if "429" in str(e):
+                        logger.warning("Rate-limited on day-events sweep at %s — stopping", day)
+                        break
                     logger.debug("Could not fetch daily events for %s", day)
                     continue
 
