@@ -1209,8 +1209,15 @@ def garmin_reconcile(client: GarminClient | None = None) -> dict:
     scheduled workout the plan doesn't own is fair game.
     """
     plan = store.load_plan()
-    if plan is not None and not plan.accepted:
-        raise RuntimeError("Plan not accepted — refusing to reconcile.")
+    if plan is not None:
+        if not plan.accepted:
+            raise RuntimeError("Plan not accepted — refusing to reconcile.")
+        # Same gate as push(): a plan that fails validation must not reach the watch,
+        # and runner's job_plan accepts a freshly scaffolded plan without checking.
+        issues = validate_plan(plan)
+        if issues:
+            raise RuntimeError("Plan failed validation — fix before pushing:\n- "
+                               + "\n- ".join(issues))
     client = client or garmin_connect()
     cal_items = store.load_calendar()
 

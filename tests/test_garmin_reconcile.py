@@ -125,6 +125,21 @@ def test_failed_orphan_delete_is_reported_not_counted():
     assert (result["orphans_deleted"], result["delete_failed"]) == (0, 2)
 
 
+def test_invalid_plan_is_refused_before_any_push():
+    plan = _plan()
+    plan.weeks[1].workouts = [
+        Workout(workout_type=WorkoutType.TEMPO, name="tempo",
+                scheduled_date=date.today() + timedelta(days=1)),
+        Workout(workout_type=WorkoutType.INTERVALS, name="intervals",
+                scheduled_date=date.today() + timedelta(days=2)),
+    ]
+    store.save_plan(plan)
+    fake = _FakeClient()
+    with pytest.raises(RuntimeError, match="failed validation"):
+        actions.garmin_reconcile(client=fake)
+    assert fake.pushed_weeks == []
+
+
 def test_reconcile_persists_push_summary_to_sync_status():
     store.save_sync_status({"schema": 1, "result": "ok"})
     store.save_plan(_plan())
