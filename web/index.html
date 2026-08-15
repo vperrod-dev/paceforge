@@ -1509,64 +1509,85 @@ async function renderToday(page) {
         <b>${iw.level === 'alert' ? 'Illness alert' : 'Illness watch'}</b> — ${escHtml((iw.signals || []).map(s => s.replace(/_/g, ' ')).join(', '))}. ${iw.level === 'alert' ? 'Skip intensity until signals clear.' : 'Overnight signals off baseline — recheck tomorrow.'}
       </div>` : '';
 
-  // ── Today's (or next) session — DATE-sorted across plan + calendar items.
-  // (The old array-order scan showed a workout two days out while the coach
-  // brief talked about today's run — the two cards contradicted each other.)
+  // ── Today's training — the calendar IS the training. Every session scheduled
+  // today, whatever the sport and whoever put it there: booked classes/rides/
+  // swims from data/calendar.json AND the running plan's contribution. The
+  // running plan is one injector into the day, never the day itself. Only when
+  // today holds nothing does the card fall forward to the next scheduled thing.
   const todayISO = new Date().toISOString().slice(0, 10);
   let sessionCard = '';
-  let todaysWo = null, todaysIdx = null, todaysItem = null;
-  const cands = [];
+  let todaysWo = null, todaysIdx = null;
+  const sched = [];
   if (plan && plan.accepted) {
     (plan.weeks || []).forEach((week, wk) => (week.workouts || []).forEach((w, wo) => {
       if (w.workout_type !== 'rest' && w.scheduled_date >= todayISO) {
-        cands.push({ date: w.scheduled_date, kind: 'plan', w, idx: [wk, wo] });
+        sched.push({ date: w.scheduled_date, kind: 'plan', w, idx: [wk, wo], done: !!w.completed });
       }
     }));
   }
   for (const it of (calItems || [])) {
-    if (it.date >= todayISO && !it.completed) {
-      cands.push({ date: it.date, kind: 'item', it });
-    }
+    if (it.date >= todayISO) sched.push({ date: String(it.date), kind: 'item', it, done: !!it.completed });
   }
-  cands.sort((a, b) => a.date.localeCompare(b.date) ||
-    (a.kind === 'plan' ? -1 : 1));   // same day: the run leads, the class follows
-  const lead = cands[0] || null;
+  sched.sort((a, b) => a.date.localeCompare(b.date) || (a.done - b.done));
+  const todaySched = sched.filter(s => s.date === todayISO);
+  // Pending first inside the day — what's left to do leads, what's banked follows.
+  todaySched.sort((a, b) => a.done - b.done);
+  const shown = todaySched.length ? todaySched : sched.slice(0, 1);
+  const isTodayCard = todaySched.length > 0;
+  const lead = shown.find(s => !s.done) || shown[0] || null;
   if (lead && lead.kind === 'plan') { todaysWo = lead.w; todaysIdx = lead.idx; }
-  else if (lead) { todaysItem = lead.it; }
-  if (todaysWo) {
-    const isToday = todaysWo.scheduled_date === todayISO;
-    const dist = todaysWo.estimated_distance_meters ? (todaysWo.estimated_distance_meters / 1000).toFixed(1) + ' km' : '';
-    const dur = todaysWo.estimated_duration_seconds ? '~' + Math.round(todaysWo.estimated_duration_seconds / 60) + ' min' : '';
-    const why = (todaysWo.briefing && todaysWo.briefing.purpose) || todaysWo.description || '';
-    sessionCard = `<div class="card" style="border-left:3px solid var(--emerald)">
-      <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>${isToday ? "Today's session" : `Next session · ${todaysWo.scheduled_date}`}</div>
-        ${todaysWo.completed ? `<span class="chip" style="background:var(--emerald-d);color:var(--emerald)">${icons.check} done</span>` : ''}</div>
-      <div style="font-size:1.25rem;font-weight:800;margin-bottom:4px">${escHtml(todaysWo.name || 'Workout')}</div>
-      <div style="font-size:.84rem;color:var(--text-2)">${escHtml((todaysWo.workout_type || '').replace(/_/g, ' '))}${dist ? ' · ' + dist : ''}${dur ? ' · ' + dur : ''}</div>
-      ${why ? `<div style="font-size:.88rem;color:var(--text-2);line-height:1.55;margin-top:10px">${escHtml(why)}</div>` : ''}
-      ${todaysWo.notes ? `<div style="margin-top:10px;padding:9px 11px;border-left:3px solid var(--sky);background:var(--elevated);border-radius:var(--r-sm);font-size:.86rem;line-height:1.5;color:var(--text-2)"><b style="color:var(--text)">Coach:</b> ${escHtml(todaysWo.notes)}</div>` : ''}
-      ${(todaysWo.steps || []).length ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:.85rem;color:var(--text-2);padding:6px 0">Step-by-step breakdown</summary>${stepListHtml(todaysWo)}</details>` : ''}
-      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
-        <button class="btn btn-primary" id="td-open-wo" style="min-height:44px">Open workout</button>
-        <button class="btn btn-outline" id="td-goto-plan" style="min-height:44px">Full plan</button>
+
+  const schedRow = (s, i) => {
+    const isLead = s === lead;
+    const meta = s.kind === 'plan'
+      ? [(s.w.workout_type || '').replace(/_/g, ' '),
+         s.w.estimated_distance_meters ? (s.w.estimated_distance_meters / 1000).toFixed(1) + ' km' : null,
+         s.w.estimated_duration_seconds ? '~' + Math.round(s.w.estimated_duration_seconds / 60) + ' min' : null]
+      : [s.it.sport, s.it.duration_min ? '~' + Math.round(s.it.duration_min) + ' min' : null];
+    const title = s.kind === 'plan' ? (s.w.name || 'Workout') : (s.it.title || s.it.sport);
+    const svg = s.kind === 'plan' ? icons.run : icons.dumbbell;
+    const icon = s.kind === 'item' && String(s.it.sport || '').toLowerCase().match(/bike|cycl/)
+      ? '🚴'
+      : `<span style="display:inline-block;width:1em;height:1em;vertical-align:-2px">${svg}</span>`;
+    const color = s.kind === 'plan' ? colorForWorkout(s.w.workout_type) : 'var(--violet)';
+    const why = s.kind === 'plan' ? ((s.w.briefing && s.w.briefing.purpose) || s.w.description || '') : (s.it.notes || '');
+    return `<div data-sched="${i}" style="display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--border-s);cursor:pointer;${s.done ? 'opacity:.6' : ''}">
+      <div style="width:3px;border-radius:2px;background:${color};flex:none"></div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+          <div style="font-weight:800;font-size:${isLead ? '1.15rem' : '.95rem'}">${icon} ${escHtml(title)}</div>
+          ${s.done ? `<span class="chip" style="background:var(--emerald-d);color:var(--emerald);white-space:nowrap">${icons.check} done</span>` : ''}</div>
+        <div style="font-size:.82rem;color:var(--text-2);margin-top:2px">${escHtml(meta.filter(Boolean).join(' · '))}</div>
+        ${isLead && why ? `<div style="font-size:.87rem;color:var(--text-2);line-height:1.55;margin-top:8px">${escHtml(why)}</div>` : ''}
+        ${isLead && s.kind === 'plan' && s.w.notes ? `<div style="margin-top:9px;padding:9px 11px;border-left:3px solid var(--sky);background:var(--elevated);border-radius:var(--r-sm);font-size:.86rem;line-height:1.5;color:var(--text-2)"><b style="color:var(--text)">Coach:</b> ${escHtml(s.w.notes)}</div>` : ''}
+        ${isLead && s.kind === 'plan' && (s.w.steps || []).length ? `<details style="margin-top:9px"><summary style="cursor:pointer;font-size:.85rem;color:var(--text-2);padding:6px 0">Step-by-step breakdown</summary>${stepListHtml(s.w)}</details>` : ''}
       </div>
-      ${!todaysWo.completed && todaysWo.scheduled_date === todayISO ? `
+    </div>`;
+  };
+
+  if (shown.length) {
+    const doneCount = todaySched.filter(s => s.done).length;
+    const sub = isTodayCard
+      ? `${todaySched.length} session${todaySched.length > 1 ? 's' : ''}${doneCount ? ` · ${doneCount} done` : ''}`
+      : `nothing today · next on ${shown[0].date}`;
+    sessionCard = `<div class="card" style="border-left:3px solid var(--emerald)">
+      <div class="card-h"><div class="card-title"><span class="ico">${icons.calendar}</span>${isTodayCard ? "Today's training" : 'Next up'}</div>
+        <span style="font-size:.74rem;color:var(--text-3)">${escHtml(sub)}</span></div>
+      ${shown.map(schedRow).join('')}
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+        ${todaysWo ? `<button class="btn btn-primary" id="td-open-wo" style="min-height:44px">Open workout</button>` : ''}
+        <button class="btn btn-outline" id="td-goto-cal" style="min-height:44px">Open calendar</button>
+        ${plan && plan.accepted ? `<button class="btn btn-ghost" id="td-goto-plan" style="min-height:44px">Running plan</button>` : ''}
+      </div>
+      ${todaysWo && !todaysWo.completed && todaysWo.scheduled_date === todayISO ? `
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" id="td-adj-tired" style="min-height:40px">😮‍💨 Not feeling 100%</button>
         <button class="btn btn-ghost btn-sm" id="td-adj-time" style="min-height:40px">⏱ Short on time</button>
         <button class="btn btn-ghost btn-sm" id="td-adj-sick" style="min-height:40px">🤒 Sick</button>
       </div>` : ''}
     </div>`;
-  } else if (todaysItem) {
-    const isToday = String(todaysItem.date) === todayISO;
-    sessionCard = `<div class="card" style="border-left:3px solid var(--violet)">
-      <div class="card-h"><div class="card-title"><span class="ico">${icons.run}</span>${isToday ? "Today's session" : `Next up · ${todaysItem.date}`}</div></div>
-      <div style="font-size:1.25rem;font-weight:800;margin-bottom:4px">${escHtml(todaysItem.title || todaysItem.sport)}</div>
-      <div style="font-size:.84rem;color:var(--text-2)">${escHtml(todaysItem.sport)} · ~${todaysItem.duration_min} min</div>
-      <div style="display:flex;gap:10px;margin-top:14px"><button class="btn btn-outline" id="td-goto-cal" style="min-height:44px">Open calendar</button></div>
-    </div>`;
   } else {
-    sessionCard = `<div class="card">${emptyState('Nothing scheduled', plan ? 'Enjoy the rest day — recovery is training.' : 'Create a plan from your goal — Plan tab.', icons.plan)}</div>`;
+    sessionCard = `<div class="card">${emptyState('Nothing scheduled', plan ? 'Enjoy the rest day — recovery is training.' : 'Book a session in the Calendar, or create a running plan from your goal.', icons.calendar)}</div>`;
   }
 
   // ── Done today — every activity done today (Garmin + app-recorded rides) ──
@@ -1661,7 +1682,7 @@ async function renderToday(page) {
         ${isToday ? '' : `<span class="chip" style="color:var(--text-3)">from ${escHtml(dailyBrief.date || '')}</span>`}</div>
       <div style="font-size:.98rem;font-weight:700;line-height:1.45">${escHtml(dailyBrief.headline)}</div>
       ${section('Your body today', dailyBrief.body_state)}
-      ${section("Today's session", dailyBrief.session)}
+      ${section("Today's training", dailyBrief.training || dailyBrief.session)}
       ${section('The last few days', dailyBrief.recent)}
       ${(dailyBrief.focus || []).length ? `
         <div class="eyebrow" style="margin:12px 0 4px">Focus</div>
@@ -1756,6 +1777,11 @@ async function renderToday(page) {
   page.querySelectorAll('[data-done-act]').forEach(el =>
     el.addEventListener('click', () => openActivity(doneToday[Number(el.dataset.doneAct)])));
   bindWeekJump(page);
+  page.querySelectorAll('[data-sched]').forEach(el => el.addEventListener('click', () => {
+    const s = shown[Number(el.dataset.sched)];
+    if (s && s.kind === 'plan') showWorkoutSheet(s.w, s.idx[0], s.idx[1]);
+    else goTab('calendar');
+  }));
   if (todaysWo) on('td-open-wo', 'click', () => showWorkoutSheet(todaysWo, todaysIdx[0], todaysIdx[1]));
   page.querySelectorAll('[data-prop-apply]').forEach(b => b.addEventListener('click', () => resolveProposal(b.dataset.propApply, 'apply')));
   page.querySelectorAll('[data-prop-reject]').forEach(b => b.addEventListener('click', () => resolveProposal(b.dataset.propReject, 'reject')));
@@ -1881,9 +1907,9 @@ async function renderCoach(page) {
     briefHtml = `<div class="card">
       <div class="card-h"><div class="card-title"><span class="ico">${icons.spark}</span>Daily brief · ${escHtml(dailyBrief.date || '')}</div></div>
       <div style="font-size:.95rem;font-weight:700;line-height:1.45">${escHtml(dailyBrief.headline)}</div>
-      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:.84rem;color:var(--emerald);padding:4px 0;min-height:24px">Read: your body · the session · the week</summary>
+      <details style="margin-top:8px"><summary style="cursor:pointer;font-size:.84rem;color:var(--emerald);padding:4px 0;min-height:24px">Read: your body · your training · the week</summary>
         ${section('Your body today', dailyBrief.body_state)}
-        ${section("Today's session", dailyBrief.session)}
+        ${section("Today's training", dailyBrief.training || dailyBrief.session)}
         ${section('The last few days', dailyBrief.recent)}
       </details>
     </div>`;

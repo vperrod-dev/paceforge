@@ -71,3 +71,20 @@ def test_no_gate_when_ready():
     plan = _plan([quality])
     assert readiness_gate(plan, {"score": 80, "band": "high"},
                           yesterday_rpe=6, today=TODAY) == []
+
+
+def test_missed_quality_does_not_land_on_a_booked_class_day():
+    """The calendar owns the day: a reflow may not stack a hard run onto a class."""
+    from datetime import date as _date
+
+    from paceforge.engine.adaptation import reflow_missed_sessions
+
+    today = _date(2026, 6, 3)          # Wednesday
+    plan = TrainingPlan(
+        name="t", goal_type="HALF_MARATHON", target_date=_date(2026, 9, 1), total_weeks=1,
+        weeks=[TrainingWeek(week_number=1, workouts=[
+            Workout(workout_type="tempo", name="Tempo", scheduled_date=_date(2026, 6, 2)),
+            Workout(workout_type="easy_run", name="Easy", scheduled_date=_date(2026, 6, 5)),
+        ])])
+    changes = reflow_missed_sessions(plan, today=today, busy_dates={_date(2026, 6, 5)})
+    assert any("Dropped" in c for c in changes), changes

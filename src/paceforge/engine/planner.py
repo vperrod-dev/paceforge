@@ -177,6 +177,7 @@ def generate_plan(
     profile: UserFitnessProfile,
     goal: TrainingGoal,
     hyrox_focus: list[str] | None = None,
+    busy_days: set[str] | None = None,
 ) -> TrainingPlan:
     """Generate a deterministic template-based training plan.
 
@@ -230,7 +231,7 @@ def generate_plan(
 
     # 2. Fill the periodised template with derived paces.
     return _generate_template_plan(profile, goal, paces, pace_source=pace_source,
-                                   athlete_summary=athlete_summary)
+                                   athlete_summary=athlete_summary, busy_days=busy_days)
 
 
 def _generate_template_plan(
@@ -240,6 +241,7 @@ def _generate_template_plan(
     *,
     pace_source: str = "",
     athlete_summary: str = "",
+    busy_days: set[str] | None = None,
 ) -> TrainingPlan:
     """Fill the periodised, running-only template with derived paces."""
 
@@ -403,6 +405,7 @@ def _generate_template_plan(
             lr_type=lr_type,
             lr_rehearsal=weeks_to_race == 3,
             time_trial_km=tt_km,
+            busy_days=busy_days,
         )
         for w in workouts:
             w.briefing = build_briefing(w, phase=phase, hyrox=compromised,
@@ -499,11 +502,14 @@ def _build_varied_week(
     lr_type: str = "long",
     lr_rehearsal: bool = False,
     time_trial_km: float | None = None,
+    busy_days: set[str] | None = None,
 ) -> list[Workout]:
     """Build a week of running workouts distributed across chosen training days.
 
     If *training_days* is provided the workouts are placed on those exact days;
     otherwise a backwards-compatible default is derived from *max_days*.
+    *busy_days* are weekday names the athlete already has booked sessions on
+    (`data/calendar.json`): quality and the long run avoid them when they can.
     *compromised* (HYROX) swaps the Q1 pool for run-under-fatigue 1km repeats;
     *week_in_phase* walks each slot's variant table forward (Canova-lever
     progression) and *deload* steps it back one. The plan is running only —
@@ -574,12 +580,27 @@ def _build_varied_week(
     sorted_days = sorted(days, key=lambda d: _DAY_OFFSETS[d])
     role_map: dict[str, str] = {}
 
+    # The plan injects into the athlete's calendar, it does not own it: weekdays
+    # they already have a session booked on (classes, rides, swims) keep the easy
+    # running. Quality and the long run move to a free day when one exists.
+    busy = {d for d in (busy_days or ()) if d in sorted_days}
+
+    def _free_day(day: str, taken: set[str]) -> str:
+        if day not in busy:
+            return day
+        alts = [d for d in sorted_days if d not in busy and d not in taken]
+        return min(alts, key=lambda d: abs(_DAY_OFFSETS[d] - _DAY_OFFSETS[day])) if alts else day
+
     # 1. Long run
     lr_day = long_run_day if long_run_day in sorted_days else sorted_days[-1]
+    lr_day = _free_day(lr_day, set())
     role_map[lr_day] = "long_run"
 
     # 2. Place Q1 and Q2 with maximum separation (not calendar-adjacent)
     remaining = [d for d in sorted_days if d not in role_map]
+    free_remaining = [d for d in remaining if d not in busy]
+    if len(free_remaining) >= 2:
+        remaining = free_remaining
     if len(remaining) >= 2:
         best_q1, best_q2 = remaining[0], remaining[-1]
         max_gap = 0

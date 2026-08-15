@@ -528,6 +528,22 @@ def _todays_calendar(day: date) -> list:
     return [i for i in store.load_calendar() if i.date == day]
 
 
+def _booked_weekdays() -> set[str]:
+    """Weekdays the athlete recurrently trains on outside the running plan.
+
+    The plan injects into the calendar, so quality and long runs should not land
+    on the athlete's standing class/ride nights. Two or more future occurrences
+    of the same weekday = a commitment; a one-off never reshapes a whole block.
+    """
+    counts: dict[str, int] = {}
+    today = date.today()
+    for item in store.load_calendar():
+        if item.date >= today:
+            day = item.date.strftime("%A").lower()
+            counts[day] = counts.get(day, 0) + 1
+    return {d for d, n in counts.items() if n >= 2}
+
+
 def _brief_telegram(day: date) -> str:
     """Telegram-HTML morning brief (parse_mode=HTML; the runner prepends the title)."""
     p = store.load_profile()
@@ -799,7 +815,8 @@ def scaffold(goal: dict) -> dict:
     if profile is None:
         raise RuntimeError("No profile — run `paceforge sync` first.")
     plan = generate_plan(profile, TrainingGoal.model_validate(goal),
-                         hyrox_focus=_hyrox_focus_stations())
+                         hyrox_focus=_hyrox_focus_stations(),
+                         busy_days=_booked_weekdays())
     store.save_plan(plan)
     return {
         "name": plan.name,
@@ -1751,7 +1768,8 @@ def adapt(dry_run: bool = False) -> dict:
         default=None,
     )
 
-    changes = reflow_missed_sessions(plan)
+    changes = reflow_missed_sessions(
+        plan, busy_dates={i.date for i in store.load_calendar() if not i.completed})
     changes += readiness_gate(plan, readiness, yesterday_rpe=yesterday_rpe)
     changes += hold_back_progression(plan)
     issues = validate_plan(plan)

@@ -708,9 +708,9 @@ def _pulse_metrics() -> dict:
         out["readiness"] = {k: rc.get(k) for k in ("score", "band") if k in rc}
     except Exception:
         pass
+    today = datetime.now(ZoneInfo("Europe/Dublin")).strftime("%Y-%m-%d")
     try:
         acts = json.loads((REPO_DIR / "data" / "activities.json").read_text())
-        today = datetime.now(ZoneInfo("Europe/Dublin")).strftime("%Y-%m-%d")
         out["done_today"] = [
             {"name": a.get("name"), "type": a.get("type"),
              "km": a.get("distance_km"), "min": a.get("duration_min")}
@@ -718,6 +718,26 @@ def _pulse_metrics() -> dict:
         ][:5]
     except Exception:
         pass
+    # Today's WHOLE schedule — booked classes/rides/swims and the running plan's
+    # contribution, so the pulse reads the day, not just the run.
+    scheduled: list[dict] = []
+    try:
+        cal = json.loads((REPO_DIR / "data" / "calendar.json").read_text())
+        scheduled += [{"name": i.get("title") or i.get("sport"), "sport": i.get("sport"),
+                       "min": i.get("duration_min"), "done": bool(i.get("completed"))}
+                      for i in cal if str(i.get("date")) == today]
+    except Exception:
+        pass
+    try:
+        plan = json.loads((REPO_DIR / "data" / "plan.json").read_text())
+        scheduled += [{"name": wo.get("name"), "sport": wo.get("sport") or "run",
+                       "km": (wo.get("estimated_distance_meters") or 0) / 1000 or None,
+                       "done": bool(wo.get("completed"))}
+                      for wk in plan.get("weeks", []) for wo in wk.get("workouts", [])
+                      if wo.get("scheduled_date") == today and wo.get("workout_type") != "rest"]
+    except Exception:
+        pass
+    out["scheduled_today"] = scheduled
     return out
 
 
@@ -738,13 +758,16 @@ def job_day_pulse(run: Run, inputs: dict) -> None:
     hour = int(slot[-2:]) if slot[-2:].isdigit() else 12
     part = "late morning" if hour < 13 else ("afternoon" if hour < 18 else "evening")
     prompt = (
-        f"You are the athlete's running coach doing a quick {part} check-in. "
-        f"This morning's brief said: {json.dumps({k: brief.get(k) for k in ('headline', 'session') if brief.get(k)})}. "
+        f"You are the athlete's coach doing a quick {part} check-in. You coach their "
+        "WHOLE training calendar — booked classes, rides, swims and gym work count "
+        "exactly as much as the running plan's sessions; `scheduled_today` is the day. "
+        f"This morning's brief said: {json.dumps({k: brief.get(k) for k in ('headline', 'training', 'session') if brief.get(k)})}. "
         f"Current wearable metrics: {json.dumps(metrics)}. "
         "Earlier pulses today: "
         f"{json.dumps([{'slot': p['slot'], 'text': p['text']} for p in brief.get('pulses', [])]) or 'none'}. "
         "Write 2-4 short sentences on how the day is trending — energy/body battery "
-        "trajectory, stress, whether the planned session still fits, and one concrete "
+        "trajectory, stress, whether what is still scheduled today (any sport) fits, "
+        "and one concrete "
         "tip for the rest of the day. Plain text, no markdown, no preamble, "
         "second person ('your')."
     )
@@ -1480,27 +1503,34 @@ class Handler(BaseHTTPRequestHandler):
                     out["headline"] = str(brief.get("headline") or "")[:120]
             except Exception:
                 pass
+            # The whole day, not the run: booked calendar items and plan workouts
+            # rank equally — the first one still to do wins the glance.
+            day: list[dict] = []
+            try:
+                cal = json.loads((REPO_DIR / "data" / "calendar.json").read_text())
+                day += [{"name": str(i.get("title") or i.get("sport") or "")[:60],
+                         "detail": f"~{i.get('duration_min', 45):.0f} min",
+                         "done": bool(i.get("completed"))}
+                        for i in cal if str(i.get("date")) == out["date"]]
+            except Exception:
+                pass
             try:
                 plan = json.loads((REPO_DIR / "data" / "plan.json").read_text())
                 for wk in plan.get("weeks", []):
                     for wo in wk.get("workouts", []):
                         if (wo.get("scheduled_date") == out["date"]
                                 and wo.get("workout_type") != "rest"):
-                            out["session"] = str(wo.get("name") or "")[:60]
                             km = (wo.get("estimated_distance_meters") or 0) / 1000
-                            out["detail"] = (f"{km:.1f} km" if km else "")
-                            break
+                            day.append({"name": str(wo.get("name") or "")[:60],
+                                        "detail": f"{km:.1f} km" if km else "",
+                                        "done": bool(wo.get("completed"))})
             except Exception:
                 pass
-            if not out["session"]:
-                try:
-                    cal = json.loads((REPO_DIR / "data" / "calendar.json").read_text())
-                    it = next((i for i in cal if str(i.get("date")) == out["date"]), None)
-                    if it:
-                        out["session"] = str(it.get("title") or it.get("sport") or "")[:60]
-                        out["detail"] = f"~{it.get('duration_min', 45)} min"
-                except Exception:
-                    pass
+            lead = next((s for s in day if not s["done"]), day[0] if day else None)
+            if lead:
+                left = len([s for s in day if not s["done"]]) - (0 if lead["done"] else 1)
+                out["session"] = lead["name"]
+                out["detail"] = lead["detail"] + (f" +{left} more" if left > 0 else "")
             return self._send(200, out)
         if path == "/watch-targets":
             tok = os.environ.get("PF_WATCH_TOKEN", "")

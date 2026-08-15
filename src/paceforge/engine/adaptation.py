@@ -7,13 +7,17 @@ from datetime import date, timedelta
 from paceforge.models.plan import TrainingPlan, Workout, WorkoutType
 
 
-def reflow_missed_sessions(plan: TrainingPlan, today: date | None = None) -> list[str]:
+def reflow_missed_sessions(plan: TrainingPlan, today: date | None = None,
+                           busy_dates: set[date] | None = None) -> list[str]:
     """Move this week's missed quality session into a later easy slot, same week.
 
     No "punishment" catch-up: one missed quality session moves forward onto an
     easy day if the spacing rules survive; if the week has no safe slot it is
     simply dropped (the note records that). Never stacks two hard days.
-    Mutates the plan in place; returns human-readable change descriptions.
+    *busy_dates* are days the athlete already has a booked session on
+    (``data/calendar.json``) — the plan does not get to drop a hard run on top
+    of a class it did not schedule. Mutates the plan in place; returns
+    human-readable change descriptions.
     """
     from paceforge.engine.validate import INTENSE_TYPES
 
@@ -26,6 +30,7 @@ def reflow_missed_sessions(plan: TrainingPlan, today: date | None = None) -> lis
             continue
         hard_dates = {w.scheduled_date for w in dated
                       if w.workout_type in INTENSE_TYPES and not _is_missed(w, today)}
+        booked = busy_dates or set()
         for missed in dated:
             if not (_is_missed(missed, today) and missed.workout_type in INTENSE_TYPES):
                 continue
@@ -33,6 +38,7 @@ def reflow_missed_sessions(plan: TrainingPlan, today: date | None = None) -> lis
                 (w for w in dated
                  if w.scheduled_date > today
                  and w.workout_type in (WorkoutType.EASY_RUN, WorkoutType.RECOVERY)
+                 and w.scheduled_date not in booked
                  and not _adjacent_to_hard(w.scheduled_date, hard_dates)),
                 None,
             )

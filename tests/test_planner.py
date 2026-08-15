@@ -241,3 +241,28 @@ def test_time_trial_lands_on_deload_and_strips_q2():
     for wk in tt_weeks:
         quality = [w for w in wk.workouts if w.workout_type in INTENSE_TYPES]
         assert len(quality) == 1, f"TT week {wk.week_number} has extra quality: {[w.name for w in quality]}"
+
+
+def test_quality_avoids_the_athletes_booked_class_days():
+    """The plan injects into the calendar: standing class days keep the easy runs."""
+    from paceforge.engine.validate import INTENSE_TYPES
+
+    goal = _make_goal(training_days=["tuesday", "wednesday", "thursday", "saturday", "sunday"])
+    plan = generate_plan(_make_profile(), goal, busy_days={"tuesday", "thursday"})
+    hard_weekdays = {
+        w.scheduled_date.strftime("%A").lower()
+        for wk in plan.weeks for w in wk.workouts
+        if w.scheduled_date and w.workout_type in INTENSE_TYPES
+    }
+    assert not hard_weekdays & {"tuesday", "thursday"}
+
+
+def test_long_run_moves_off_a_booked_day():
+    goal = _make_goal(long_run_day="sunday")
+    plan = generate_plan(_make_profile(), goal, busy_days={"sunday"})
+    lr_days = {
+        w.scheduled_date.strftime("%A").lower()
+        for wk in plan.weeks for w in wk.workouts
+        if w.scheduled_date and w.workout_type == WorkoutType.LONG_RUN
+    }
+    assert "sunday" not in lr_days
