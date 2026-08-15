@@ -1,12 +1,12 @@
 {
   "date": "2026-08-15",
-  "headline": "Readiness verdict is red today — HRV's still below range and sleep debt is building, so today is about protecting recovery, not adding load.",
-  "body_state": "Fitness 2.0's composite reads 37.4/low, driven by sleep: HRV sat at 37ms (below your personal band) off 6.1h of sleep (score 72), and 14-day sleep debt is now ~25h. Body Battery started the day at 38 (only +37 overnight recharge). TSB is -16.0, and Garmin's own tag says \"Productive\" — CTL/TSB genuinely sit in the optimal training band — but the recovery layer overrides that: HRV and sleep debt say protect today, not push it.",
-  "session": "No running-plan session is scheduled today — the long run is tomorrow. The calendar has \"Un1t training\" (Cardio, 45min) booked. Given the red verdict, treat it as controlled aerobic work: keep effort conversational, not the RPE 6-8 grey-zone intensity Un1t sessions have run at recently. If it can't stay easy, better to skip or shorten it than stack another moderate-hard day on a 25h sleep debt.",
-  "recent": "Thursday's easy run (planned 7km) was cut to 5.46km at 4:40/km with HR 149 — high for \"easy\" and a sign fatigue was already stacking; Wednesday's 4km tempo also came in short (5.43km) at 4:48/km, closer to easy pace than the 4:18-4:32/km threshold target. Both read yellow (78% of planned volume). Two Un1t cardio sessions (Aug 11, 13) added moderate-hard load in between. The pattern the week-review already flagged — grey-zone training crowding out true easy — is repeating.",
+  "headline": "Readiness stayed red and today's Un1t class still ran hot (70% in Z3-Z4) — the grey-zone pattern the week-review flagged is repeating. Protect tonight's sleep before tomorrow's long run.",
+  "body_state": "Fitness 2.0's composite reads 38.1/low, driven by sleep: HRV 37ms overnight (below your personal band), sleep score 72 off just 6.1h, and 14-day sleep debt now ~25h. Body Battery started at 38, only +37 overnight recharge. TSB sits at -14.15 — genuinely inside the -5…-30 productive band, and Garmin tags training status \"Productive\" — but the recovery layer overrides that: HRV and sleep debt say protect today regardless of what the load number says.",
+  "session": "No running-plan session today — the 13km long run is tomorrow (08-16). The calendar's \"Un1t training\" (45min Cardio) already ran this morning and is logged: 70% of it sat in Z3-Z4 (avg HR 135, max 178), the same moderate-hard intensity Un1t sessions have carried all month — landing on exactly the day the readiness call said \"easy running only.\" That's done and can't be undone. What matters now is adding nothing else today and giving tonight's sleep the best shot at recovering before tomorrow's long run — check HRV/Battery in the morning before committing to it at full length.",
+  "recent": "Grey-zone pattern continuing: Thursday's easy run (planned 7km) was cut to 5.46km and finished at 4:28/km, HR 159-166 — a fast, non-easy finish on a readiness-36 day. Wednesday's tempo also undershot (5.43km vs 7km) and never reached threshold HR (143 vs LT 163) despite RPE 8 — a fatigue signal, not a fitness one. Tuesday's and today's Un1t classes both ran 50-70% of their time in zone 3-4. Four candidate \"easy\" sessions this week, none of them actually easy — the week-review's grey-zone limiter is the through-line.",
   "focus": [
-    "No intensity today — HRV still below range, ~25h sleep debt",
-    "Keep Un1t (if done) genuinely easy, not RPE 6-8",
-    "Tomorrow's 13km long run only goes ahead if HRV/Battery have recovered overnight"
+    "Nothing more today — sleep debt (~25h) is the real limiter, not training load",
+    "Gate tomorrow's 13km long run on morning HRV/Battery, not just the calendar",
+    "Un1t keeps landing Z3-Z4 on red days — self-pace it down or skip when the morning call says easy"
   ]
 }
