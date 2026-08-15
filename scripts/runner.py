@@ -45,6 +45,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
@@ -56,6 +57,15 @@ from paceforge.store import _WRITE_LOCK, _raw_write
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 VENV_BIN = REPO_DIR / ".venv" / "bin"
+
+# Every Telegram sender on the claude-dev VM shares one send ledger so the same
+# message cannot arrive twice from two different reporters. Optional by design:
+# on any other machine the module is absent and telegram() just sends.
+sys.path.insert(0, str(Path.home() / ".claude" / "scripts"))
+try:
+    import tgdedupe as _tgdedupe
+except Exception:
+    _tgdedupe = None
 STATE_DIR = Path(os.environ.get("PACEFORGE_RUNNER_STATE", Path.home() / ".local/state/paceforge-runner"))
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", str(Path.home() / ".local/bin/claude"))
 PORT = int(os.environ.get("PACEFORGE_RUNNER_PORT", "8123"))
@@ -186,6 +196,11 @@ def telegram(text: str, pre: bool = False, title: str = "", html: bool = False) 
     tok, chat = os.environ.get("TG_TOKEN"), os.environ.get("TG_CHAT_ID")
     if not tok or not chat:
         return
+    # Shared with every other Telegram sender on the box (nightly scan, health
+    # probes, the notification bus) so the same brief cannot arrive twice when
+    # two things report the same event. Absent off that box — then no guard.
+    if _tgdedupe and _tgdedupe.seen(f"{title}\n{text}"):
+        return
     api = f"https://api.telegram.org/bot{tok}/sendMessage"
     if html:   # text is already Telegram-HTML — send as-is
         payload = (f"<b>{title}</b>\n{text}" if title else text)[:3900]
@@ -194,14 +209,22 @@ def telegram(text: str, pre: bool = False, title: str = "", html: bool = False) 
         payload = f"<b>{title}</b>\n<pre>{esc}</pre>" if pre else esc
 
     def send(body: dict) -> bool:
+        """True when this message needs nothing further — delivered, or failed
+        in a way a plain-text resend cannot fix."""
         data = urllib.parse.urlencode(body).encode()
         try:
             with urllib.request.urlopen(urllib.request.Request(api, data=data), timeout=30) as r:
                 return b'"ok":true' in r.read()
+        except urllib.error.HTTPError:
+            return False   # Telegram rejected the payload — plain text may pass
         except Exception:
-            return False
-    # HTML-rejection must not drop the message: resend plain.
-    if not send({"chat_id": chat, "text": payload, "parse_mode": "HTML", "disable_web_page_preview": "true"}):
+            return True    # timeout/reset: it may well have been delivered
+    # HTML-rejection must not drop the message: resend plain. Only on a real
+    # rejection though — `send` also returns False on a timeout, and a request
+    # that timed out client-side may already have been delivered, so retrying
+    # there is how one brief arrived twice.
+    if not send({"chat_id": chat, "text": payload, "parse_mode": "HTML",
+                 "disable_web_page_preview": "true"}, retry_worthy=True):
         plain = re.sub(r"<[^>]+>", "", text) if html else text
         send({"chat_id": chat, "text": f"{title}\n{plain}"[:3900], "disable_web_page_preview": "true"})
 
