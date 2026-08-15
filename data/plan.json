@@ -151,7 +151,7 @@
           "sport": "run",
           "name": "13km Long Run",
           "description": "Steady long run building endurance and mental toughness at easy pace.",
-          "scheduled_date": "2026-08-15",
+          "scheduled_date": "2026-08-16",
           "estimated_duration_seconds": 3898.982360319556,
           "estimated_distance_meters": 13400.0,
           "steps": [
@@ -184,7 +184,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1663903855,
+          "garmin_workout_id": 1664661855,
           "variant_key": null,
           "user_rpe": null,
           "user_notes": null
