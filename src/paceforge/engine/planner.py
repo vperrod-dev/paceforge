@@ -563,6 +563,13 @@ def _build_varied_week(
     if week_km < 12 and q1_type not in ("easy_with_strides",):
         q1_type = "easy_with_strides"
 
+    # Base rotates strides through the Q1 slot on purpose (economy work early).
+    # Demoting Q2 on top of that leaves a normal week with no real session at
+    # all — the exact "only easy running" week validate_plan rejects — so the
+    # threshold slot stays whenever Q1 is itself not a quality session.
+    if demote_q2 and q1_type == "easy_with_strides" and week_km >= 12:
+        demote_q2 = False
+
     # ── Assign roles to training days ────────────────────────────────
     sorted_days = sorted(days, key=lambda d: _DAY_OFFSETS[d])
     role_map: dict[str, str] = {}
