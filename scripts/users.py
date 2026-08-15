@@ -50,7 +50,6 @@ UNITS = ("paceforge-runner@{n}", "paceforge-sync@{n}.timer",
 # is shared and installs paceforge editable from the main checkout, so the Python
 # package is already the same code everywhere.
 CODE_DIRS = ("web", "scripts", "ops", ".claude", "data/bike/workouts")
-KEEP_IN_DATA = ("data/bike/workouts/",)   # shipped workout library, not athlete data
 # The instance name lands in a URL path, a systemd unit name, a filename and the
 # Caddyfile — validate once, here, and everything downstream is safe.
 BAD_NAME = "name must be lowercase letters/digits/dashes, 2-21 chars, e.g. 'alice'"
@@ -71,6 +70,34 @@ def git_commit(cwd: Path, msg: str) -> bool:
     run(["git", "-c", "user.name=paceforge-bot", "-c", "user.email=bot@paceforge.local",
          "commit", "-qm", msg], cwd=cwd)
     return True
+
+
+def copy_code(dest: Path) -> None:
+    """Mirror the main checkout's code into an instance. Data files never travel."""
+    for rel in CODE_DIRS:
+        if (MAIN / rel).exists():
+            (dest / rel).parent.mkdir(parents=True, exist_ok=True)
+            run(["rsync", "-a", "--delete", f"{MAIN / rel}/", f"{dest / rel}/"])
+    # The sensitive-data block is the reason this is copied and not left to the
+    # instance's own drift: an instance provisioned before an entry was added
+    # would otherwise keep committing the file that entry exists to stop.
+    shutil.copy2(MAIN / ".gitignore", dest / ".gitignore")
+
+
+def init_instance_repo(dest: Path, name: str) -> None:
+    """Build an instance's checkout on an empty git history.
+
+    Never a clone of MAIN: cloning and scrubbing the data afterwards leaves
+    Victor's `data/` in the pre-scrub commit, readable forever with `git show`.
+    The history has to start with nothing so it can only ever hold this athlete's
+    data. No remote either — nothing may push one athlete's data into another's
+    repo, and code updates arrive by file copy (see `update`).
+    """
+    branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=MAIN)
+    run(["git", "init", "--quiet", "-b", branch, str(dest)])
+    copy_code(dest)
+    (dest / "data").mkdir(exist_ok=True)
+    git_commit(dest, f"instance: {name}")
 
 
 def instances() -> list[str]:
@@ -156,29 +183,14 @@ def cmd_add(args: argparse.Namespace) -> None:
     port = args.port or free_port()
     password = args.password or secrets.token_urlsafe(12)
 
-    print(f"→ cloning {MAIN} → {dest}")
-    branch = run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=MAIN)
+    print(f"→ building {dest} from {MAIN}'s code")
     USERS.mkdir(parents=True, exist_ok=True)
-    run(["git", "clone", "--quiet", "--depth", "1", "--branch", branch,
-         f"file://{MAIN}", str(dest)])
-    # No remotes at all: the instance's git is its own data history on this VM,
-    # and nothing may ever push an athlete's data into another's repo. Code
-    # updates arrive by file copy instead (see `update`).
-    run(["git", "remote", "remove", "origin"], cwd=dest)
-
-    print("→ clearing the inherited athlete data")
-    tracked = [t for t in run(["git", "ls-files", "data", "plan.md", "week-review.md"],
-                              cwd=dest).split("\n")
-               if t and not t.startswith(KEEP_IN_DATA)]
-    if tracked:
-        run(["git", "rm", "-rq", "--", *tracked], cwd=dest)
-    (dest / "data").mkdir(exist_ok=True)
-    git_commit(dest, f"instance: fresh data for {name}")
+    init_instance_repo(dest, name)
 
     # The venv is shared: paceforge is installed editable, so every instance runs
     # the main checkout's Python code and a fix lands everywhere at once. Only
-    # runner.py, web/ and .claude/ come from the clone (runner.py resolves its own
-    # path to find the instance root, so it cannot be a symlink).
+    # runner.py, web/ and .claude/ come from the instance's own copy (runner.py
+    # resolves its own path to find the instance root, so it cannot be a symlink).
     (dest / ".venv").symlink_to(MAIN / ".venv")
 
     state_dir = HOME / ".local" / "state" / f"paceforge-{name}"
@@ -259,10 +271,7 @@ def cmd_update(args: argparse.Namespace) -> None:
     """
     for name in ([args.name] if args.name else instances()):
         dest = USERS / name
-        for rel in CODE_DIRS:
-            if (MAIN / rel).exists():
-                (dest / rel).parent.mkdir(parents=True, exist_ok=True)
-                run(["rsync", "-a", "--delete", f"{MAIN / rel}/", f"{dest / rel}/"])
+        copy_code(dest)
         _backfill_internal_port(name)
         changed = git_commit(dest, f"code: sync from {MAIN.name} @ "
                                    f"{run(['git', 'rev-parse', '--short', 'HEAD'], cwd=MAIN)}")

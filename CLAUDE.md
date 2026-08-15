@@ -56,7 +56,7 @@ Garmin client can cross between athletes. Victor's own instance is unchanged:
 (`telegram()` no-ops without `TG_*`, so friends simply get none).
 
 ```bash
-scripts/users.py add alice        # clone + env + units + Caddy route, prints the password
+scripts/users.py add alice        # fresh repo + env + units + Caddy route, prints the password
 scripts/users.py list
 scripts/users.py update [alice]   # copy code from this checkout into instances, restart
 scripts/users.py remove alice --yes
@@ -113,7 +113,11 @@ no-remote checkouts, forks, CI artifacts, or patch/diff outputs):
   (auto-repair commit `58c38b6`, reverted). Same for `data/analyses/`, which must
   stay OUT of `.gitignore`.
 - `scripts/users.py` already provisions each friend with their own isolated checkout
-  and `data/` — no remote, so pushes cannot accidentally expose data.
+  and `data/` — no remote, so pushes cannot accidentally expose data. It builds that
+  checkout on an **empty** git history (`init_instance_repo`), never a clone of this
+  one: until 2026-08-15 it cloned and scrubbed the data in a follow-up commit, which
+  left Victor's `data/` readable in every instance's root commit (`git show`).
+  `nunoduarte`'s history was rewritten on 2026-08-15 to strip those blobs.
 - Before attaching or publishing diffs, patches, or screenshots, sanitize/redact
   these files. If history already contains sensitive commits, assume exposure and
   rotate tokens / review access rather than depending on a simple history rewrite.

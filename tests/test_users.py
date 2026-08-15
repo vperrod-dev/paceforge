@@ -48,6 +48,36 @@ def test_name_re_rejects_invalid_names(name):
     assert not users.NAME_RE.match(name)
 
 
+# ── provisioning a new instance ─────────────────────────────────────────────
+
+def git(cwd: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True,  # noqa: S603, S607
+                          text=True, check=True).stdout.strip()
+
+
+@pytest.fixture()
+def fake_main(tmp_path, monkeypatch):
+    """A stand-in main checkout: code, plus athlete data committed to its history."""
+    main = tmp_path / "main"
+    for rel, body in [("web/index.html", "<html>"),
+                      ("scripts/runner.py", "# runner"),
+                      ("ops/paceforge-runner@.service", "[Unit]"),
+                      (".claude/skills/coach/SKILL.md", "# coach"),
+                      ("data/bike/workouts/index.json", "[]"),
+                      ("data/profile.json", '{"name": "Victor"}'),
+                      (".gitignore", "data/profile.json\n")]:
+        p = main / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(body)
+    git(main.parent, "init", "--quiet", "-b", "master", str(main))
+    # -f because .gitignore lists profile.json: it is ignored-but-tracked in the
+    # real checkout, which is exactly how it reached a clone's history.
+    git(main, "add", "-Af")
+    git(main, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init")
+    monkeypatch.setattr(users, "MAIN", main)
+    return main
+
+
 # ── Caddyfile edit/removal ──────────────────────────────────────────────────
 
 ANCHOR = "\thandle_path /paceforge* {\n\t\treverse_proxy 127.0.0.1:8123\n\t}\n"
@@ -109,6 +139,40 @@ def test_drop_for_an_absent_name_is_a_no_op_that_writes_nothing(caddy):
     users.caddy_edit(drop="ghost")
 
     assert caddy.written is None
+
+
+def test_provisioning_never_carries_the_main_checkouts_history(fake_main, tmp_path):
+    # The bug this guards: `add` used to clone MAIN and delete the data in a second
+    # commit, so `git show <root>:data/profile.json` still returned Victor's health
+    # data in every friend's checkout.
+    dest = tmp_path / "alice"
+    users.init_instance_repo(dest, "alice")
+
+    assert git(dest, "log", "--all", "--oneline", "--", "data/profile.json") == ""
+    assert git(dest, "rev-list", "--count", "HEAD") == "1"
+
+
+def test_provisioning_leaves_no_remote_to_push_an_athletes_data_to(fake_main, tmp_path):
+    dest = tmp_path / "alice"
+    users.init_instance_repo(dest, "alice")
+
+    assert git(dest, "remote") == ""
+
+
+def test_provisioning_copies_the_code_but_none_of_the_athlete_data(fake_main, tmp_path):
+    dest = tmp_path / "alice"
+    users.init_instance_repo(dest, "alice")
+
+    tracked = git(dest, "ls-files").splitlines()
+    assert [t for t in tracked if t.startswith("data/")] == ["data/bike/workouts/index.json"]
+    assert "scripts/runner.py" in tracked
+
+
+def test_provisioning_copies_the_gitignores_sensitive_data_block(fake_main, tmp_path):
+    dest = tmp_path / "alice"
+    users.init_instance_repo(dest, "alice")
+
+    assert "data/profile.json" in (dest / ".gitignore").read_text()
 
 
 def test_drop_with_a_truncated_block_fails_safe_instead_of_eating_the_next_block(caddy):

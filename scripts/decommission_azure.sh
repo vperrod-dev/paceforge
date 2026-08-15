@@ -23,8 +23,34 @@ if [ "${1:-}" != "--yes" ]; then
   [ "$confirm" = "delete" ] || { echo "Aborted."; exit 1; }
 fi
 
-az webapp delete --resource-group "$RG" --name paceforge-dev  || echo "paceforge-dev: not found / already gone"
-az webapp delete --resource-group "$RG" --name paceforge-app  || echo "paceforge-app: not found / already gone"
-az acr  delete  --resource-group "$RG" --name paceforgeacr --yes || echo "paceforgeacr: not found / already gone"
+failed=0
+
+# This script's whole job is confirming the bill stopped, so a delete that failed
+# because the login expired or the role lacks permission must never read the same
+# as a resource that is genuinely gone — only Azure's own not-found error counts
+# as "already gone", everything else is a resource that may still be billing.
+delete_resource() {
+  local label="$1"; shift
+  local out rc=0
+  out=$("$@" 2>&1) || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "$label: deleted"
+  elif printf '%s' "$out" | grep -qiE 'ResourceNotFound|was not found|does not exist'; then
+    echo "$label: already gone"
+  else
+    echo "$label: DELETE FAILED (az exit $rc) — assume it is STILL BILLING" >&2
+    printf '%s\n' "$out" >&2
+    failed=1
+  fi
+}
+
+delete_resource paceforge-dev  az webapp delete --resource-group "$RG" --name paceforge-dev
+delete_resource paceforge-app  az webapp delete --resource-group "$RG" --name paceforge-app
+delete_resource paceforgeacr   az acr delete --resource-group "$RG" --name paceforgeacr --yes
+
+if [ "$failed" -ne 0 ]; then
+  echo "NOT done — at least one resource was not deleted. Fix the errors above and re-run." >&2
+  exit 1
+fi
 
 echo "Done. Check the Azure portal Cost Management to confirm nothing is still billing."
