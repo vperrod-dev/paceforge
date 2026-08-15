@@ -165,6 +165,16 @@ class TestInjurySpike:
         out = compute_injury_spike(acts)
         assert out["spikes"] == []
 
+    def test_run_outside_lookback_window_is_ignored(self):
+        """A long run older than 30 days no longer counts as the prior longest."""
+        acts = [
+            _run(0, dur_min=90, hr=140, dist_m=20000),
+            _run(40, dur_min=30, hr=140, dist_m=5000),
+            _run(43, dur_min=70, hr=140, dist_m=12000),
+        ]
+        out = compute_injury_spike(acts)
+        assert [s["activity_id"] for s in out["spikes"]] == [43]
+
 
 # ── 6. HRV ───────────────────────────────────────────────────────────
 

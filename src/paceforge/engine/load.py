@@ -352,17 +352,14 @@ def compute_injury_spike(activities: list) -> dict[str, Any]:
         return {"availability": _accumulating(len(runs), 2), "spikes": []}
 
     spikes = []
+    lo = 0  # runs are sorted, so the 30-day window's left edge only moves forward
     for i, run in enumerate(runs):
-        st = run.start_time
-        cutoff = st - timedelta(days=_INJURY_LOOKBACK_DAYS)
-        prior = [
-            p.distance_meters
-            for p in runs[:i]
-            if p.start_time >= cutoff
-        ]
-        if not prior:
+        cutoff = run.start_time - timedelta(days=_INJURY_LOOKBACK_DAYS)
+        while lo < i and runs[lo].start_time < cutoff:
+            lo += 1
+        if lo == i:
             continue
-        longest = max(prior)
+        longest = max(p.distance_meters for p in runs[lo:i])
         if longest <= 0:
             continue
         pct = (run.distance_meters - longest) / longest * 100
