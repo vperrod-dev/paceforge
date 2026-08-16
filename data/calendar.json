@@ -23,7 +23,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494376,
+  "garmin_workout_id": 1666412057,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -36,7 +36,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494381,
+  "garmin_workout_id": 1666412075,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -49,7 +49,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494391,
+  "garmin_workout_id": 1666412092,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -88,7 +88,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494403,
+  "garmin_workout_id": 1666412120,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -101,7 +101,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494413,
+  "garmin_workout_id": 1666412140,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -114,7 +114,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494430,
+  "garmin_workout_id": 1666412167,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -168,7 +168,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494441,
+  "garmin_workout_id": 1666412192,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -181,7 +181,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494446,
+  "garmin_workout_id": 1666412246,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -194,7 +194,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494455,
+  "garmin_workout_id": 1666412319,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -248,7 +248,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494460,
+  "garmin_workout_id": 1666412342,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -261,7 +261,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494465,
+  "garmin_workout_id": 1666412361,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -274,7 +274,7 @@
   "distance_km": null,
   "notes": "",
   "source": "manual",
-  "garmin_workout_id": 1665494475,
+  "garmin_workout_id": 1666412410,
   "matched_activity_ids": [],
   "completed": false
  },
@@ -318,5 +318,18 @@
    "23940503930"
   ],
   "completed": true
+ },
+ {
+  "item_id": "88d46af1",
+  "date": "2026-08-17",
+  "sport": "Bike",
+  "title": "Indoor cycling",
+  "duration_min": 45,
+  "distance_km": null,
+  "notes": "",
+  "source": "manual",
+  "garmin_workout_id": null,
+  "matched_activity_ids": [],
+  "completed": false
  }
 ]
