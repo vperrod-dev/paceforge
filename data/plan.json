@@ -144,50 +144,6 @@
           "variant_key": "q2:tempo:0",
           "user_rpe": 8,
           "user_notes": null
-        },
-        {
-          "session_id": "6b1780a6",
-          "workout_type": "long_run",
-          "sport": "run",
-          "name": "13km Long Run",
-          "description": "Steady long run building endurance and mental toughness at easy pace.",
-          "scheduled_date": "2026-08-16",
-          "estimated_duration_seconds": 3898.982360319556,
-          "estimated_distance_meters": 13400.0,
-          "steps": [
-            {
-              "step_type": "active",
-              "description": "13.4 km easy",
-              "duration_seconds": null,
-              "distance_meters": 13400.0,
-              "target_type": "pace",
-              "target_low": 290.96883285966834,
-              "target_high": 319.77506628773466,
-              "repeat_count": null,
-              "steps": null,
-              "pace_key": "easy"
-            }
-          ],
-          "notes": "",
-          "briefing": {
-            "purpose": "Endurance — time on feet grows capillaries, fat metabolism and durability. Unstructured on purpose: no targets, run to feel, switch off.",
-            "structure": "13.4 km easy @ 4:50-5:19/km",
-            "feel": "Relaxed, conversational. The watch stays quiet today — that's the point.",
-            "if_wrong": "Fading late is normal early in a plan; walk breaks beat abandoning. Feeling great ≠ speed up — save it for the structured long runs.",
-            "cue": "Check posture every ~15min: tall hips, relaxed shoulders, quiet feet."
-          },
-          "purpose": "endurance",
-          "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
-          "manual_activity_ids": [],
-          "excluded_activity_ids": [],
-          "completion_analysis": null,
-          "completion_metrics": null,
-          "garmin_workout_id": 1665494148,
-          "variant_key": null,
-          "user_rpe": null,
-          "user_notes": null
         }
       ],
       "focus": "4km Tempo Run",
