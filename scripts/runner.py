@@ -192,7 +192,12 @@ def publish(run: Run | None = None) -> None:
         _log("build_site_data.py failed — derived data is stale; job continues")
 
 
-def telegram(text: str, pre: bool = False, title: str = "", html: bool = False) -> None:
+def telegram(text: str, pre: bool = False, title: str = "", html: bool = False,
+             silent: bool = False) -> None:
+    """silent=True lands in the chat without a sound (Telegram's
+    disable_notification): briefs, reviews, "synced N workouts" — read when
+    convenient. Loud is for things that need Victor: MFA prompt, sign-in
+    failed, sync FAILED."""
     tok, chat = os.environ.get("TG_TOKEN"), os.environ.get("TG_CHAT_ID")
     if not tok or not chat:
         return
@@ -223,10 +228,12 @@ def telegram(text: str, pre: bool = False, title: str = "", html: bool = False) 
     # rejection though — `send` also returns False on a timeout, and a request
     # that timed out client-side may already have been delivered, so retrying
     # there is how one brief arrived twice.
+    quiet = {"disable_notification": "true"} if silent else {}
     if not send({"chat_id": chat, "text": payload, "parse_mode": "HTML",
-                 "disable_web_page_preview": "true"}):
+                 "disable_web_page_preview": "true", **quiet}):
         plain = re.sub(r"<[^>]+>", "", text) if html else text
-        send({"chat_id": chat, "text": f"{title}\n{plain}"[:3900], "disable_web_page_preview": "true"})
+        send({"chat_id": chat, "text": f"{title}\n{plain}"[:3900],
+              "disable_web_page_preview": "true", **quiet})
 
 
 def claude_step(run: Run, prompt: str, tools: str, max_turns: int = 200,
@@ -313,7 +320,7 @@ def garmin_login_start(email: str, password: str) -> None:
                     # the tokens — dump them the same way complete_mfa() does.
                     client._client.client.dump(str(td))  # noqa: SLF001
                     _garmin_finish()
-                    telegram("🏃 PaceForge: Garmin connected — full sync is running.")
+                    telegram("🏃 PaceForge: Garmin connected — full sync is running.", silent=True)
                 return
             except Exception as e:
                 msg = f"{type(e).__name__}: {e}"
@@ -508,7 +515,8 @@ def reconcile_garmin(run: Run) -> None:
     counts = (r.get("pushed", 0), r.get("stale_deleted", 0), r.get("orphans_deleted", 0), failed)
     if any(counts):
         telegram(f"🗓 Garmin calendar synced: {counts[0]} pushed, {counts[1]} stale removed, "
-                 f"{counts[2]} orphans removed" + (f", {failed} FAILED" if failed else ""))
+                 f"{counts[2]} orphans removed" + (f", {failed} FAILED" if failed else ""),
+                 silent=not failed)  # a clean sync is for the record; a FAILED push is not
 
 
 # ── jobs ──
@@ -590,7 +598,7 @@ def job_sync(run: Run, inputs: dict) -> None:
         p = subprocess.run(pf("brief", "--telegram"), cwd=REPO_DIR, capture_output=True,
                            text=True, timeout=300)
         if p.returncode == 0:
-            telegram(p.stdout.strip(), html=True, title="🏃 PaceForge morning brief")
+            telegram(p.stdout.strip(), html=True, title="🏃 PaceForge morning brief", silent=True)
     if rc != 0:
         if light:
             raise RuntimeError("light sync failed")  # no Telegram spam from 64 passes/day
@@ -952,7 +960,7 @@ def job_coach(run: Run, inputs: dict) -> None:
                    .replace("<", "&lt;").replace(">", "&gt;"))
             head, _, rest = esc.partition("\n")
             styled = f"<b>{head.lstrip('# ').strip()}</b>\n{rest.strip()}"
-            telegram(styled, html=True, title="📊 PaceForge weekly review")
+            telegram(styled, html=True, title="📊 PaceForge weekly review", silent=True)
 
 
 def job_push(run: Run, inputs: dict) -> None:
