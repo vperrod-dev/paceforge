@@ -4,4 +4,4 @@ After=paceforge-runner.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/curl -fsS -X POST -H "Content-Type: application/json" -d {"light":"true"} http://127.0.0.1:8223/run/sync
+ExecStart=/usr/bin/curl -fsS -X POST -H "Content-Type: application/json" -d '{"light":"true"}' http://127.0.0.1:8223/run/sync

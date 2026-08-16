@@ -224,7 +224,7 @@ def telegram(text: str, pre: bool = False, title: str = "", html: bool = False) 
     # that timed out client-side may already have been delivered, so retrying
     # there is how one brief arrived twice.
     if not send({"chat_id": chat, "text": payload, "parse_mode": "HTML",
-                 "disable_web_page_preview": "true"}, retry_worthy=True):
+                 "disable_web_page_preview": "true"}):
         plain = re.sub(r"<[^>]+>", "", text) if html else text
         send({"chat_id": chat, "text": f"{title}\n{plain}"[:3900], "disable_web_page_preview": "true"})
 
