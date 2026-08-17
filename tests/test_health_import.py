@@ -77,6 +77,41 @@ class TestImportHealthData:
         assert [p.value for p in points] == [28.1]
 
 
+class TestRejectsBadValues:
+    @pytest.mark.parametrize("value", [-70.0, 0.0, 5000.0, float("nan"), float("inf"),
+                                       float("-inf"), "abc"])
+    def test_out_of_range_or_non_finite_weight_is_not_persisted(self, value):
+        store.save_profile(UserFitnessProfile())
+        actions.import_health_data(_hek_payload(weight=[("2026-08-09", value)]))
+        assert store.load_profile().health_data.body_composition.weight_kg == []
+
+    def test_bad_value_returns_written_zero(self):
+        store.save_profile(UserFitnessProfile())
+        result = actions.import_health_data(_hek_payload(weight=[("2026-08-09", float("nan"))]))
+        assert result["written"] == 0
+
+    @pytest.mark.parametrize("value", [-1.0, 0.0, 101.0, float("nan")])
+    def test_out_of_range_body_fat_is_not_persisted(self, value):
+        store.save_profile(UserFitnessProfile())
+        actions.import_health_data(_hek_payload(body_fat=[("2026-08-09", value)]))
+        assert store.load_profile().health_data.body_composition.body_fat_pct == []
+
+    @pytest.mark.parametrize("value", [-5.0, 0.0, 250.0, float("inf")])
+    def test_out_of_range_bmi_is_not_persisted(self, value):
+        store.save_profile(UserFitnessProfile())
+        actions.import_health_data(_hek_payload(bmi=[("2026-08-09", value)]))
+        assert store.load_profile().health_data.body_composition.bmi == []
+
+    def test_a_bad_point_does_not_block_a_good_one(self):
+        store.save_profile(UserFitnessProfile())
+        actions.import_health_data(_hek_payload(weight=[
+            ("2026-08-08", float("nan")),
+            ("2026-08-09", 90.1),
+        ]))
+        points = store.load_profile().health_data.body_composition.weight_kg
+        assert [p.value for p in points] == [90.1]
+
+
 class TestHealthDataSurvivesAGarminSync:
     def test_a_fresh_garmin_profile_does_not_erase_prior_health_data(self):
         store.save_profile(UserFitnessProfile())

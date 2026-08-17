@@ -17,6 +17,7 @@ import getpass
 import io
 import json
 import logging
+import math
 import os
 import sys
 import tarfile
@@ -276,6 +277,14 @@ _HEALTH_BODY_FIELDS = {
     "bmi": "bmi",
     "leanBodyMass": "lean_body_mass_kg",
 }
+# Plausible human ranges; anything outside (or NaN/inf, which float() accepts and
+# json.dumps then writes as invalid JSON) is skipped rather than persisted.
+_HEALTH_BOUNDS = {
+    "weight_kg": (20.0, 400.0),
+    "lean_body_mass_kg": (10.0, 300.0),
+    "body_fat_pct": (1.0, 75.0),
+    "bmi": (8.0, 100.0),
+}
 
 
 def import_health_data(payload: dict, source: str = "apple_health") -> dict:
@@ -313,7 +322,14 @@ def import_health_data(payload: dict, source: str = "apple_health") -> dict:
             qty = values.get(src_key)
             if qty is None or day in seen_by_field[field]:
                 continue
-            points_by_field[field].append(HealthDataPoint(date=day, value=float(qty), source=source))
+            try:
+                value = float(qty)
+            except (TypeError, ValueError):
+                continue
+            lo, hi = _HEALTH_BOUNDS[field]
+            if not math.isfinite(value) or not lo <= value <= hi:
+                continue
+            points_by_field[field].append(HealthDataPoint(date=day, value=value, source=source))
             seen_by_field[field].add(day)
             written += 1
 
