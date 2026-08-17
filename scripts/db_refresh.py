@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Manual DB-refresh for a PaceForge athlete instance.
 
-Does NOT restart/deploy anything: it only reinitializes that instance's
-data/*.json from the main checkout so the destructive refresh is an
-explicit manual step instead of being bundled with deploy-like actions.
+Does NOT restart/deploy anything: it only wipes that instance's athlete
+data back to the empty state `users.py add` provisions, so the destructive
+refresh is an explicit manual step instead of being bundled with deploy-like
+actions. Nothing is copied from the main checkout: its `data/` is Victor's
+own profile/history (PII), and every athlete's data must only ever be their own.
 
     scripts/db_refresh.py alice
     scripts/db_refresh.py alice --plan data/plan.json
@@ -16,14 +18,12 @@ systemd units, Caddy routes, or runners.
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import shutil
 import sys
 from pathlib import Path
 
 HOME = Path.home()
-MAIN = Path(__file__).resolve().parent.parent          # Victor's checkout
 USERS = HOME / "projects" / "paceforge-users"
 NAME_RE = re.compile(r"^[a-z][a-z0-9-]{1,20}$")
 BAD_NAME = "name must be lowercase letters/digits/dashes, 2-21 chars, e.g. 'alice'"
@@ -65,25 +65,18 @@ def tracked_refreshable(name: str) -> list[Path]:
     return out
 
 
-def copy_refreshable(src: Path, dest: Path, plan: Path | None) -> None:
+def reset_refreshable(dest: Path, plan: Path | None) -> None:
     for rel in REFRESHABLE:
         if rel.startswith(KEEP_IN_DATA):
             continue
-        s = src / rel
         d = dest / rel
+        if d.is_dir():
+            shutil.rmtree(d)
+        elif d.exists():
+            d.unlink()
         if rel == "data/plan.json" and plan is not None and plan.exists():
             d.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(plan, d)
-            continue
-        if not s.exists():
-            continue
-        d.parent.mkdir(parents=True, exist_ok=True)
-        if s.is_dir():
-            if d.exists():
-                shutil.rmtree(d)
-            shutil.copytree(s, d)
-        else:
-            shutil.copy2(s, d)
 
 
 def cmd_refresh(args: argparse.Namespace) -> None:
@@ -105,7 +98,7 @@ def cmd_refresh(args: argparse.Namespace) -> None:
             print(f"   {p.relative_to(root)}")
         sys.exit("re-run with --yes to confirm.")
 
-    copy_refreshable(MAIN, root, plan)
+    reset_refreshable(root, plan)
     print(f"refreshed data for {name}")
 
 
