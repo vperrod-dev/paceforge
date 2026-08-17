@@ -29,6 +29,16 @@
     "stress_avg": 17,
     "training_readiness": 68.0
    }
+  },
+  {
+   "slot": "2026-08-17T19",
+   "at": "2026-08-17T18:00:27Z",
+   "source": "hermes",
+   "text": "Your energy is holding up better than the sleep-debt numbers suggested \u2014 low stress (24), solid resting HR (46), and balanced HRV mean your body battery is stable, though training readiness at 68 says don't push for gains. The indoor cycling is already done, and your 10 x 200m speed reps got completed as part of it, so you're carrying both sessions today without forcing neuro work on tired legs. Keep the reps short and fast (they're done), but skip any extra intensity tonight \u2014 let the Z2 recovery mindset from the bike carry you through the evening. One tip: prioritize 7+ hours of quality slee",
+   "metrics": {
+    "stress_avg": 24,
+    "training_readiness": 68.0
+   }
   }
  ]
 }
