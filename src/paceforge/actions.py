@@ -625,7 +625,7 @@ def _match_plan() -> int:
 
     activities = store.load_activities()
     items = store.load_calendar()
-    if items and match_calendar_items(items, activities):
+    if items and match_calendar_items(items, activities + _rides_as_activities()):
         store.save_calendar(items)
     plan = store.load_plan()
     if not plan:
@@ -1529,9 +1529,19 @@ _RUNNING_TYPES = {"running", "treadmill_running", "trail_running", "track_runnin
                   "indoor_running", "virtual_run"}
 
 
+def _rides_as_activities() -> list[dict]:
+    """App-recorded bike rides shaped like activities so calendar Bike items can
+    match them — they never reach Garmin, so ``load_activities`` never sees them.
+    Same ``bike:<date>`` id the load maths uses (engine/load.py)."""
+    return [{"activity_id": f"bike:{r.get('date')}", "start_time": r.get("date"),
+             "activity_type": "indoor_cycling", "name": r.get("workout"),
+             "duration_seconds": r.get("duration_sec")}
+            for r in store.load_bike_rides() if r.get("date")]
+
+
 def match_calendar_items(items: list, activities: list[dict]) -> int:
-    """Link completed Garmin activities to scheduled calendar items (same date,
-    compatible sport). Never steals an activity already claimed by another item.
+    """Link completed Garmin activities (or app rides, see ``_rides_as_activities``)
+    to scheduled calendar items (same date, compatible sport). Never steals an activity already claimed by another item.
     Returns how many items changed."""
     claimed = {aid for i in items for aid in i.matched_activity_ids}
     changed = 0
@@ -1599,7 +1609,7 @@ def add_session(session_date: str, sport: str, minutes: int, name: str = "",
         for i in range(count)
     ]
     items.extend(new_items)
-    match_calendar_items(items, store.load_activities())
+    match_calendar_items(items, store.load_activities() + _rides_as_activities())
     store.save_calendar(items)
     return {"session_ids": [i.item_id for i in new_items], "scheduled_date": session_date,
             "repeat_weeks": count, "sport": sport}

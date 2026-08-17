@@ -70,3 +70,15 @@ def test_overlong_name_is_truncated_so_garmin_push_does_not_choke():
     item = store.load_calendar()[0]
     assert len(item.title) == 120
     assert len(actions._item_to_workout(item).name) <= 120
+
+
+def test_bike_item_matches_app_recorded_ride_same_day():
+    # App rides live in data/bike/rides.json, never on Garmin — the matcher must see them.
+    (store.DATA_DIR / "bike").mkdir()
+    (store.DATA_DIR / "bike" / "rides.json").write_text(
+        '{"rides": [{"date": "2026-08-04T14:42:33", "workout": "4x8 VO2", '
+        '"duration_sec": 3269, "tss": 82.2, "source": "web"}]}')
+    actions.add_session(session_date="2026-08-04", sport="Bike", minutes=45,
+                        name="Indoor cycling")
+    item = store.load_calendar()[0]
+    assert item.matched_activity_ids == ["bike:2026-08-04T14:42:33"] and item.completed

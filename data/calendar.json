@@ -329,8 +329,10 @@
   "notes": "",
   "source": "manual",
   "garmin_workout_id": 1667500939,
-  "matched_activity_ids": [],
-  "completed": false
+  "matched_activity_ids": [
+   "bike:2026-08-17T14:42:33"
+  ],
+  "completed": true
  },
  {
   "item_id": "721d9b3c",

@@ -1194,6 +1194,23 @@ def job_save_rpe(run: Run, inputs: dict) -> None:
         dispatch("analyze", {})
 
 
+def job_save_ride(run: Run, inputs: dict) -> None:
+    """Log an app ride, then link it to today's calendar Bike item — a ride that
+    only lands in rides.json leaves the planned session showing as not done."""
+    from paceforge import actions, store
+    run.step("Update data/bike/rides.json (validated)")
+    data = inputs.get("data")
+    entry = json.loads(data) if isinstance(data, str) else data
+    with store._WRITE_LOCK:
+        append_ride(entry, REPO_DIR / "data")
+    run.step("Link the ride to its calendar item")
+    actions._match_plan()
+    run.step("Commit")
+    commit_push(run, ["data/bike/rides.json", "data/calendar.json", "data/plan.json"],
+                "data: log bike ride")
+    publish(run)
+
+
 def _save_job(transform, commit_path: str, msg: str):
     def job(run: Run, inputs: dict) -> None:
         from paceforge import store
@@ -1227,7 +1244,7 @@ JOBS = {
     "garmin-clear-calendar": job_garmin_clear_calendar,
     "hyrox": job_hyrox,
     "save-rpe": job_save_rpe,
-    "save-ride": _save_job(append_ride, "data/bike/rides.json", "data: log bike ride"),
+    "save-ride": job_save_ride,
     "save-bike-profile": _save_job(patch_bike_profile,
                                    "data/bike/profile.json", "data: update bike profile"),
     "save-events": _save_job(write_events, "data/events.json", "data: update upcoming events"),
