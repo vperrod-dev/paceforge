@@ -19,6 +19,16 @@
     "stress_avg": 17,
     "training_readiness": 68.0
    }
+  },
+  {
+   "slot": "2026-08-17T15",
+   "at": "2026-08-17T14:00:23Z",
+   "source": "hermes",
+   "text": "Your energy is trending cautiously \u2014 sleep debt is the main limiter (25h banked, TSB -14.6), but your stress is low (17), resting HR is solid at 46, and HRV is balanced, so your body battery is holding up better than the numbers initially suggested; training readiness sits at 68 and readiness at 64.4 (moderate), which means you have room to train but shouldn't push for gains. The indoor cycling is still on the books and fits as your aerobic base \u2014 keep it Z2-ish and save the speed reps only if your legs feel genuinely fresh afterward, otherwise swap them for easy running to avoid forcing neuro",
+   "metrics": {
+    "stress_avg": 17,
+    "training_readiness": 68.0
+   }
   }
  ]
 }
