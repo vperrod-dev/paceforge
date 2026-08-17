@@ -464,6 +464,39 @@ ANALYSIS_LOOKBACK_DAYS = 30   # don't churn through the whole multi-year backlog
 ANALYSIS_BATCH = 10           # per pass; sync runs 3×/day so the rest follows shortly
 
 
+# path -> (mtime, headline). The directory only ever grows (job_analyze adds, nothing
+# prunes), so re-reading every file per /analyses hit scales with history; keying
+# on mtime means a file is read once until it changes.
+_ANALYSES_CACHE: dict[str, tuple[float, str]] = {}
+
+
+def analyses_index(adir: Path) -> list[dict]:
+    """Coach-tab index: every per-activity analysis, newest first, with a headline."""
+    out = []
+    if not adir.is_dir():
+        return out
+    seen = set()
+    for f in adir.glob("*.md"):
+        try:
+            mtime = f.stat().st_mtime
+            cached = _ANALYSES_CACHE.get(str(f))
+            if cached is None or cached[0] != mtime:
+                text = f.read_text()
+                # First real sentence, not the "# Session summary" heading.
+                head = next((ln.strip() for ln in text.splitlines()
+                             if ln.strip() and not ln.lstrip().startswith(("#", "-", "*", "|"))), "")
+                cached = (mtime, head[:200])
+                _ANALYSES_CACHE[str(f)] = cached
+        except OSError:
+            continue
+        seen.add(str(f))
+        out.append({"id": f.stem, "headline": cached[1], "mtime": int(cached[0])})
+    for stale in set(_ANALYSES_CACHE) - seen:
+        del _ANALYSES_CACHE[stale]
+    out.sort(key=lambda x: -x["mtime"])
+    return out
+
+
 def pending_analyses(data_dir: Path, now: datetime | None = None) -> list[str]:
     """Every completed session without a coach analysis yet — ALL Garmin activities
     (running, cardio, strength, …) plus app-recorded bike rides. Plan matching is
@@ -1579,21 +1612,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/analyses":
             # Coach-tab index: every per-activity analysis, newest first, with a
             # headline (first non-empty line) so the list is scannable.
-            out = []
-            adir = REPO_DIR / "data" / "analyses"
-            if adir.is_dir():
-                for f in adir.glob("*.md"):
-                    try:
-                        text = f.read_text()
-                    except OSError:
-                        continue
-                    # First real sentence, not the "# Session summary" heading.
-                    head = next((ln.strip() for ln in text.splitlines()
-                                 if ln.strip() and not ln.lstrip().startswith(("#", "-", "*", "|"))), "")
-                    out.append({"id": f.stem, "headline": head[:200],
-                                "mtime": int(f.stat().st_mtime)})
-            out.sort(key=lambda x: -x["mtime"])
-            return self._send(200, out)
+            return self._send(200, analyses_index(REPO_DIR / "data" / "analyses"))
         if path.startswith("/data/"):
             return self._static(REPO_DIR / path.lstrip("/"), root="data")
         if path == "/garmin/status":
