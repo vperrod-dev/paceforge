@@ -12,7 +12,7 @@
   "lactate_threshold_hr": 163.0,
   "lactate_threshold_speed": 3.7777672,
   "endurance_score": 6546.0,
-  "weight_kg": 90.1,
+  "weight_kg": 90.6,
   "race_predictions": [],
   "personal_records": [],
   "recent_activities": [
@@ -230,7 +230,7 @@
     "sources": [
       "apple_health"
     ],
-    "last_sync": "2026-08-17T08:12:07+00:00",
+    "last_sync": "2026-08-18T08:12:08+00:00",
     "body_composition": {
       "height_cm": null,
       "weight_kg": [
@@ -273,6 +273,11 @@
           "date": "2026-08-14",
           "value": 90.1,
           "source": "apple_health"
+        },
+        {
+          "date": "2026-08-18",
+          "value": 90.6,
+          "source": "apple_health"
         }
       ],
       "bmi": [
@@ -310,6 +315,11 @@
           "date": "2026-08-14",
           "value": 28.0,
           "source": "apple_health"
+        },
+        {
+          "date": "2026-08-18",
+          "value": 28.2,
+          "source": "apple_health"
         }
       ],
       "body_fat_pct": [
@@ -346,6 +356,11 @@
         {
           "date": "2026-08-14",
           "value": 16.0,
+          "source": "apple_health"
+        },
+        {
+          "date": "2026-08-18",
+          "value": 15.8,
           "source": "apple_health"
         }
       ],
