@@ -167,6 +167,8 @@ def readiness_gate(plan: TrainingPlan, readiness: dict | None,
                     estimated_duration_seconds=workout.estimated_duration_seconds,
                     estimated_distance_meters=(workout.estimated_distance_meters or 0) * 0.7,
                     purpose=workout.purpose,
+                    session_id=workout.session_id,
+                    garmin_workout_id=workout.garmin_workout_id,
                 )
                 return [f"Downgraded {workout.name} on {workout.scheduled_date} to easy — {reason}"]
     return []

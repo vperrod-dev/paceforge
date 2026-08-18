@@ -58,6 +58,17 @@ def test_readiness_gate_downgrades_imminent_quality():
     assert "was: Brick" in downgraded.name
 
 
+def test_readiness_gate_keeps_stable_ids():
+    quality = _wo(5, WorkoutType.HYROX_MIXED, "Brick")
+    quality.garmin_workout_id = 123
+    original_session_id = quality.session_id
+    plan = _plan([quality])
+    readiness_gate(plan, {"score": 18, "band": "low"}, today=TODAY)
+    downgraded = plan.weeks[0].workouts[0]
+    assert downgraded.session_id == original_session_id
+    assert downgraded.garmin_workout_id == 123
+
+
 def test_high_rpe_yesterday_gates_even_when_readiness_ok():
     quality = _wo(5, WorkoutType.TEMPO, "Tempo")
     plan = _plan([quality])
