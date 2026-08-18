@@ -193,8 +193,8 @@ in `web/index.html`). Generate them so the meaningful sessions already have one:
    `avg_stride_length`, GCT, vertical ratio), its `data/details/{id}.json` — per-km splits
    (pace/HR/`avg_cadence`) and the time-series (`series` items carry `hr`, `pace`, `cad`,
    `stride`) — the matched planned session, and `data/profile.json`. Write `data/analyses/{id}.md`
-   with these `##` sections, in this order: **Session summary**, **Versus the plan**,
-   **Effect on your profile**, **What to improve**, **Key points**. Commit it.
+   with these `##` sections, in this order: **Session summary**, **How it compares**,
+   **What this built**, **What went well / what didn't**, **Key points**. Commit it.
    **"The plan" means the athlete's whole schedule, not the running plan:** a workout in
    `data/plan.json` (`matched_activity_ids`) OR an item in `data/calendar.json` whose
    `matched_activity_ids` holds this id — a booked class, ride or swim is a planned
@@ -206,19 +206,30 @@ in `web/index.html`). Generate them so the meaningful sessions already have one:
    typical, watch over-striding = low cadence + long stride) and **stride length** (and how
    both drift late in the session = fatigue), plus GCT and vertical ratio. Tie them to economy
    and give a concrete cue (e.g. "lift cadence ~5% to cut over-striding"). Skip for non-runs.
-5. **Voice — talk to the athlete, not at a spreadsheet. Keep it SHORT.** The charts right
-   above this text already draw the HR trace, the zone bars, and the splits table — do NOT
-   re-narrate them minute-by-minute or restate every number the athlete can already see in a
-   chart. Use numbers to make a *point* (a peak, a fade, a contrast with last time), never as
-   a wall of figures. Short sentences, plain language, warm and encouraging tone — a coach's
-   quick word after a session, not a report. **Hard caps, whole file ~120–150 words:**
-   - **Session summary**: 2 sentences max. What it was + the one number that matters.
-   - **Versus the plan**: 1–2 sentences. Matched or not, and the one thing worth flagging.
-   - **Effect on your profile**: 1–2 sentences. Only if there's a real signal (readiness
-     conflict, a limiter it touches, a trend) — skip filler if there isn't one.
-   - **What to improve**: 1 concrete, actionable sentence. One cue, not a list of options.
-   - **Key points** (closing): 3–4 short bullets, the skimmable TL;DR — what went well, what
-     it built, what to watch. If a bullet just repeats a sentence already said above, cut it.
+5. **Voice — talk to the athlete, not at a spreadsheet.** The charts right above this text
+   already draw the HR trace, the zone bars, and the splits table — do NOT re-narrate them
+   minute-by-minute or restate every number the athlete can already see in a chart. Use
+   numbers to make a *point* (a peak, a fade, a contrast with a baseline), never as a wall of
+   figures. Plain language, warm tone — a coach explaining WHY, not a data export. Target
+   ~200–250 words total (3–4 sentences per section) — short enough to skim, but every
+   section must carry real substance, not just a restated stat:
+   - **Session summary**: what it was, how it went, the number that matters.
+   - **How it compares**: against the plan/booking AND against the athlete's own baseline —
+     name a concrete reference point (recent sessions of this same type, VDOT/pace zones,
+     a relevant limiter from `data/limiters.json` or `fitness.json`, a load/CTL trend). "Duration
+     matched" alone is not a comparison — say whether the intensity/output was higher, lower,
+     or in line with what this athlete usually produces here, and by how much.
+   - **What this built**: the plain-language training benefit — which system this session
+     trained (aerobic base, threshold, anaerobic capacity, running economy, recovery) and why
+     that matters given this athlete's current goal/limiters. This is the section most often
+     skipped — never omit it, even for an easy or unplanned session (state the benefit of
+     going easy, if that's what it was).
+   - **What went well / what didn't**: explicitly two-sided — at least one concrete thing that
+     went well (not generic praise: a number, a hold, a negative split) and one that didn't or
+     could improve, with a concrete cue. Don't force a negative if there genuinely isn't one,
+     but don't skip the positive either — most sessions have both.
+   - **Key points** (closing): 3–4 short bullets, the skimmable TL;DR. If a bullet just
+     repeats a sentence already said above, cut it.
    Depth comes from picking the *right* one or two numbers per section, not from covering
    every metric — trust the charts to carry the rest.
 
