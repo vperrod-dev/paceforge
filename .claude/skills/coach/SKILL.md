@@ -180,8 +180,9 @@ recovery flag); `load.daily_load.unloaded_activities` lists sessions still missi
 nudge the athlete to rate them.
 
 ## Per-activity analysis → `data/analyses/{activity_id}.md`
-The web detail view renders a Markdown analysis per activity. Generate them so the
-meaningful sessions already have one:
+The web detail view renders a Markdown analysis per activity, directly below the charts
+(HR-over-time, zone bars, pace/cadence/stride charts, splits table — `activityDetailBody()`
+in `web/index.html`). Generate them so the meaningful sessions already have one:
 1. **Every completed session gets one** — all Garmin activities (running, cardio,
    strength, …) and app-recorded bike rides (`bike:{date}` ids, from
    `data/bike/rides.json`), planned or not. The runner's `pending_analyses` computes the
@@ -192,8 +193,8 @@ meaningful sessions already have one:
    `avg_stride_length`, GCT, vertical ratio), its `data/details/{id}.json` — per-km splits
    (pace/HR/`avg_cadence`) and the time-series (`series` items carry `hr`, `pace`, `cad`,
    `stride`) — the matched planned session, and `data/profile.json`. Write `data/analyses/{id}.md`
-   with these `##` sections: **Session summary**, **Versus the plan**, **Effect on your profile**,
-   **What to improve** — concrete and specific (pace/HR/fade numbers, not platitudes). Commit it.
+   with these `##` sections, in this order: **Session summary**, **Versus the plan**,
+   **Effect on your profile**, **What to improve**, **Key points**. Commit it.
    **"The plan" means the athlete's whole schedule, not the running plan:** a workout in
    `data/plan.json` (`matched_activity_ids`) OR an item in `data/calendar.json` whose
    `matched_activity_ids` holds this id — a booked class, ride or swim is a planned
@@ -205,6 +206,19 @@ meaningful sessions already have one:
    typical, watch over-striding = low cadence + long stride) and **stride length** (and how
    both drift late in the session = fatigue), plus GCT and vertical ratio. Tie them to economy
    and give a concrete cue (e.g. "lift cadence ~5% to cut over-striding"). Skip for non-runs.
+5. **Voice — talk to the athlete, not at a spreadsheet.** The charts right above this text
+   already draw the HR trace, the zone bars, and the splits table — do NOT re-narrate them
+   minute-by-minute or restate every number the athlete can already see in a chart. Use
+   numbers to make a *point* (a peak, a fade, a contrast with last time), never as a wall of
+   figures. Short sentences, plain language, warm and encouraging tone — this is a coach
+   talking after a session, not a data export. One or two headline numbers per paragraph is
+   the ceiling; anything more, cut it or move it into a bullet.
+   - **Session summary**: 2–4 short sentences. What the session was, how it felt/went overall,
+     the one or two numbers that matter (e.g. duration, avg HR, training effect) — not a
+     zone-by-zone or minute-by-minute account (the charts show that).
+   - **Key points** (new, closing section): 3–5 short bullets, plain language, the TL;DR a
+     tired athlete can skim — what went well, what it built, what to watch next time. This is
+     the friendly summary; the denser reasoning lives in the sections above it.
 
 ## Daily brief → `data/daily-brief.json`
 Every morning (runner `daily` job, after the sync) write the athlete's landing-page
