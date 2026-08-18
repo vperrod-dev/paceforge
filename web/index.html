@@ -2496,7 +2496,7 @@ function setVolumeCard(s) {
   const t = v => v >= 1000 ? (v / 1000).toFixed(1) + ' t' : Math.round(v) + ' kg';
   const maxT = Math.max(...(sv.top_exercises || []).map(e => e.tonnage_kg), 1);
   const rows = (sv.top_exercises || []).map(e =>
-    hrZoneLikeBar(`${e.name} · ${e.reps} reps`, e.tonnage_kg / maxT * 100, 'var(--violet)')).join('');
+    hrZoneLikeBar(`${escHtml(e.name)} · ${e.reps} reps`, e.tonnage_kg / maxT * 100, 'var(--violet)')).join('');
   return fxCard(`Gym volume · last ${sv.window_days} days`, icons.dumbbell, `
     <div class="fx-grid">
       ${metricCard('Sessions', (sv.sessions || []).length, 'with set data')}
