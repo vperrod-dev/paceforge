@@ -19,6 +19,16 @@
     "stress_avg": 23,
     "training_readiness": 77.0
    }
+  },
+  {
+   "slot": "2026-08-18T19",
+   "at": "2026-08-18T18:00:15Z",
+   "source": "hermes",
+   "text": "You're trending better but still fragile \u2014 Un1t pushed you hard on 5.9h sleep, and while your energy is climbing back, stress_avg 26 and sleep_score 61 mean your battery isn't fully recharged. The 2h outdoor ride absolutely fits if you hold it at true Z2 (60-70% max HR), spinning easy and resisting any surges or pace-chasing with the group. Concrete tip: treat every climb today like a gear-shifting drill \u2014 sit and spin comfortably seated, stay breathing through your nose or easy mouth-breathing, and keep your HR monitor visible so you abort any drift above 70% max before it becomes a chase. Do",
+   "metrics": {
+    "stress_avg": 26,
+    "training_readiness": 77.0
+   }
   }
  ]
 }
