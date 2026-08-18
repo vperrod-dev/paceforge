@@ -206,19 +206,21 @@ in `web/index.html`). Generate them so the meaningful sessions already have one:
    typical, watch over-striding = low cadence + long stride) and **stride length** (and how
    both drift late in the session = fatigue), plus GCT and vertical ratio. Tie them to economy
    and give a concrete cue (e.g. "lift cadence ~5% to cut over-striding"). Skip for non-runs.
-5. **Voice — talk to the athlete, not at a spreadsheet.** The charts right above this text
-   already draw the HR trace, the zone bars, and the splits table — do NOT re-narrate them
-   minute-by-minute or restate every number the athlete can already see in a chart. Use
-   numbers to make a *point* (a peak, a fade, a contrast with last time), never as a wall of
-   figures. Short sentences, plain language, warm and encouraging tone — this is a coach
-   talking after a session, not a data export. One or two headline numbers per paragraph is
-   the ceiling; anything more, cut it or move it into a bullet.
-   - **Session summary**: 2–4 short sentences. What the session was, how it felt/went overall,
-     the one or two numbers that matter (e.g. duration, avg HR, training effect) — not a
-     zone-by-zone or minute-by-minute account (the charts show that).
-   - **Key points** (new, closing section): 3–5 short bullets, plain language, the TL;DR a
-     tired athlete can skim — what went well, what it built, what to watch next time. This is
-     the friendly summary; the denser reasoning lives in the sections above it.
+5. **Voice — talk to the athlete, not at a spreadsheet. Keep it SHORT.** The charts right
+   above this text already draw the HR trace, the zone bars, and the splits table — do NOT
+   re-narrate them minute-by-minute or restate every number the athlete can already see in a
+   chart. Use numbers to make a *point* (a peak, a fade, a contrast with last time), never as
+   a wall of figures. Short sentences, plain language, warm and encouraging tone — a coach's
+   quick word after a session, not a report. **Hard caps, whole file ~120–150 words:**
+   - **Session summary**: 2 sentences max. What it was + the one number that matters.
+   - **Versus the plan**: 1–2 sentences. Matched or not, and the one thing worth flagging.
+   - **Effect on your profile**: 1–2 sentences. Only if there's a real signal (readiness
+     conflict, a limiter it touches, a trend) — skip filler if there isn't one.
+   - **What to improve**: 1 concrete, actionable sentence. One cue, not a list of options.
+   - **Key points** (closing): 3–4 short bullets, the skimmable TL;DR — what went well, what
+     it built, what to watch. If a bullet just repeats a sentence already said above, cut it.
+   Depth comes from picking the *right* one or two numbers per section, not from covering
+   every metric — trust the charts to carry the rest.
 
 ## Daily brief → `data/daily-brief.json`
 Every morning (runner `daily` job, after the sync) write the athlete's landing-page
