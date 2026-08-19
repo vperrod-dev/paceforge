@@ -586,13 +586,18 @@ def _sync_rate_limited() -> bool:
     return "429" in json.dumps(st.get("endpoints", {}))
 
 
-def _data_fingerprint() -> str:
-    h = hashlib.sha256()
+def _data_fingerprint() -> tuple:
+    """(mtime, size) per tracked file — cheap stand-in for hashing full file
+    contents, which grow unbounded over an athlete's lifetime."""
+    stats = []
     for name in ("activities.json", "history.jsonl", "profile.json"):
         p = REPO_DIR / "data" / name
-        if p.exists():
-            h.update(p.read_bytes())
-    return h.hexdigest()
+        try:
+            st = p.stat()
+            stats.append((st.st_mtime, st.st_size))
+        except FileNotFoundError:
+            stats.append(None)
+    return tuple(stats)
 
 
 def job_sync(run: Run, inputs: dict) -> None:
