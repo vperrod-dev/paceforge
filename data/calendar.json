@@ -82,19 +82,6 @@
   "completed": false
  },
  {
-  "item_id": "4402b765",
-  "date": "2026-08-19",
-  "sport": "HYROX",
-  "title": "Un1t Hyrox",
-  "duration_min": 45,
-  "distance_km": null,
-  "notes": "",
-  "source": "manual",
-  "garmin_workout_id": 1669800508,
-  "matched_activity_ids": [],
-  "completed": false
- },
- {
   "item_id": "3e366fe2",
   "date": "2026-08-26",
   "sport": "HYROX",
