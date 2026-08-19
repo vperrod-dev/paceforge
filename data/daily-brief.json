@@ -29,6 +29,16 @@
     "stress_avg": 23,
     "training_readiness": 63.0
    }
+  },
+  {
+   "slot": "2026-08-19T19",
+   "at": "2026-08-19T18:00:28Z",
+   "source": "hermes",
+   "text": "Your energy is trending up despite the sleep-debt morning \u2014 HRV balanced, stress low at 22, and resting HR steady at 52, which suggests your body battery is recovering as the day progresses. The Hyrox class still fits as today's single hard stimulus; your readiness band is moderate (40.2) and training load is light after completing the 9km easy run, so a controlled 45-minute class is appropriate without pushing for extra intensity. Keep the Hyrox effort steady and let the class dictate pace \u2014 don't chase extra reps on the rower or ski-erg, and focus on smooth breathing to prevent HR drift in t",
+   "metrics": {
+    "stress_avg": 22,
+    "training_readiness": 63.0
+   }
   }
  ]
 }
