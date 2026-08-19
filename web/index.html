@@ -1034,7 +1034,7 @@ async function submitCoachIssue() {
     if (res.ok) {
       const issue = await res.json();
       closeModal();
-      toast('ok', 'Sent to the coach', `<a href="${issue.html_url}" target="_blank" rel="noopener">Watch the coach work →</a>`);
+      toast('ok', 'Sent to the coach', 'Watch the coach work in Job history.');
     } else {
       throw new Error(await jobError(res));
     }
@@ -1282,7 +1282,7 @@ async function withBusy(btn, busyLabel, fn) {
   const orig = btn ? btn.innerHTML : null;
   if (btn) { btn.disabled = true; btn.dataset.orig = orig; btn.innerHTML = `<span class="spinner" style="width:16px;height:16px;border-width:2px"></span>${busyLabel}`; }
   try { await fn(); }
-  catch (e) { toast('err', 'Action failed', escHtml(e.message || 'Unknown error')); }
+  catch (e) { toast('err', 'Action failed', e.message || 'Unknown error'); }
   finally { if (btn) { btn.disabled = false; btn.innerHTML = orig; } }
 }
 
@@ -1291,7 +1291,7 @@ function toast(kind, title, body) {
   const ico = kind === 'ok' ? icons.check : kind === 'err' ? icons.alert : icons.info;
   const el = document.createElement('div');
   el.className = 'toast ' + kind;
-  el.innerHTML = `<span class="t-ico">${ico}</span><div class="t-body"><b>${escHtml(title)}</b>${body || ''}</div><button class="t-x" aria-label="Dismiss">×</button>`;
+  el.innerHTML = `<span class="t-ico">${ico}</span><div class="t-body"><b>${escHtml(title)}</b>${escHtml(body || '')}</div><button class="t-x" aria-label="Dismiss">×</button>`;
   document.getElementById('toasts').appendChild(el);
   const kill = () => { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; setTimeout(() => el.remove(), 200); };
   el.querySelector('.t-x').addEventListener('click', kill);
