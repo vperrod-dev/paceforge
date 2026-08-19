@@ -19,6 +19,16 @@
     "stress_avg": 24,
     "training_readiness": 63.0
    }
+  },
+  {
+   "slot": "2026-08-19T15",
+   "at": "2026-08-19T14:00:08Z",
+   "source": "hermes",
+   "text": "Your body battery is trending up \u2014 HRV balanced and low stress (23 avg) mean recovery is holding despite the sleep debt. You've already cleared the 9km easy run with strides, so the only remaining load is the Un1t Hyrox class, which still fits the brief as today's one hard stimulus. Keep the Hyrox effort controlled: let the class dictate the pace, don't chase extra reps or intensity on the rower or ski-erg, and stay steady on your breathing to keep HR from drifting late in the 45-minute window.",
+   "metrics": {
+    "stress_avg": 23,
+    "training_readiness": 63.0
+   }
   }
  ]
 }
