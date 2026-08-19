@@ -1,34 +1,12 @@
 {
- "date": "2026-08-18",
- "headline": "No run today \u2014 Un1t class plus a 2h outdoor ride, but sleep debt is the thing to manage.",
- "body_state": "Deterministic verdict is **red**, driven by sleep: 27h of 14-day sleep debt, only 5.9h last night (sleep score 61). Garmin's own readiness score reads 77, but the internal composite (which folds in that debt) sits at 61.3 \u2014 moderate, not great. Body battery recharged well overnight (+45) and skin temp is normal (-0.8\u00b0C, no illness signal), HRV is balanced/above-normal. Load-wise you're in the productive zone (TSB -7, the -5\u2026-30 sweet spot) even though Garmin's training-status label still reads \"Unproductive.\" Net: body is coping with load fine, sleep is the deficit to fix.",
- "training": "Two booked sessions today, no run: **Un1t class** (45min Cardio) and a **2h outdoor ride**. Nothing from the running plan lands today \u2014 the next run is tomorrow's 9km Easy + Strides. Yesterday's 10x200m Speed Reps already put real intensity in the legs (RPE 8, HR into Z4/Z5 for 9+ min), so today's two sessions should stay aerobic: keep the ride at genuine Z2 recovery effort and don't chase the Z5/Z6 peaks in Un1t the way Aug 15's class did on a similarly red-flagged morning. On 5.9h of sleep, that restraint matters more than usual.",
- "recent": "Aug 17 speed reps: 8 of 10 200m reps ran 2-8% slower than target pace, cooldown cut to under 5 of the prescribed 10min \u2014 the stimulus landed, but execution has room. Aug 15 Un1t class pushed into Z5/Z6 (23min at 70-80%+ HR) on a red-readiness morning, working against that day's gate. The grey-zone pattern flagged all block continues: 21.6% easy / 51.7% moderate running time against an 80% easy target \u2014 Un1t + rides are filling days that should be recovery, which is exactly why easy runs keep coming in short and hard.",
+ "date": "2026-08-19",
+ "headline": "Un1t Hyrox class plus a 9km easy run booked — let the class carry the intensity, keep the run genuinely easy.",
+ "body_state": "Deterministic verdict is **red**, driven by sleep: 27h of 14-day sleep debt, only 6.0h last night. Body battery is low at 36 (amber — \"quality sessions underperform under 40\"), resting HR is elevated at 52 vs your 48.7 baseline, and HRV reads balanced (45ms). Internal readiness composite is 43.7 (moderate); Garmin's own readiness reads higher at 63 with training status \"Productive.\" TSB is -20.93 — inside the -5…-30 productive-building band — but overtraining risk is flagged **caution**, not clear. Net: load is being absorbed, but the tank is low today.",
+ "training": "Two sessions today: **Un1t Hyrox class** (45min, booked, not yet done) and the plan's **9km Easy + 6 Strides** (target 4:51-5:19/km, strides 3:41-3:57/km). That's real volume on a low-battery, sleep-debt morning. Let the Hyrox class be today's one hard stimulus — don't chase intensity in it. Run the 9km genuinely easy (last week flagged this exact session as the one that should pull your easy/moderate ratio back toward 80%, still at 21.6%/51.7%) and keep the strides relaxed neuromuscular work, not sprinted. If both sessions land back to back, put the easier one first and watch for HR drift late in whichever comes second.",
+ "recent": "Aug 17 speed reps (RPE 8): 8 of 10 200m reps ran 2-8% slower than the 3:42-3:58/km target and the cooldown was cut to under 5 of the prescribed 10min. Aug 18 was a big double day — a 158min hilly ride held at genuine Zone 2 (avg HR 109, 125W) plus your hardest Un1t class of the month (avg HR 136, max 180), though recovery handled it well (60s HR drop of 34bpm, right on your 28-day average). Three days running now with real load on board — exactly why today's battery reads 36 and sleep debt is the flagged limiter.",
  "focus": [
-  "Sleep debt (27h over 14 days) \u2014 earlier bedtime for the next two weeks, not just tonight.",
-  "Keep today's Un1t + ride genuinely aerobic \u2014 one hard stimulus (yesterday's speed work) per 48h is enough.",
-  "Tomorrow's easy run: hold 4:51-5:20/km to start pulling the easy/moderate ratio back toward 80%."
- ],
- "pulses": [
-  {
-   "slot": "2026-08-18T15",
-   "at": "2026-08-18T14:00:13Z",
-   "source": "hermes",
-   "text": "Your energy arc today is the key story: you burned hard in that Un1t class (HR well into Z4/Z5 for 9+ minutes) on just 5.9h sleep, and your stress_avg of 23 with a sleep_score of 61 tells me your body battery is still climbing back out of the red. Training readiness at 77 and HRV balanced at 52.0 are holding you upright, but that readiness score isn't going to last if you chase intensity again.\n\nThe 2h outdoor ride you've got left absolutely fits the day's plan \u2014 but only if you treat it as genuine Z2 recovery, spinning at 60-70% max HR rather than chasing group pace or terrain attacks. That's",
-   "metrics": {
-    "stress_avg": 23,
-    "training_readiness": 77.0
-   }
-  },
-  {
-   "slot": "2026-08-18T19",
-   "at": "2026-08-18T18:00:15Z",
-   "source": "hermes",
-   "text": "You're trending better but still fragile \u2014 Un1t pushed you hard on 5.9h sleep, and while your energy is climbing back, stress_avg 26 and sleep_score 61 mean your battery isn't fully recharged. The 2h outdoor ride absolutely fits if you hold it at true Z2 (60-70% max HR), spinning easy and resisting any surges or pace-chasing with the group. Concrete tip: treat every climb today like a gear-shifting drill \u2014 sit and spin comfortably seated, stay breathing through your nose or easy mouth-breathing, and keep your HR monitor visible so you abort any drift above 70% max before it becomes a chase. Do",
-   "metrics": {
-    "stress_avg": 26,
-    "training_readiness": 77.0
-   }
-  }
+  "Sleep debt (27h over 14 days) — earlier bedtime tonight and for the next two weeks, not a one-off fix.",
+  "One hard stimulus today: let Hyrox carry it, keep the 9km run and strides genuinely easy.",
+  "Grey-zone ratio still stuck at 21.6% easy / 51.7% moderate — today's easy run is the lever to move it."
  ]
 }
