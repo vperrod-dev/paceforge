@@ -335,12 +335,24 @@
           },
           "purpose": "running_economy",
           "cadence_target": null,
-          "completed": false,
-          "matched_activity_ids": [],
-          "manual_activity_ids": [],
+          "completed": true,
+          "matched_activity_ids": [
+            24032386709
+          ],
+          "manual_activity_ids": [
+            24032386709
+          ],
           "excluded_activity_ids": [],
           "completion_analysis": null,
-          "completion_metrics": null,
+          "completion_metrics": {
+            "status": "yellow",
+            "ratio": 0.69,
+            "planned_km": 9.4,
+            "actual_km": 6.53,
+            "planned_min": 45.6,
+            "actual_min": 31.0,
+            "activity_id": 24032386709
+          },
           "garmin_workout_id": 1669800376,
           "variant_key": null,
           "user_rpe": null,
