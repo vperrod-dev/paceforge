@@ -260,7 +260,7 @@
             "within_band": false,
             "ahead": false
           },
-          "garmin_workout_id": 1667499989,
+          "garmin_workout_id": 1669800368,
           "variant_key": "q1:speed_200s:0",
           "user_rpe": 8,
           "user_notes": null
@@ -341,7 +341,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1667500017,
+          "garmin_workout_id": 1669800376,
           "variant_key": null,
           "user_rpe": null,
           "user_notes": null
@@ -408,7 +408,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1667500041,
+          "garmin_workout_id": 1669800393,
           "variant_key": null,
           "user_rpe": null,
           "user_notes": null
@@ -511,7 +511,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1667500119,
+          "garmin_workout_id": 1669800412,
           "variant_key": "q1:hills:1",
           "user_rpe": null,
           "user_notes": null
@@ -579,7 +579,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1667500148,
+          "garmin_workout_id": 1669800415,
           "variant_key": "q2:tempo:1",
           "user_rpe": null,
           "user_notes": null
@@ -623,7 +623,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1667500177,
+          "garmin_workout_id": 1669800419,
           "variant_key": null,
           "user_rpe": null,
           "user_notes": null
@@ -724,7 +724,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1667500250,
+          "garmin_workout_id": 1669800440,
           "variant_key": "q1:fartlek:0",
           "user_rpe": null,
           "user_notes": null
@@ -805,7 +805,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1667500285,
+          "garmin_workout_id": 1669800455,
           "variant_key": null,
           "user_rpe": null,
           "user_notes": null
@@ -885,7 +885,7 @@
           "excluded_activity_ids": [],
           "completion_analysis": null,
           "completion_metrics": null,
-          "garmin_workout_id": 1667500306,
+          "garmin_workout_id": 1669800459,
           "variant_key": null,
           "user_rpe": null,
           "user_notes": null
