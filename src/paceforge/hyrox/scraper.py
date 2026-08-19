@@ -87,6 +87,22 @@ def _time_to_seconds(time_str: str) -> float | None:
     return None
 
 
+# Scraped strings are third-party content that later reaches the coach prompt via
+# data/hyrox.json — cap and flatten them so a crafted results page cannot smuggle
+# multi-line instructions or unbounded text into the athlete's data.
+MAX_FIELD_LEN = 80
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f\u2028\u2029]")
+
+
+def _clean(text: str | None, max_len: int = MAX_FIELD_LEN) -> str:
+    """Flatten whitespace/control chars and cap length of one scraped field."""
+    if not text:
+        return ""
+    text = _CONTROL_CHARS.sub(" ", str(text))
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:max_len]
+
+
 def _seconds_to_display(secs: float | None) -> str:
     """Convert seconds back to H:MM:SS or M:SS display string."""
     if secs is None:
@@ -322,7 +338,7 @@ class HyroxScraper:
             try:
                 # Extract rank
                 rank_elem = item.find("div", class_="type-place")
-                rank = rank_elem.get_text(strip=True) if rank_elem else ""
+                rank = _clean(rank_elem.get_text(strip=True) if rank_elem else "")
 
                 # Extract name and link
                 name_elem = item.find("h4", class_="type-fullname")
@@ -331,14 +347,14 @@ class HyroxScraper:
                 name_link = name_elem.find("a")
                 if not name_link:
                     continue
-                name = name_link.get_text(strip=True)
-                athlete_url = name_link.get("href", "")
+                name = _clean(name_link.get_text(strip=True))
+                athlete_url = _clean(name_link.get("href", ""), 500)
 
                 # Extract city/event (contains "Dublin 2025" format)
                 fields = item.find_all("div", class_="type-field")
                 city_raw = ""
                 for f in fields:
-                    text = f.get_text(strip=True)
+                    text = _clean(f.get_text(strip=True))
                     if text.startswith("City"):
                         city_raw = text[4:].strip()
                         break
@@ -352,7 +368,7 @@ class HyroxScraper:
                 if pull_right:
                     time_elem = pull_right.find("div", class_="type-time")
                     if time_elem:
-                        time_text = time_elem.get_text(strip=True)
+                        time_text = _clean(time_elem.get_text(strip=True))
                         if "Total" in time_text:
                             total_time = time_text.replace("Total", "").strip()
                         else:
@@ -437,8 +453,7 @@ class HyroxScraper:
         # Extract nationality from flag image
         flag_img = soup.find("img", src=re.compile(r"flags/"))
         if flag_img:
-            alt = flag_img.get("alt", "")
-            result["nationality"] = alt
+            result["nationality"] = _clean(flag_img.get("alt", ""))
 
         # Try to find event date from the page
         # Look for date patterns (DD.MM.YYYY, DD/MM/YYYY, Month DD YYYY, etc.)
@@ -465,7 +480,7 @@ class HyroxScraper:
                 cells = row.find_all(["td", "th"])
                 if len(cells) >= 2:
                     label = cells[0].get_text(strip=True)
-                    value = cells[1].get_text(strip=True)
+                    value = _clean(cells[1].get_text(strip=True))
                     if label == "Rank (M/W)":
                         result["rank_mw"] = value if value not in ("–", "-") else ""
                     elif label == "Rank (AG)":
@@ -478,7 +493,7 @@ class HyroxScraper:
         if division_row:
             division_cell = division_row.find("td")
             if division_cell:
-                result["division"] = division_cell.get_text(strip=True)
+                result["division"] = _clean(division_cell.get_text(strip=True))
 
         # Extract workout splits from the splits table
         splits: list[HyroxSplit] = []
